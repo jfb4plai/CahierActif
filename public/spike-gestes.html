@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Essai gestes CahierActif</title>
+<style>
+  body { margin: 0; font-family: Arial, sans-serif; font-size: 16px; }
+  #etat { padding: 8px; background: #0f6e56; color: #fff; }
+  #zone { position: relative; height: 65vh; background: #faf9f7; border-bottom: 2px solid #0f6e56; touch-action: none; overflow: hidden; }
+  #regle { position: absolute; width: 300px; height: 50px; background: rgba(15,110,86,.25); border: 2px solid #0f6e56; transform-origin: center; display: flex; align-items: center; justify-content: center; user-select: none; -webkit-user-select: none; }
+  canvas { position: absolute; inset: 0; }
+  #journal { padding: 8px; height: 25vh; overflow: auto; font-size: 14px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div id="etat">Stylet détecté : non</div>
+<div id="zone"><canvas id="c"></canvas><div id="regle">règle (1 doigt : déplacer, 2 doigts : tourner)</div></div>
+<div id="journal"></div>
+<script>
+const zone = document.getElementById('zone');
+const regle = document.getElementById('regle');
+const c = document.getElementById('c');
+const journal = document.getElementById('journal');
+const etat = document.getElementById('etat');
+const ctx = c.getContext('2d');
+
+function dimensionner() {
+  const r = zone.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  c.width = r.width * dpr; c.height = r.height * dpr;
+  c.style.width = r.width + 'px'; c.style.height = r.height + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.lineCap = 'round'; ctx.strokeStyle = '#1a1814';
+}
+dimensionner();
+
+function log(t) { journal.textContent = t + '\n' + journal.textContent.slice(0, 4000); }
+
+// Safari iOS : empêcher le pincement-zoom de la page
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('gesturechange', e => e.preventDefault());
+
+let styletVu = false;
+const doigts = new Map();        // pointerId -> {x, y}
+let r = { x: 80, y: 120, a: 0 }; // position + angle de la règle
+let depart = null;               // état au début du geste règle
+let dernier = null;              // dernier point du trait en cours
+let nbMoves = 0;
+
+function appliquer() {
+  regle.style.left = r.x + 'px';
+  regle.style.top = r.y + 'px';
+  regle.style.transform = 'rotate(' + r.a + 'rad)';
+}
+appliquer();
+
+function pos(e) {
+  const b = zone.getBoundingClientRect();
+  return { x: e.clientX - b.left, y: e.clientY - b.top };
+}
+function deuxPoints() { return Array.from(doigts.values()); }
+function angle(p, q) { return Math.atan2(q.y - p.y, q.x - p.x); }
+function milieu(p, q) { return { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 }; }
+
+function demarrerGesteRegle() {
+  const pts = deuxPoints();
+  if (pts.length === 1) depart = { type: 'deplacer', p0: pts[0], r0: { ...r } };
+  else if (pts.length >= 2) depart = { type: 'tourner', a0: angle(pts[0], pts[1]), m0: milieu(pts[0], pts[1]), r0: { ...r } };
+  else depart = null;
+}
+
+zone.addEventListener('pointerdown', e => {
+  zone.setPointerCapture(e.pointerId);
+  log('down type=' + e.pointerType + ' pression=' + e.pressure.toFixed(2) + ' largeur=' + e.width.toFixed(0) + ' id=' + e.pointerId);
+  if (e.pointerType === 'pen' && !styletVu) { styletVu = true; etat.textContent = 'Stylet détecté : oui (le doigt ne trace plus)'; }
+  const surRegle = e.target === regle;
+  if (e.pointerType === 'touch' && (surRegle || doigts.size > 0)) {
+    doigts.set(e.pointerId, pos(e));
+    demarrerGesteRegle();
+    return;
+  }
+  const trace = e.pointerType === 'pen' || e.pointerType === 'mouse' || (e.pointerType === 'touch' && !styletVu);
+  if (trace) dernier = pos(e);
+});
+
+zone.addEventListener('pointermove', e => {
+  if (doigts.has(e.pointerId)) {
+    doigts.set(e.pointerId, pos(e));
+    const pts = deuxPoints();
+    if (depart && depart.type === 'deplacer' && pts.length === 1) {
+      r.x = depart.r0.x + pts[0].x - depart.p0.x;
+      r.y = depart.r0.y + pts[0].y - depart.p0.y;
+    } else if (depart && depart.type === 'tourner' && pts.length >= 2) {
+      const m = milieu(pts[0], pts[1]);
+      r.a = depart.r0.a + angle(pts[0], pts[1]) - depart.a0;
+      r.x = depart.r0.x + m.x - depart.m0.x;
+      r.y = depart.r0.y + m.y - depart.m0.y;
+    }
+    appliquer();
+    return;
+  }
+  if (!dernier) return;
+  const p = pos(e);
+  ctx.lineWidth = e.pointerType === 'pen' ? 1 + 4 * e.pressure : 2;
+  ctx.beginPath(); ctx.moveTo(dernier.x, dernier.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+  dernier = p;
+  if (e.pointerType === 'pen' && ++nbMoves % 15 === 0) log('pen pression=' + e.pressure.toFixed(2));
+});
+
+function fin(e) {
+  if (doigts.delete(e.pointerId)) { demarrerGesteRegle(); return; }
+  dernier = null;
+}
+zone.addEventListener('pointerup', fin);
+zone.addEventListener('pointercancel', e => { log('cancel type=' + e.pointerType); fin(e); });
+</script>
+</body>
+</html>
