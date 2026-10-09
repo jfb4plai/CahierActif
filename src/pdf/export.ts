@@ -1,43 +1,13 @@
-import { LineCapStyle, PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from 'pdf-lib';
-import { hexVersRgb01 } from '../lib/couleurs';
-import { mmVersPt } from '../lib/units';
+import { LineCapStyle, PDFDocument, PDFFont, PDFPage, StandardFonts } from 'pdf-lib';
 import { motifFond } from '../model/fonds';
 import type { CahierDoc, Objet, Page } from '../model/types';
+import { K, X, Y, couleur, encodable, origine } from './origine';
+import { dessinerExpression, dessinerFraction, dessinerOperation, dessinerRepere, type RendreExpression } from './exportMaths';
 
-const K = mmVersPt(1); // pt par mm
-
-const couleur = (hex: string) => {
-  const c = hexVersRgb01(hex);
-  return rgb(c.r, c.g, c.b);
-};
-
-/** Helvetica ne couvre que WinAnsi : tout caractère non encodable devient « ? ». */
-function encodable(font: PDFFont, texte: string): string {
-  return Array.from(texte)
-    .map(ch => {
-      if (ch === '\n') return ch;
-      try {
-        font.encodeText(ch);
-        return ch;
-      } catch {
-        return '?';
-      }
-    })
-    .join('');
-}
-
-// Le modèle part du coin haut-gauche de la zone visible (CropBox), pas de la MediaBox.
-type Repere = { x0: number; haut: number };
-const X = (r: Repere, mm: number) => r.x0 + mm * K;
-const Y = (r: Repere, mm: number) => r.haut - mm * K;
-
-function repere(p: PDFPage): Repere {
-  const cb = p.getCropBox();
-  return { x0: cb.x, haut: cb.y + cb.height };
-}
+export type OptionsExport = { rendreExpression?: RendreExpression };
 
 function dessinerFond(p: PDFPage, page: Page) {
-  const r0 = repere(p);
+  const r0 = origine(p);
   const m = motifFond(page.fond, page.largeurMm, page.hauteurMm);
   for (const l of m.lignes) {
     p.drawLine({ start: { x: X(r0, l.x1), y: Y(r0, l.y1) }, end: { x: X(r0, l.x2), y: Y(r0, l.y2) }, thickness: l.epaisseur * K, color: couleur(l.couleur) });
@@ -46,7 +16,7 @@ function dessinerFond(p: PDFPage, page: Page) {
 }
 
 function dessinerObjet(p: PDFPage, o: Objet, font: PDFFont) {
-  const r0 = repere(p);
+  const r0 = origine(p);
   if (o.type === 'trait') {
     if (o.points.length === 1) {
       p.drawCircle({ x: X(r0, o.points[0].x), y: Y(r0, o.points[0].y), size: (o.epaisseur / 2) * K, color: couleur(o.couleur) });
@@ -57,6 +27,10 @@ function dessinerObjet(p: PDFPage, o: Objet, font: PDFFont) {
     p.drawSvgPath(chemin, { x: r0.x0, y: r0.haut, borderColor: couleur(o.couleur), borderWidth: o.epaisseur * K, borderLineCap: LineCapStyle.Round });
     return;
   }
+  if (o.type === 'operation') return dessinerOperation(p, r0, o, font);
+  if (o.type === 'fraction') return dessinerFraction(p, r0, o, font);
+  if (o.type === 'repere') return dessinerRepere(p, r0, o, font);
+  if (o.type === 'expression') return; // asynchrone : traité dans exporterPdf
   if (!o.texte.trim()) return;
   // Ligne de base approximative : haut du cadre + demi-interligne + jambage supérieur.
   p.drawText(encodable(font, o.texte), {
@@ -86,15 +60,19 @@ async function preparer(doc: CahierDoc): Promise<PDFDocument> {
   return out;
 }
 
-export async function exporterPdf(doc: CahierDoc): Promise<Uint8Array> {
+export async function exporterPdf(doc: CahierDoc, options: OptionsExport = {}): Promise<Uint8Array> {
   const out = await preparer(doc);
   out.setTitle(doc.titre);
   out.setCreator('CahierActif (PLAI)');
   const font = await out.embedFont(StandardFonts.Helvetica);
-  doc.pages.forEach((page, i) => {
+  for (let i = 0; i < doc.pages.length; i++) {
+    const page = doc.pages[i];
     const p = out.getPage(i);
     dessinerFond(p, page);
-    for (const o of page.objets) dessinerObjet(p, o, font);
-  });
+    for (const o of page.objets) {
+      if (o.type === 'expression') await dessinerExpression(p, origine(p), o, font, out, options.rendreExpression);
+      else dessinerObjet(p, o, font);
+    }
+  }
   return out.save();
 }
