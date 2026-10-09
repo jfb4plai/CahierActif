@@ -28,7 +28,8 @@ function initialiser() {
 export async function latexVersSvg(latex: string, couleur: string): Promise<RenduExpression> {
   if (!latex.trim()) return { svg: '', largeurEm: 0, hauteurEm: 0, erreur: false };
   const { adaptor, doc } = initialiser();
-  const noeud = await doc.convertPromise(latex, { display: false });
+  // Mode « display » : fractions et exposants pleine taille, plus lisibles pour les élèves DYS.
+  const noeud = await doc.convertPromise(latex, { display: true });
   const brut = adaptor.innerHTML(noeud);
   const vb = /viewBox="([^"]+)"/.exec(brut)?.[1].split(' ').map(Number) ?? [0, 0, 1000, 1000];
   return {
