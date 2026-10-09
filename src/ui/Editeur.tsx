@@ -59,9 +59,23 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   }, [doc, initial, stockage]);
   useEffect(() => () => { void stockage.enregistrer(dernier.current); }, [stockage]);
 
-  const commit = (d: CahierDoc) => dispatch({ type: 'commit', doc: d });
+  // dernier.current tout de suite : une validation de texte suivie d'une fermeture/export dans le même événement doit être vue.
+  const commit = (d: CahierDoc) => {
+    dernier.current = d;
+    dispatch({ type: 'commit', doc: d });
+  };
+
+  // iOS ne déclenche pas toujours blur : on force la validation d'une zone de texte ouverte.
+  const validerSaisie = () => (document.activeElement as HTMLElement | null)?.blur();
+
+  const fermer = () => {
+    validerSaisie();
+    onFermer();
+  };
 
   const exporter = async () => {
+    validerSaisie();
+    const doc = dernier.current;
     try {
       if (doc.source.type === 'pdf' && (await aDesPagesTournees(doc.source.data))) {
         setMessage({ type: 'info', texte: 'Attention : ce PDF contient des pages tournées, les annotations peuvent être décalées dans l’export.' });
@@ -74,6 +88,8 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   };
 
   const exporterCahier = async () => {
+    validerSaisie();
+    const doc = dernier.current;
     try {
       await partagerOuTelecharger(await versCahier(doc), `${nomFichier(doc.titre)}.cahier`);
     } catch {
@@ -84,7 +100,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2 p-2">
-        <button type="button" className="plai-btn min-h-[44px]" onClick={onFermer}>Retour à mes documents</button>
+        <button type="button" className="plai-btn min-h-[44px]" onClick={fermer}>Retour à mes documents</button>
         <h1 className="font-serif text-xl">{doc.titre}</h1>
         <span className="flex-1" />
         <button type="button" className="plai-btn min-h-[44px]" onClick={exporter}>Exporter en PDF</button>

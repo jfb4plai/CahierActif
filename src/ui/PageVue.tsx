@@ -28,6 +28,8 @@ type Props = {
   onActive: () => void;
 };
 
+type Edition = { texte: Texte; nouveau: boolean };
+
 const RAYON_GOMME = 3; // mm
 const RAYON_GOMME_FINE = 2;
 
@@ -81,7 +83,10 @@ export function PageVue(p: Props) {
   const brouillonRef = useRef<CahierDoc | null>(null); // gommage en cours (un seul « annuler »)
   const [enCours, setEnCours] = useState<Point[] | null>(null);
   const [brouillon, setBrouillon] = useState<CahierDoc | null>(null);
-  const [edition, setEdition] = useState<{ texte: Texte; nouveau: boolean } | null>(null);
+  const [edition, setEdition] = useState<Edition | null>(null);
+  // editionRef garantit une seule validation (blur, toucher suivant et démontage peuvent se suivre).
+  const editionRef = useRef<Edition | null>(null);
+  const valeurTexte = useRef('');
   const pointeurActif = useRef<number | null>(null);
   const racine = useRef<HTMLDivElement>(null);
   const derniersProps = useRef(p);
@@ -139,7 +144,11 @@ export function PageVue(p: Props) {
 
   const down = (e: Konva.KonvaEventObject<PointerEvent>) => {
     p.onActive();
-    if (p.outil === 'main' || edition || pointeurActif.current !== null) return;
+    if (editionRef.current) {
+      finTexte(valeurTexte.current);
+      return;
+    }
+    if (p.outil === 'main' || pointeurActif.current !== null) return;
     const { tracer, etat } = decider(p.mode, p.etatStylet, e.evt.pointerType);
     if (etat !== p.etatStylet) p.setEtatStylet(etat);
     if (!tracer) {
@@ -159,11 +168,11 @@ export function PageVue(p: Props) {
     } else if (p.outil === 'texte') {
       const existant = [...objets].reverse().find(o => o.type === 'texte' && objetTouche(o, q, 0)) as Texte | undefined;
       if (existant) {
-        setEdition({ texte: existant, nouveau: false });
+        ouvrirEdition({ texte: existant, nouveau: false });
       } else {
         const largeur = Math.max(20, Math.min(80, page.largeurMm - q.x - 2));
         const x = q.x + largeur > page.largeurMm - 2 ? Math.max(0, page.largeurMm - 2 - largeur) : q.x;
-        setEdition({ texte: { id: nouvelId(), type: 'texte', x, y: q.y, largeur, texte: '', taillePt: 14, couleur: p.couleur }, nouveau: true });
+        ouvrirEdition({ texte: { id: nouvelId(), type: 'texte', x, y: q.y, largeur, texte: '', taillePt: 14, couleur: p.couleur }, nouveau: true });
       }
     }
   };
@@ -201,15 +210,25 @@ export function PageVue(p: Props) {
   };
   const up = (e: Konva.KonvaEventObject<PointerEvent>) => terminer(e.evt.pointerId);
 
+  const ouvrirEdition = (e: Edition) => {
+    editionRef.current = e;
+    valeurTexte.current = e.texte.texte;
+    setEdition(e);
+  };
+
+  // Peut être appelée après le démontage de la zone : lit les derniers props.
   const finTexte = (valeur: string) => {
-    if (!edition) return;
-    const { texte, nouveau } = edition;
+    const ed = editionRef.current;
+    if (!ed) return;
+    editionRef.current = null;
     setEdition(null);
+    const { doc, pageIndex, onCommit } = derniersProps.current;
+    const { texte, nouveau } = ed;
     if (!valeur.trim()) {
-      if (!nouveau) p.onCommit(supprimerObjet(p.doc, p.pageIndex, texte.id));
+      if (!nouveau) onCommit(supprimerObjet(doc, pageIndex, texte.id));
       return;
     }
-    p.onCommit(nouveau ? ajouterObjet(p.doc, p.pageIndex, { ...texte, texte: valeur }) : modifierObjet(p.doc, p.pageIndex, texte.id, { texte: valeur }));
+    onCommit(nouveau ? ajouterObjet(doc, pageIndex, { ...texte, texte: valeur }) : modifierObjet(doc, pageIndex, texte.id, { texte: valeur }));
   };
 
   // Line : node.x/y = décalage depuis (0,0). Circle et Text : node.x/y = nouvelle position absolue.
@@ -261,7 +280,7 @@ export function PageVue(p: Props) {
           )}
         </Layer>
       </Stage>
-      {edition && <EditeurTexte texte={edition.texte} pxMm={p.pxMm} onFin={finTexte} />}
+      {edition && <EditeurTexte texte={edition.texte} pxMm={p.pxMm} onChange={v => { valeurTexte.current = v; }} onFin={finTexte} />}
     </div>
   );
 }
