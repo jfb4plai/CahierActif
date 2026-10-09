@@ -1,5 +1,7 @@
-import { ptVersMm } from '../lib/units';
-import type { Objet, Point, Texte, Trait } from './types';
+import { boiteObjet, hauteurTexte } from './boites';
+import type { Objet, Point, Trait } from './types';
+
+export { hauteurTexte };
 
 const dist = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 
@@ -12,12 +14,6 @@ export function distPointSegment(p: Point, a: Point, b: Point): number {
   return dist(p, { x: a.x + t * dx, y: a.y + t * dy });
 }
 
-/** Hauteur approximative : une ligne par saut de ligne explicite, interligne 1,5. */
-export function hauteurTexte(t: Texte): number {
-  const lignes = Math.max(1, t.texte.split('\n').length);
-  return lignes * ptVersMm(t.taillePt) * 1.5;
-}
-
 function traitTouche(t: Trait, p: Point, rayon: number): boolean {
   const marge = rayon + t.epaisseur / 2;
   if (t.points.length === 1) return dist(p, t.points[0]) <= marge;
@@ -27,12 +23,10 @@ function traitTouche(t: Trait, p: Point, rayon: number): boolean {
   return false;
 }
 
-function texteTouche(t: Texte, p: Point, rayon: number): boolean {
-  return p.x >= t.x - rayon && p.x <= t.x + t.largeur + rayon && p.y >= t.y - rayon && p.y <= t.y + hauteurTexte(t) + rayon;
-}
-
 export function objetTouche(o: Objet, p: Point, rayon: number): boolean {
-  return o.type === 'trait' ? traitTouche(o, p, rayon) : texteTouche(o, p, rayon);
+  if (o.type === 'trait') return traitTouche(o, p, rayon);
+  const b = boiteObjet(o);
+  return p.x >= b.x - rayon && p.x <= b.x + b.largeur + rayon && p.y >= b.y - rayon && p.y <= b.y + b.hauteur + rayon;
 }
 
 /** Interpole pour qu'aucun écart entre deux points ne dépasse pasMm (traits droits = 2 points). */
