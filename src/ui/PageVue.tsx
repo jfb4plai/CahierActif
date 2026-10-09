@@ -1,9 +1,9 @@
-import { useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { Circle, Layer, Line, Stage, Text } from 'react-konva';
 import type Konva from 'konva';
 import { decider, type EtatStylet } from '../input/pointerPolicy';
 import { ptVersMm } from '../lib/units';
-import { motifFond } from '../model/fonds';
+import { motifFond, type Motif } from '../model/fonds';
 import { effacerPartiel, objetTouche } from '../model/gomme';
 import { ajouterObjet, modifierObjet, remplacerObjet, supprimerObjet } from '../model/ops';
 import type { OutilId } from '../model/outils';
@@ -31,12 +31,61 @@ type Props = {
 const RAYON_GOMME = 3; // mm
 const RAYON_GOMME_FINE = 2;
 
+const CoucheFond = memo(function CoucheFond({ motif }: { motif: Motif }) {
+  return (
+    <Layer listening={false}>
+      {motif.lignes.map((l, i) => (
+        <Line key={`l${i}`} points={[l.x1, l.y1, l.x2, l.y2]} stroke={l.couleur} strokeWidth={l.epaisseur} />
+      ))}
+      {motif.ronds.map((r, i) => (
+        <Circle key={`r${i}`} x={r.x} y={r.y} radius={r.r} fill={r.couleur} />
+      ))}
+    </Layer>
+  );
+});
+
+type PropsObjets = {
+  objets: Objet[];
+  deplacable: boolean;
+  idMasque: string | null;
+  onDeplace: (o: Objet, node: Konva.Node) => void;
+};
+
+const CoucheObjets = memo(function CoucheObjets({ objets, deplacable, idMasque, onDeplace }: PropsObjets) {
+  return (
+    <Layer>
+      {objets.map(o =>
+        o.type === 'trait' ? (
+          o.points.length === 1 ? (
+            <Circle key={o.id} x={o.points[0].x} y={o.points[0].y} radius={o.epaisseur / 2} fill={o.couleur}
+              draggable={deplacable} onDragEnd={e => onDeplace(o, e.target)} />
+          ) : (
+            <Line key={o.id} points={o.points.flatMap(q => [q.x, q.y])} stroke={o.couleur} strokeWidth={o.epaisseur}
+              lineCap="round" lineJoin="round" hitStrokeWidth={4}
+              draggable={deplacable} onDragEnd={e => onDeplace(o, e.target)} />
+          )
+        ) : idMasque === o.id ? null : (
+          <Text key={o.id} x={o.x} y={o.y} width={o.largeur} text={o.texte} fontFamily="Arial"
+            fontSize={ptVersMm(o.taillePt)} lineHeight={1.5} fill={o.couleur}
+            draggable={deplacable} onDragEnd={e => onDeplace(o, e.target)} />
+        ),
+      )}
+    </Layer>
+  );
+});
+
 export function PageVue(p: Props) {
   const page = p.doc.pages[p.pageIndex];
+  // Les refs portent la vérité du geste (plusieurs pointermove peuvent arriver entre deux rendus) ; l'état ne sert qu'à redessiner.
+  const traitRef = useRef<Point[] | null>(null);
+  const brouillonRef = useRef<CahierDoc | null>(null); // gommage en cours (un seul « annuler »)
   const [enCours, setEnCours] = useState<Point[] | null>(null);
-  const [brouillon, setBrouillon] = useState<CahierDoc | null>(null); // gommage en cours (un seul « annuler »)
+  const [brouillon, setBrouillon] = useState<CahierDoc | null>(null);
   const [edition, setEdition] = useState<{ texte: Texte; nouveau: boolean } | null>(null);
-  const actif = useRef(false);
+  const pointeurActif = useRef<number | null>(null);
+  const racine = useRef<HTMLDivElement>(null);
+  const derniersProps = useRef(p);
+  derniersProps.current = p;
 
   const docAffiche = brouillon ?? p.doc;
   const objets = docAffiche.pages[p.pageIndex].objets;
@@ -62,54 +111,95 @@ export function PageVue(p: Props) {
     return out;
   };
 
+  // touch-action: none bloque le défilement natif : le doigt rejeté (paume, doigt après stylet) fait défiler à la main.
+  const defiler = (ev: PointerEvent) => {
+    const id = ev.pointerId;
+    let x = ev.clientX;
+    let y = ev.clientY;
+    const boite = racine.current?.parentElement; // défilement horizontal ; le vertical est celui de la fenêtre
+    const bouger = (m: PointerEvent) => {
+      if (m.pointerId !== id) return;
+      const dx = m.clientX - x;
+      const dy = m.clientY - y;
+      x = m.clientX;
+      y = m.clientY;
+      if (boite) boite.scrollLeft -= dx;
+      window.scrollBy({ left: 0, top: -dy, behavior: 'instant' });
+    };
+    const fin = (m: PointerEvent) => {
+      if (m.pointerId !== id) return;
+      window.removeEventListener('pointermove', bouger);
+      window.removeEventListener('pointerup', fin);
+      window.removeEventListener('pointercancel', fin);
+    };
+    window.addEventListener('pointermove', bouger);
+    window.addEventListener('pointerup', fin);
+    window.addEventListener('pointercancel', fin);
+  };
+
   const down = (e: Konva.KonvaEventObject<PointerEvent>) => {
     p.onActive();
-    if (p.outil === 'main' || p.outil === 'deplacer' || edition) return;
+    if (p.outil === 'main' || edition || pointeurActif.current !== null) return;
     const { tracer, etat } = decider(p.mode, p.etatStylet, e.evt.pointerType);
     if (etat !== p.etatStylet) p.setEtatStylet(etat);
-    if (!tracer) return;
+    if (!tracer) {
+      defiler(e.evt);
+      return;
+    }
+    if (p.outil === 'deplacer') return;
     const q = posMm(e);
     if (p.outil === 'stylo') {
-      actif.current = true;
-      setEnCours([q]);
+      pointeurActif.current = e.evt.pointerId;
+      traitRef.current = [q];
+      setEnCours(traitRef.current);
     } else if (p.outil === 'gomme-objet' || p.outil === 'gomme-partielle') {
-      actif.current = true;
-      setBrouillon(gommer(p.doc, q));
+      pointeurActif.current = e.evt.pointerId;
+      brouillonRef.current = gommer(p.doc, q);
+      setBrouillon(brouillonRef.current);
     } else if (p.outil === 'texte') {
       const existant = [...objets].reverse().find(o => o.type === 'texte' && objetTouche(o, q, 0)) as Texte | undefined;
-      setEdition(
-        existant
-          ? { texte: existant, nouveau: false }
-          : { texte: { id: nouvelId(), type: 'texte', x: q.x, y: q.y, largeur: Math.min(80, page.largeurMm - q.x - 2), texte: '', taillePt: 14, couleur: p.couleur }, nouveau: true },
-      );
+      if (existant) {
+        setEdition({ texte: existant, nouveau: false });
+      } else {
+        const largeur = Math.max(20, Math.min(80, page.largeurMm - q.x - 2));
+        const x = q.x + largeur > page.largeurMm - 2 ? Math.max(0, page.largeurMm - 2 - largeur) : q.x;
+        setEdition({ texte: { id: nouvelId(), type: 'texte', x, y: q.y, largeur, texte: '', taillePt: 14, couleur: p.couleur }, nouveau: true });
+      }
     }
   };
 
   const move = (e: Konva.KonvaEventObject<PointerEvent>) => {
-    if (!actif.current) return;
+    if (pointeurActif.current === null || e.evt.pointerId !== pointeurActif.current) return;
     const q = posMm(e);
-    if (p.outil === 'stylo') {
-      setEnCours(pts => {
-        if (!pts) return pts;
-        const der = pts[pts.length - 1];
-        return Math.hypot(q.x - der.x, q.y - der.y) < 0.3 ? pts : [...pts, q]; // filtre le bruit < 0,3 mm
-      });
-    } else if (brouillon) {
-      setBrouillon(gommer(brouillon, q));
+    if (traitRef.current) {
+      const pts = traitRef.current;
+      const der = pts[pts.length - 1];
+      if (Math.hypot(q.x - der.x, q.y - der.y) < 0.3) return; // filtre le bruit < 0,3 mm
+      traitRef.current = [...pts, q];
+      setEnCours(traitRef.current);
+    } else if (brouillonRef.current) {
+      brouillonRef.current = gommer(brouillonRef.current, q);
+      setBrouillon(brouillonRef.current);
     }
   };
 
-  const up = () => {
-    if (!actif.current) return;
-    actif.current = false;
-    if (p.outil === 'stylo' && enCours) {
-      p.onCommit(ajouterObjet(p.doc, p.pageIndex, { id: nouvelId(), type: 'trait', points: enCours, couleur: p.couleur, epaisseur: p.epaisseur }));
-      setEnCours(null);
-    } else if (brouillon) {
-      if (brouillon !== p.doc) p.onCommit(brouillon);
-      setBrouillon(null);
+  // Fin normale ou annulée (pointercancel) : le trait commencé est conservé.
+  const terminer = (pointerId: number) => {
+    if (pointeurActif.current === null || pointerId !== pointeurActif.current) return;
+    pointeurActif.current = null;
+    const trait = traitRef.current;
+    const gomme = brouillonRef.current;
+    traitRef.current = null;
+    brouillonRef.current = null;
+    setEnCours(null);
+    setBrouillon(null);
+    if (trait && trait.length > 0) {
+      p.onCommit(ajouterObjet(p.doc, p.pageIndex, { id: nouvelId(), type: 'trait', points: trait, couleur: p.couleur, epaisseur: p.epaisseur }));
+    } else if (gomme && gomme !== p.doc) {
+      p.onCommit(gomme);
     }
   };
+  const up = (e: Konva.KonvaEventObject<PointerEvent>) => terminer(e.evt.pointerId);
 
   const finTexte = (valeur: string) => {
     if (!edition) return;
@@ -123,31 +213,33 @@ export function PageVue(p: Props) {
   };
 
   // Line : node.x/y = décalage depuis (0,0). Circle et Text : node.x/y = nouvelle position absolue.
-  const finDeplacement = (o: Objet, node: Konva.Node) => {
+  const finDeplacement = useCallback((o: Objet, node: Konva.Node) => {
+    const { doc, pageIndex, onCommit } = derniersProps.current;
     if (o.type === 'trait' && o.points.length === 1) {
-      p.onCommit(modifierObjet(p.doc, p.pageIndex, o.id, { points: [{ ...o.points[0], x: node.x(), y: node.y() }] }));
+      onCommit(modifierObjet(doc, pageIndex, o.id, { points: [{ ...o.points[0], x: node.x(), y: node.y() }] }));
       return;
     }
     if (o.type === 'trait') {
       const dx = node.x();
       const dy = node.y();
       node.position({ x: 0, y: 0 });
-      p.onCommit(modifierObjet(p.doc, p.pageIndex, o.id, { points: o.points.map(q => ({ ...q, x: q.x + dx, y: q.y + dy })) }));
+      onCommit(modifierObjet(doc, pageIndex, o.id, { points: o.points.map(q => ({ ...q, x: q.x + dx, y: q.y + dy })) }));
       return;
     }
-    p.onCommit(modifierObjet(p.doc, p.pageIndex, o.id, { x: node.x(), y: node.y() }));
-  };
+    onCommit(modifierObjet(doc, pageIndex, o.id, { x: node.x(), y: node.y() }));
+  }, []);
 
   const w = page.largeurMm * p.pxMm;
   const h = page.hauteurMm * p.pxMm;
-  const naviguer = p.outil === 'main' || (p.mode === 'stylet' && p.etatStylet.styletVu);
   const deplacable = p.outil === 'deplacer';
 
   return (
     <div
+      ref={racine}
       className="relative mx-auto my-4 bg-white shadow"
-      style={{ width: w, height: h, touchAction: naviguer ? 'pan-x pan-y' : 'none' }}
+      style={{ width: w, height: h, touchAction: p.outil === 'main' ? 'pan-x pan-y' : 'none' }}
       aria-label={`Page ${p.pageIndex + 1}`}
+      onPointerCancel={e => terminer(e.pointerId)}
     >
       {p.pdf && <PdfCanvas pdf={p.pdf} pageIndex={p.pageIndex} pxMm={p.pxMm} />}
       <Stage
@@ -161,31 +253,9 @@ export function PageVue(p: Props) {
         onPointerUp={up}
         onPointerLeave={up}
       >
+        <CoucheFond motif={fond} />
+        <CoucheObjets objets={objets} deplacable={deplacable} idMasque={edition?.texte.id ?? null} onDeplace={finDeplacement} />
         <Layer listening={false}>
-          {fond.lignes.map((l, i) => (
-            <Line key={`l${i}`} points={[l.x1, l.y1, l.x2, l.y2]} stroke={l.couleur} strokeWidth={l.epaisseur} />
-          ))}
-          {fond.ronds.map((r, i) => (
-            <Circle key={`r${i}`} x={r.x} y={r.y} radius={r.r} fill={r.couleur} />
-          ))}
-        </Layer>
-        <Layer>
-          {objets.map(o =>
-            o.type === 'trait' ? (
-              o.points.length === 1 ? (
-                <Circle key={o.id} x={o.points[0].x} y={o.points[0].y} radius={o.epaisseur / 2} fill={o.couleur}
-                  draggable={deplacable} onDragEnd={e => finDeplacement(o, e.target)} />
-              ) : (
-                <Line key={o.id} points={o.points.flatMap(q => [q.x, q.y])} stroke={o.couleur} strokeWidth={o.epaisseur}
-                  lineCap="round" lineJoin="round" hitStrokeWidth={4}
-                  draggable={deplacable} onDragEnd={e => finDeplacement(o, e.target)} />
-              )
-            ) : edition?.texte.id === o.id ? null : (
-              <Text key={o.id} x={o.x} y={o.y} width={o.largeur} text={o.texte} fontFamily="Arial"
-                fontSize={ptVersMm(o.taillePt)} lineHeight={1.5} fill={o.couleur}
-                draggable={deplacable} onDragEnd={e => finDeplacement(o, e.target)} />
-            ),
-          )}
           {enCours && (
             <Line points={enCours.flatMap(q => [q.x, q.y])} stroke={p.couleur} strokeWidth={p.epaisseur} lineCap="round" lineJoin="round" />
           )}
