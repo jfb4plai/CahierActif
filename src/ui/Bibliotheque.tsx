@@ -42,15 +42,34 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
     }
   };
 
+  const nouvellePageVierge = async () => {
+    setErreur(null);
+    try {
+      await creerEtOuvrir(nouveauDocVierge('Page vierge', reglages.niveau));
+    } catch {
+      setErreur('Impossible de créer la page vierge (stockage plein ?). Libérez de la place et réessayez.');
+    }
+  };
+
   const ouvrirExistant = async (id: string) => {
-    const d = await stockage.charger(id);
-    if (d) onOuvrir(d);
-    else setErreur('Document introuvable.');
+    setErreur(null);
+    try {
+      const d = await stockage.charger(id);
+      if (d) onOuvrir(d);
+      else setErreur('Document introuvable.');
+    } catch {
+      setErreur('Ce document ne peut pas être ouvert sur cet appareil. Réessayez.');
+    }
   };
 
   const supprimer = async (m: MetaDoc) => {
     if (!window.confirm(`Supprimer définitivement « ${m.titre} » de cet appareil ?`)) return;
-    await stockage.supprimer(m.id);
+    setErreur(null);
+    try {
+      await stockage.supprimer(m.id);
+    } catch {
+      setErreur(`La suppression de « ${m.titre} » a échoué. Réessayez.`);
+    }
     await rafraichir();
   };
 
@@ -59,7 +78,7 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
       <h1 className="mb-4 font-serif text-3xl">Mes documents</h1>
       <div className="mb-2 flex flex-wrap gap-2">
         <button type="button" className="plai-btn min-h-[44px]" onClick={() => pdfInput.current?.click()}>Ouvrir un PDF</button>
-        <button type="button" className="plai-btn min-h-[44px]" onClick={() => creerEtOuvrir(nouveauDocVierge('Page vierge', reglages.niveau))}>Nouvelle page vierge</button>
+        <button type="button" className="plai-btn min-h-[44px]" onClick={nouvellePageVierge}>Nouvelle page vierge</button>
         <button type="button" className="plai-btn min-h-[44px]" onClick={() => cahierInput.current?.click()}>Reprendre un fichier .cahier</button>
       </div>
       <p className="mb-4 text-[var(--text2)]">

@@ -47,4 +47,36 @@ describe('.cahier', () => {
   it('refuse un fichier qui n’est pas un zip', async () => {
     await expect(depuisCahier(new Uint8Array([1, 2, 3]).buffer)).rejects.toThrow('Ce fichier n’est pas un fichier CahierActif.');
   });
+
+  it('refuse un document.json qui n’est pas du JSON', async () => {
+    const z = new JSZip();
+    z.file('manifeste.json', JSON.stringify({ format: 'cahieractif', version: 1 }));
+    z.file('document.json', '{ pas du json');
+    const data = await z.generateAsync({ type: 'arraybuffer' });
+    await expect(depuisCahier(data)).rejects.toThrow('Ce fichier n’est pas un fichier CahierActif.');
+  });
+
+  it('refuse un manifeste illisible', async () => {
+    const z = new JSZip();
+    z.file('manifeste.json', 'null');
+    const data = await z.generateAsync({ type: 'arraybuffer' });
+    await expect(depuisCahier(data)).rejects.toThrow('Ce fichier n’est pas un fichier CahierActif.');
+  });
+
+  it('refuse un document sans pages', async () => {
+    const z = new JSZip();
+    z.file('manifeste.json', JSON.stringify({ format: 'cahieractif', version: 1 }));
+    const { pages: _, ...sansPages } = nouveauDocVierge('X', 'p3p6');
+    z.file('document.json', JSON.stringify({ ...sansPages, source: { type: 'vierge' } }));
+    const data = await z.generateAsync({ type: 'arraybuffer' });
+    await expect(depuisCahier(data)).rejects.toThrow('Ce fichier n’est pas un fichier CahierActif.');
+  });
+
+  it('refuse un niveau inconnu', async () => {
+    const z = new JSZip();
+    z.file('manifeste.json', JSON.stringify({ format: 'cahieractif', version: 1 }));
+    z.file('document.json', JSON.stringify({ ...nouveauDocVierge('X', 'p3p6'), niveau: 'college', source: { type: 'vierge' } }));
+    const data = await z.generateAsync({ type: 'arraybuffer' });
+    await expect(depuisCahier(data)).rejects.toThrow('Ce fichier n’est pas un fichier CahierActif.');
+  });
 });

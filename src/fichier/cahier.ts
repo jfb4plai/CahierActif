@@ -26,6 +26,37 @@ export async function versCahier(doc: CahierDoc): Promise<Blob> {
   return new Blob([octets as BlobPart], { type: 'application/zip' });
 }
 
+function lireJson(texte: string): unknown {
+  try {
+    return JSON.parse(texte);
+  } catch {
+    throw new Error(ERREUR_FORMAT);
+  }
+}
+
+const NIVEAUX = ['p1p2', 'p3p6', 'secondaire'];
+
+function formeValide(d: unknown): d is Omit<CahierDoc, 'source'> & { source: SourceDecrite } {
+  if (typeof d !== 'object' || d === null) return false;
+  const doc = d as Record<string, unknown>;
+  const source = doc.source as Record<string, unknown> | null | undefined;
+  return (
+    typeof doc.titre === 'string' &&
+    NIVEAUX.includes(doc.niveau as string) &&
+    typeof source === 'object' && source !== null &&
+    (source.type === 'pdf' || source.type === 'vierge' || (source.type === 'photos' && Array.isArray(source.mimes))) &&
+    Array.isArray(doc.pages) &&
+    doc.pages.every(
+      (p: unknown) =>
+        typeof p === 'object' && p !== null &&
+        typeof (p as Record<string, unknown>).largeurMm === 'number' &&
+        typeof (p as Record<string, unknown>).hauteurMm === 'number' &&
+        typeof (p as Record<string, unknown>).fond === 'string' &&
+        Array.isArray((p as Record<string, unknown>).objets),
+    )
+  );
+}
+
 export async function depuisCahier(data: ArrayBuffer): Promise<CahierDoc> {
   let zip: JSZip;
   try {
@@ -35,13 +66,14 @@ export async function depuisCahier(data: ArrayBuffer): Promise<CahierDoc> {
   }
   const manifeste = await zip.file('manifeste.json')?.async('string');
   if (!manifeste) throw new Error(ERREUR_FORMAT);
-  const m = JSON.parse(manifeste);
-  if (m.format !== FORMAT) throw new Error(ERREUR_FORMAT);
-  if (m.version > VERSION) throw new Error('Fichier créé par une version plus récente de CahierActif : mettez l’application à jour.');
+  const m = lireJson(manifeste) as { format?: unknown; version?: unknown } | null;
+  if (!m || m.format !== FORMAT) throw new Error(ERREUR_FORMAT);
+  if (typeof m.version === 'number' && m.version > VERSION) throw new Error('Fichier créé par une version plus récente de CahierActif : mettez l’application à jour.');
 
   const brut = await zip.file('document.json')?.async('string');
   if (!brut) throw new Error(ERREUR_FORMAT);
-  const doc = JSON.parse(brut) as Omit<CahierDoc, 'source'> & { source: SourceDecrite };
+  const doc = lireJson(brut);
+  if (!formeValide(doc)) throw new Error(ERREUR_FORMAT);
 
   let source: Source;
   if (doc.source.type === 'pdf') {

@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { ETAT_INITIAL, type EtatStylet } from '../input/pointerPolicy';
 import { nomFichier, partagerOuTelecharger } from '../lib/partage';
 import { pxParMm } from '../lib/units';
@@ -45,19 +45,37 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     return () => { vivant = false; };
   }, [initial]);
 
-  // Sauvegarde automatique, 800 ms après la dernière modification.
   const dernier = useRef(doc);
   dernier.current = doc;
+  const dernierEnregistre = useRef<CahierDoc | null>(initial);
+  const enregistrer = useCallback(() => {
+    const d = dernier.current;
+    if (d === dernierEnregistre.current) return;
+    dernierEnregistre.current = d;
+    stockage.enregistrer(d).catch(() => {
+      if (dernierEnregistre.current === d) dernierEnregistre.current = null; // réessayer au prochain déclencheur
+      setMessage({ type: 'erreur', texte: 'Sauvegarde impossible (stockage plein ?). Exportez votre travail en fichier .cahier.' });
+    });
+  }, [stockage]);
+
+  // Sauvegarde automatique, 800 ms après la dernière modification.
   useEffect(() => {
-    if (doc === initial) return;
-    const t = setTimeout(() => {
-      stockage.enregistrer(doc).catch(() =>
-        setMessage({ type: 'erreur', texte: 'Sauvegarde impossible (stockage plein ?). Exportez votre travail en fichier .cahier.' }),
-      );
-    }, 800);
+    if (doc === dernierEnregistre.current) return;
+    const t = setTimeout(enregistrer, 800);
     return () => clearTimeout(t);
-  }, [doc, initial, stockage]);
-  useEffect(() => () => { void stockage.enregistrer(dernier.current); }, [stockage]);
+  }, [doc, enregistrer]);
+
+  // Tout de suite si l'app passe en arrière-plan (iPad : l'onglet peut être tué sans autre avertissement), et à la fermeture.
+  useEffect(() => {
+    const siCache = () => { if (document.visibilityState === 'hidden') enregistrer(); };
+    document.addEventListener('visibilitychange', siCache);
+    window.addEventListener('pagehide', enregistrer);
+    return () => {
+      document.removeEventListener('visibilitychange', siCache);
+      window.removeEventListener('pagehide', enregistrer);
+      enregistrer();
+    };
+  }, [enregistrer]);
 
   // dernier.current tout de suite : une validation de texte suivie d'une fermeture/export dans le même événement doit être vue.
   const commit = (d: CahierDoc) => {
