@@ -6,11 +6,20 @@ import { ptVersMm, ratioPixelsMax } from '../lib/units';
 import { motifFond, type Motif } from '../model/fonds';
 import { effacerPartiel, objetTouche } from '../model/gomme';
 import { ajouterObjet, modifierObjet, remplacerObjet, supprimerObjet } from '../model/ops';
-import type { OutilId } from '../model/outils';
+import type { ObjetBoite } from '../model/boites';
+import { OUTIL_TYPE, type OutilId } from '../model/outils';
 import { nouvelId } from '../model/types';
-import type { CahierDoc, ModeEntree, Objet, Point, Texte } from '../model/types';
+import type { CahierDoc, ModeEntree, Niveau, Objet, ObjetMaths, Point, Texte } from '../model/types';
+import { creerFraction } from '../maths/fraction';
+import { creerOperation, type ParamsOperation } from '../maths/operation';
+import { ajouterPoint, creerRepere, type ParamsRepere } from '../maths/repere';
+import { estVide } from '../maths/vide';
 import type { PDFDocumentProxy } from '../pdf/pdfjs';
 import { EditeurTexte } from './EditeurTexte';
+import { DialogueOperation } from './maths/DialogueOperation';
+import { DialogueRepere } from './maths/DialogueRepere';
+import { EditionMaths } from './maths/EditionMaths';
+import { FormeMaths } from './maths/Formes';
 import { PdfCanvas } from './PdfCanvas';
 
 type Props = {
@@ -24,13 +33,16 @@ type Props = {
   etatStylet: EtatStylet;
   setEtatStylet: (e: EtatStylet) => void;
   pdf: PDFDocumentProxy | null;
+  niveau: Niveau;
   onCommit: (doc: CahierDoc) => void;
   onActive: () => void;
 };
 
 type Edition = { texte: Texte; nouveau: boolean };
-// Outil Texte posé sur un texte existant : glisser = déplacer, toucher sans bouger = modifier.
-type TexteSaisi = { texte: Texte; depart: Point; bouge: boolean };
+// Outil de création posé sur un objet de son type : glisser = déplacer, toucher sans bouger = modifier.
+type ObjetSaisi = { objet: ObjetBoite; depart: Point; bouge: boolean };
+type EnEditionMaths = { objet: ObjetMaths; nouveau: boolean };
+type TypeCree = NonNullable<(typeof OUTIL_TYPE)[OutilId]>;
 
 const RAYON_GOMME = 3; // mm
 const RAYON_GOMME_FINE = 2;
@@ -54,10 +66,11 @@ type PropsObjets = {
   objets: Objet[];
   deplacable: boolean;
   idMasque: string | null;
+  idEdition: string | null;
   onDeplace: (o: Objet, node: Konva.Node) => void;
 };
 
-const CoucheObjets = memo(function CoucheObjets({ objets, deplacable, idMasque, onDeplace }: PropsObjets) {
+const CoucheObjets = memo(function CoucheObjets({ objets, deplacable, idMasque, idEdition, onDeplace }: PropsObjets) {
   return (
     <Layer>
       {objets.map(o =>
@@ -70,10 +83,14 @@ const CoucheObjets = memo(function CoucheObjets({ objets, deplacable, idMasque, 
               lineCap="round" lineJoin="round" hitStrokeWidth={4}
               draggable={deplacable} onDragEnd={e => onDeplace(o, e.target)} />
           )
-        ) : idMasque === o.id ? null : (
-          <Text key={o.id} x={o.x} y={o.y} width={o.largeur} text={o.texte} fontFamily="Arial"
-            fontSize={ptVersMm(o.taillePt)} lineHeight={1.5} fill={o.couleur}
-            draggable={deplacable} onDragEnd={e => onDeplace(o, e.target)} />
+        ) : o.type === 'texte' ? (
+          idMasque === o.id ? null : (
+            <Text key={o.id} x={o.x} y={o.y} width={o.largeur} text={o.texte} fontFamily="Arial"
+              fontSize={ptVersMm(o.taillePt)} lineHeight={1.5} fill={o.couleur}
+              draggable={deplacable} onDragEnd={e => onDeplace(o, e.target)} />
+          )
+        ) : (
+          <FormeMaths key={o.id} o={o} enEdition={idEdition === o.id} draggable={deplacable} onDragEnd={node => onDeplace(o, node)} />
         ),
       )}
     </Layer>
@@ -92,7 +109,10 @@ export function PageVue(p: Props) {
   const editionRef = useRef<Edition | null>(null);
   const valeurTexte = useRef('');
   const pointeurActif = useRef<number | null>(null);
-  const texteSaisiRef = useRef<TexteSaisi | null>(null);
+  const objetSaisiRef = useRef<ObjetSaisi | null>(null);
+  const [maths, setMaths] = useState<EnEditionMaths | null>(null);
+  const mathsRef = useRef<EnEditionMaths | null>(null); // même rôle que editionRef
+  const [dialogue, setDialogue] = useState<{ type: 'operation' | 'repere'; x: number; y: number } | null>(null);
   const racine = useRef<HTMLDivElement>(null);
   const scene = useRef<Konva.Stage>(null);
   // Les deux premières pages sont montées d'emblée (pas de page blanche au premier affichage).
@@ -102,6 +122,10 @@ export function PageVue(p: Props) {
 
   const docAffiche = brouillon ?? p.doc;
   const objets = docAffiche.pages[p.pageIndex].objets;
+  // L'objet maths en cours d'édition remplace (ou complète) celui du document : grille et points visibles pendant la saisie.
+  const objetsAffiches = !maths ? objets
+    : maths.nouveau ? [...objets, maths.objet]
+    : objets.map(o => (o.id === maths.objet.id ? maths.objet : o));
   const fond = useMemo(() => motifFond(page.fond, page.largeurMm, page.hauteurMm), [page.fond, page.largeurMm, page.hauteurMm]);
 
   const posMm = (e: Konva.KonvaEventObject<PointerEvent>): Point => {
@@ -156,6 +180,17 @@ export function PageVue(p: Props) {
       finTexte(valeurTexte.current);
       return;
     }
+    if (mathsRef.current) {
+      const m = mathsRef.current.objet;
+      if (m.type === 'repere') {
+        const q = posMm(e);
+        const r = ajouterPoint(m, q.x, q.y);
+        if (r !== m) { majMaths(r); return; }
+      }
+      finMaths(m);
+      return;
+    }
+    if (dialogue) return;
     if (p.outil === 'main' || pointeurActif.current !== null) return;
     const { tracer, etat } = decider(p.mode, p.etatStylet, e.evt.pointerType);
     if (etat !== p.etatStylet) p.setEtatStylet(etat);
@@ -165,6 +200,17 @@ export function PageVue(p: Props) {
     }
     if (p.outil === 'deplacer') return;
     const q = posMm(e);
+    const typeOutil = OUTIL_TYPE[p.outil];
+    if (typeOutil) {
+      const existant = [...objets].reverse().find(o => o.type === typeOutil && objetTouche(o, q, 1)) as ObjetBoite | undefined;
+      if (existant) {
+        pointeurActif.current = e.evt.pointerId;
+        objetSaisiRef.current = { objet: existant, depart: q, bouge: false };
+      } else {
+        creer(typeOutil, q);
+      }
+      return;
+    }
     if (p.outil === 'stylo') {
       pointeurActif.current = e.evt.pointerId;
       traitRef.current = [q];
@@ -173,31 +219,19 @@ export function PageVue(p: Props) {
       pointeurActif.current = e.evt.pointerId;
       brouillonRef.current = gommer(p.doc, q);
       setBrouillon(brouillonRef.current);
-    } else if (p.outil === 'texte') {
-      const existant = [...objets].reverse().find(o => o.type === 'texte' && objetTouche(o, q, 1)) as Texte | undefined;
-      if (existant) {
-        pointeurActif.current = e.evt.pointerId;
-        texteSaisiRef.current = { texte: existant, depart: q, bouge: false };
-      } else {
-        const largeur = Math.max(20, Math.min(80, page.largeurMm - q.x - 2));
-        const x = q.x + largeur > page.largeurMm - 2 ? Math.max(0, page.largeurMm - 2 - largeur) : q.x;
-        // Le point touché est le bas de la première ligne : le texte s'écrit juste au-dessus des pointillés.
-        const y = Math.max(0, q.y - ptVersMm(TAILLE_TEXTE_PT) * 1.5);
-        ouvrirEdition({ texte: { id: nouvelId(), type: 'texte', x, y, largeur, texte: '', taillePt: TAILLE_TEXTE_PT, couleur: p.couleur }, nouveau: true });
-      }
     }
   };
 
   const move = (e: Konva.KonvaEventObject<PointerEvent>) => {
     if (pointeurActif.current === null || e.evt.pointerId !== pointeurActif.current) return;
     const q = posMm(e);
-    const saisi = texteSaisiRef.current;
+    const saisi = objetSaisiRef.current;
     if (saisi) {
       const dx = q.x - saisi.depart.x;
       const dy = q.y - saisi.depart.y;
       if (!saisi.bouge && Math.hypot(dx, dy) < SEUIL_GLISSER) return;
       saisi.bouge = true;
-      brouillonRef.current = modifierObjet(p.doc, p.pageIndex, saisi.texte.id, { x: saisi.texte.x + dx, y: saisi.texte.y + dy });
+      brouillonRef.current = modifierObjet(p.doc, p.pageIndex, saisi.objet.id, { x: saisi.objet.x + dx, y: saisi.objet.y + dy });
       setBrouillon(brouillonRef.current);
     } else if (traitRef.current) {
       const pts = traitRef.current;
@@ -215,10 +249,11 @@ export function PageVue(p: Props) {
   const terminer = (pointerId: number) => {
     if (pointeurActif.current === null || pointerId !== pointeurActif.current) return;
     pointeurActif.current = null;
-    const saisi = texteSaisiRef.current;
-    texteSaisiRef.current = null;
+    const saisi = objetSaisiRef.current;
+    objetSaisiRef.current = null;
     if (saisi && !saisi.bouge) {
-      ouvrirEdition({ texte: saisi.texte, nouveau: false });
+      if (saisi.objet.type === 'texte') ouvrirEdition({ texte: saisi.objet, nouveau: false });
+      else ouvrirMaths({ objet: saisi.objet, nouveau: false });
       return;
     }
     const trait = traitRef.current;
@@ -254,6 +289,48 @@ export function PageVue(p: Props) {
       return;
     }
     onCommit(nouveau ? ajouterObjet(doc, pageIndex, { ...texte, texte: valeur }) : modifierObjet(doc, pageIndex, texte.id, { texte: valeur, x: texte.x, y: texte.y }));
+  };
+
+  const ouvrirMaths = (e: EnEditionMaths) => {
+    mathsRef.current = e;
+    setMaths(e);
+  };
+
+  const majMaths = (objet: ObjetMaths) => {
+    const ed = mathsRef.current;
+    if (!ed) return;
+    mathsRef.current = { ...ed, objet };
+    setMaths(mathsRef.current);
+  };
+
+  // Comme finTexte : une seule validation, lit les derniers props. Opération et repère vides sont conservés (estVide).
+  const finMaths = (objet: ObjetMaths) => {
+    const ed = mathsRef.current;
+    if (!ed) return;
+    mathsRef.current = null;
+    setMaths(null);
+    const { doc, pageIndex, onCommit } = derniersProps.current;
+    if (estVide(objet)) {
+      if (!ed.nouveau) onCommit(supprimerObjet(doc, pageIndex, objet.id));
+      return;
+    }
+    onCommit(ed.nouveau ? ajouterObjet(doc, pageIndex, objet) : remplacerObjet(doc, pageIndex, objet.id, [objet]));
+  };
+
+  const creer = (type: TypeCree, q: Point) => {
+    if (type === 'texte') {
+      const largeur = Math.max(20, Math.min(80, page.largeurMm - q.x - 2));
+      const x = q.x + largeur > page.largeurMm - 2 ? Math.max(0, page.largeurMm - 2 - largeur) : q.x;
+      // Le point touché est le bas de la première ligne : le texte s'écrit juste au-dessus des pointillés.
+      const y = Math.max(0, q.y - ptVersMm(TAILLE_TEXTE_PT) * 1.5);
+      ouvrirEdition({ texte: { id: nouvelId(), type: 'texte', x, y, largeur, texte: '', taillePt: TAILLE_TEXTE_PT, couleur: p.couleur }, nouveau: true });
+    } else if (type === 'operation' || type === 'repere') {
+      setDialogue({ type, x: q.x, y: q.y });
+    } else if (type === 'fraction') {
+      ouvrirMaths({ objet: creerFraction(q.x, q.y, p.couleur), nouveau: true });
+    } else {
+      ouvrirMaths({ objet: { id: nouvelId(), type: 'expression', x: q.x, y: q.y, latex: '', taillePt: 16, couleur: p.couleur, largeurMm: 10, hauteurMm: 8 }, nouveau: true });
+    }
   };
 
   const deplacerEdition = (dx: number, dy: number) => {
@@ -296,6 +373,7 @@ export function PageVue(p: Props) {
 
   useEffect(() => {
     if (!visible && pointeurActif.current !== null) terminer(pointeurActif.current);
+    if (!visible && mathsRef.current) finMaths(mathsRef.current.objet);
   }, [visible]);
 
   // Stage n'a pas de prop pixelRatio : on l'impose au canvas de chaque couche.
@@ -332,7 +410,8 @@ export function PageVue(p: Props) {
           onPointerLeave={up}
         >
           <CoucheFond motif={fond} />
-          <CoucheObjets objets={objets} deplacable={deplacable} idMasque={edition?.texte.id ?? null} onDeplace={finDeplacement} />
+          <CoucheObjets objets={objetsAffiches} deplacable={deplacable} idMasque={edition?.texte.id ?? null}
+            idEdition={maths?.objet.id ?? null} onDeplace={finDeplacement} />
           <Layer listening={false}>
             {enCours && (
               <Line points={enCours.flatMap(q => [q.x, q.y])} stroke={p.couleur} strokeWidth={p.epaisseur} lineCap="round" lineJoin="round" />
@@ -341,6 +420,26 @@ export function PageVue(p: Props) {
         </Stage>
       )}
       {edition && <EditeurTexte texte={edition.texte} pxMm={p.pxMm} onChange={v => { valeurTexte.current = v; }} onFin={finTexte} onDeplacer={deplacerEdition} />}
+      {maths && <EditionMaths o={maths.objet} pxMm={p.pxMm} onChange={majMaths} onFin={finMaths} />}
+      {dialogue?.type === 'operation' && (
+        <DialogueOperation
+          niveau={p.niveau}
+          onAnnuler={() => setDialogue(null)}
+          onValider={(params: ParamsOperation) => {
+            setDialogue(null);
+            ouvrirMaths({ objet: creerOperation(dialogue.x, dialogue.y, params, p.couleur), nouveau: true });
+          }}
+        />
+      )}
+      {dialogue?.type === 'repere' && (
+        <DialogueRepere
+          onAnnuler={() => setDialogue(null)}
+          onValider={(params: ParamsRepere) => {
+            setDialogue(null);
+            ouvrirMaths({ objet: creerRepere(dialogue.x, dialogue.y, params, p.couleur), nouveau: true });
+          }}
+        />
+      )}
     </div>
   );
 }

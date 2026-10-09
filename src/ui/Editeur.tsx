@@ -98,7 +98,9 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
       if (doc.source.type === 'pdf' && (await aDesPagesTournees(doc.source.data))) {
         setMessage({ type: 'info', texte: 'Attention : ce PDF contient des pages tournées, les annotations peuvent être décalées dans l’export.' });
       }
-      const octets = await exporterPdf(doc);
+      const octets = await exporterPdf(doc, {
+        rendreExpression: o => import('../maths/rasteriser').then(m => m.rasteriserExpression(o)),
+      });
       await partagerOuTelecharger(new Blob([new Uint8Array(octets)], { type: 'application/pdf' }), `${nomFichier(doc.titre)}.pdf`);
     } catch {
       setMessage({ type: 'erreur', texte: 'L’export PDF a échoué. Votre travail est conservé : réessayez.' });
@@ -157,6 +159,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             etatStylet={etatStylet}
             setEtatStylet={setEtatStylet}
             pdf={pdf}
+            niveau={reglages.niveau}
             onCommit={commit}
             onActive={() => setPageActive(i)}
           />
