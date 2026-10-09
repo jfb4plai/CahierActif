@@ -96,7 +96,7 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
             <li key={m.id} className="plai-card flex items-center gap-2 p-3">
               <button type="button" className="flex-1 text-left text-lg" onClick={() => ouvrirExistant(m.id)}>
                 {m.titre}
-                <span className="block text-sm text-[var(--text3)]">Modifié le {new Date(m.modifie).toLocaleString('fr-BE')}</span>
+                <span className="block text-base text-[var(--text3)]">Modifié le {new Date(m.modifie).toLocaleString('fr-BE')}</span>
               </button>
               <button type="button" className="plai-btn min-h-[44px]" onClick={() => supprimer(m)}>Supprimer</button>
             </li>

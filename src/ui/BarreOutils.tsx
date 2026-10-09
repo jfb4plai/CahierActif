@@ -2,7 +2,14 @@ import type { Fond, Niveau } from '../model/types';
 import { FONDS } from '../model/fonds';
 import { outilsPour, type OutilId } from '../model/outils';
 
-export const COULEURS = ['#1a1814', '#1d4ed8', '#dc2626', '#15803d', '#f97316', '#7c3aed'];
+export const COULEURS = [
+  { hex: '#1a1814', nom: 'Noir' },
+  { hex: '#1d4ed8', nom: 'Bleu' },
+  { hex: '#dc2626', nom: 'Rouge' },
+  { hex: '#15803d', nom: 'Vert' },
+  { hex: '#f97316', nom: 'Orange' },
+  { hex: '#7c3aed', nom: 'Violet' },
+];
 export const EPAISSEURS = [
   { mm: 0.4, libelle: 'Fin' },
   { mm: 0.8, libelle: 'Moyen' },
@@ -41,9 +48,9 @@ export function BarreOutils(p: Props) {
       ))}
       <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />
       {COULEURS.map(c => (
-        <button key={c} type="button" aria-label={`Couleur ${c}`} aria-pressed={p.couleur === c} onClick={() => p.setCouleur(c)}
-          className={`h-11 w-11 rounded-full border-2 ${p.couleur === c ? 'border-[#0f6e56] ring-2 ring-[#0f6e56]' : 'border-white'}`}
-          style={{ background: c }} />
+        <button key={c.hex} type="button" aria-label={c.nom} title={c.nom} aria-pressed={p.couleur === c.hex} onClick={() => p.setCouleur(c.hex)}
+          className={`h-11 w-11 rounded-full border-2 ${p.couleur === c.hex ? 'border-[#0f6e56] ring-2 ring-[#0f6e56]' : 'border-white'}`}
+          style={{ background: c.hex }} />
       ))}
       <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />
       {EPAISSEURS.map(e => (

@@ -29,7 +29,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   const doc = h.present;
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [outil, setOutil] = useState<OutilId>('stylo');
-  const [couleur, setCouleur] = useState(COULEURS[0]);
+  const [couleur, setCouleur] = useState(COULEURS[0].hex);
   const [epaisseur, setEpaisseur] = useState(EPAISSEURS[1].mm);
   const [zoom, setZoom] = useState(1);
   const [pageActive, setPageActive] = useState(0);
@@ -129,7 +129,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
       </div>
       {message && (
         <div className={message.type === 'erreur' ? 'plai-error' : 'plai-banner'} role="alert">
-          {message.texte} <button type="button" className="underline" onClick={() => setMessage(null)}>Fermer</button>
+          {message.texte} <button type="button" className="min-h-[44px] min-w-[44px] underline" onClick={() => setMessage(null)}>Fermer</button>
         </div>
       )}
       <BarreOutils
