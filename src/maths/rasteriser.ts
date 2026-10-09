@@ -17,9 +17,9 @@ async function chargerImage(svg: string): Promise<HTMLImageElement> {
 
 const cache = new Map<string, Promise<HTMLImageElement>>();
 
-/** Image affichée à l'écran (Konva), mise en cache par contenu et couleur. */
+/** Image affichée à l'écran (Konva), mise en cache par contenu, couleur et taille (une taille corrigée redessine). */
 export function imageExpression(o: Expression): Promise<HTMLImageElement> {
-  const k = `${o.couleur}|${o.latex}`;
+  const k = `${o.couleur}|${o.largeurMm.toFixed(2)}|${o.hauteurMm.toFixed(2)}|${o.latex}`;
   let p = cache.get(k);
   if (!p) {
     p = latexVersSvg(o.latex, o.couleur).then(r => chargerImage(svgDimensionne(r.svg, Math.max(1, o.largeurMm * 8), Math.max(1, o.hauteurMm * 8))));

@@ -12,34 +12,58 @@ export function EditeurExpression({ o, pxMm, onChange, onFin }: Props) {
   const [complet, setComplet] = useState(false);
   const [pret, setPret] = useState(false);
 
+  // Dernier calcul de dimensions en cours : « Terminé » l'attend pour valider la taille réelle.
+  const rendu = useRef<Promise<void>>(Promise.resolve());
+  const vivantRef = useRef(true);
+
   useEffect(() => {
     let vivant = true;
+    vivantRef.current = true;
     let champ: HTMLElement | null = null;
     let tour = 0;
     (async () => {
       const ml = await import('../../maths/mathlive');
       const { latexVersSvg, dimensionsMm } = await import('../../maths/expression');
       if (!vivant || !hote.current) return;
+      // Dimensions recalculées depuis le rendu MathJax : toucher, gomme et export utilisent la taille réelle.
+      const mesurer = (latex: string) => {
+        const n = ++tour; // ignore les rendus arrivés dans le désordre
+        rendu.current = latexVersSvg(latex, courant.current.couleur).then(
+          r => {
+            if (!vivant || n !== tour) return;
+            const d = dimensionsMm(r, courant.current.taillePt);
+            if (d.largeurMm === courant.current.largeurMm && d.hauteurMm === courant.current.hauteurMm) return;
+            courant.current = { ...courant.current, ...d };
+            rappel.current(courant.current);
+          },
+          () => {}, // rendu impossible : on garde les dimensions précédentes
+        );
+      };
       const mf = ml.creerChampMaths(courant.current.latex);
       champ = mf;
-      mf.addEventListener('input', async () => {
-        const n = ++tour; // ignore les rendus arrivés dans le désordre
-        const latex = mf.value;
-        const r = await latexVersSvg(latex, courant.current.couleur);
-        if (n !== tour) return;
-        courant.current = { ...courant.current, latex, ...dimensionsMm(r, courant.current.taillePt) };
+      mf.addEventListener('input', () => {
+        // Le LaTeX part tout de suite (rien n'est perdu si on exporte ou ferme avant la fin du rendu).
+        courant.current = { ...courant.current, latex: mf.value };
         rappel.current(courant.current);
+        mesurer(mf.value);
       });
+      mesurer(courant.current.latex); // nouvelle expression (10 × 8 mm provisoires) ou rouverte sans changement
       hote.current.appendChild(mf);
       setPret(true);
-      setTimeout(() => { mf.focus(); ml.afficherClavier(true); }, 0);
+      setTimeout(() => { if (!vivant) return; mf.focus(); ml.afficherClavier(true); }, 0); // pas de clavier orphelin si déjà fermé
     })();
     return () => {
       vivant = false;
+      vivantRef.current = false;
       void import('../../maths/mathlive').then(ml => ml.afficherClavier(false));
       champ?.remove();
     };
   }, []);
+
+  const terminer = async () => {
+    await rendu.current;
+    if (vivantRef.current) onFin(courant.current);
+  };
 
   const basculer = async () => {
     const ml = await import('../../maths/mathlive');
@@ -53,10 +77,10 @@ export function EditeurExpression({ o, pxMm, onChange, onFin }: Props) {
         {!pret && <span className="text-[var(--text2)]">Chargement du clavier mathématique…</span>}
       </div>
       <div className="mt-1 flex gap-2">
-        <button type="button" className="plai-btn min-h-[44px]" onMouseDown={e => e.preventDefault()} onClick={basculer}>
+        <button type="button" className="plai-btn min-h-[44px] !text-base" onMouseDown={e => e.preventDefault()} onClick={basculer}>
           {complet ? 'Clavier simple' : 'Clavier complet'}
         </button>
-        <button type="button" className="plai-btn min-h-[44px]" onMouseDown={e => e.preventDefault()} onClick={() => onFin(courant.current)}>Terminé</button>
+        <button type="button" className="plai-btn min-h-[44px] !text-base" onMouseDown={e => e.preventDefault()} onClick={terminer}>Terminé</button>
       </div>
     </div>
   );

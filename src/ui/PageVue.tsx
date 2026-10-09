@@ -34,8 +34,9 @@ type Props = {
   setEtatStylet: (e: EtatStylet) => void;
   pdf: PDFDocumentProxy | null;
   niveau: Niveau;
-  onCommit: (doc: CahierDoc) => void;
+  onCommit: (maj: CahierDoc | ((d: CahierDoc) => CahierDoc)) => void;
   onActive: () => void;
+  inscrireValidation: (page: number, valider: () => void) => () => void;
 };
 
 type Edition = { texte: Texte; nouveau: boolean };
@@ -175,6 +176,15 @@ export function PageVue(p: Props) {
   };
 
   const down = (e: Konva.KonvaEventObject<PointerEvent>) => {
+    if (dialogue || pointeurActif.current !== null) return;
+    // Politique stylet/doigt d'abord : un pointeur rejeté (paume, doigt après stylet) ne fait que défiler,
+    // il ne ferme pas la saisie ouverte et ne place pas de point.
+    const { tracer, etat } = decider(p.mode, p.etatStylet, e.evt.pointerType);
+    if (etat !== p.etatStylet) p.setEtatStylet(etat);
+    if (!tracer) {
+      if (p.outil !== 'main') defiler(e.evt); // outil Main : le défilement natif s'en charge
+      return;
+    }
     p.onActive();
     if (editionRef.current) {
       finTexte(valeurTexte.current);
@@ -190,15 +200,7 @@ export function PageVue(p: Props) {
       finMaths(m);
       return;
     }
-    if (dialogue) return;
-    if (p.outil === 'main' || pointeurActif.current !== null) return;
-    const { tracer, etat } = decider(p.mode, p.etatStylet, e.evt.pointerType);
-    if (etat !== p.etatStylet) p.setEtatStylet(etat);
-    if (!tracer) {
-      defiler(e.evt);
-      return;
-    }
-    if (p.outil === 'deplacer') return;
+    if (p.outil === 'main' || p.outil === 'deplacer') return;
     const q = posMm(e);
     const typeOutil = OUTIL_TYPE[p.outil];
     if (typeOutil) {
@@ -282,13 +284,13 @@ export function PageVue(p: Props) {
     if (!ed) return;
     editionRef.current = null;
     setEdition(null);
-    const { doc, pageIndex, onCommit } = derniersProps.current;
+    const { pageIndex, onCommit } = derniersProps.current;
     const { texte, nouveau } = ed;
     if (!valeur.trim()) {
-      if (!nouveau) onCommit(supprimerObjet(doc, pageIndex, texte.id));
+      if (!nouveau) onCommit(doc => supprimerObjet(doc, pageIndex, texte.id));
       return;
     }
-    onCommit(nouveau ? ajouterObjet(doc, pageIndex, { ...texte, texte: valeur }) : modifierObjet(doc, pageIndex, texte.id, { texte: valeur, x: texte.x, y: texte.y }));
+    onCommit(doc => (nouveau ? ajouterObjet(doc, pageIndex, { ...texte, texte: valeur }) : modifierObjet(doc, pageIndex, texte.id, { texte: valeur, x: texte.x, y: texte.y })));
   };
 
   const ouvrirMaths = (e: EnEditionMaths) => {
@@ -296,9 +298,10 @@ export function PageVue(p: Props) {
     setMaths(e);
   };
 
+  // Ignore une mise à jour tardive (rendu d'expression) arrivant après la fermeture ou pour un autre objet.
   const majMaths = (objet: ObjetMaths) => {
     const ed = mathsRef.current;
-    if (!ed) return;
+    if (!ed || ed.objet.id !== objet.id) return;
     mathsRef.current = { ...ed, objet };
     setMaths(mathsRef.current);
   };
@@ -306,16 +309,34 @@ export function PageVue(p: Props) {
   // Comme finTexte : une seule validation, lit les derniers props. Opération et repère vides sont conservés (estVide).
   const finMaths = (objet: ObjetMaths) => {
     const ed = mathsRef.current;
-    if (!ed) return;
+    if (!ed || ed.objet.id !== objet.id) return;
     mathsRef.current = null;
     setMaths(null);
-    const { doc, pageIndex, onCommit } = derniersProps.current;
+    const { pageIndex, onCommit } = derniersProps.current;
     if (estVide(objet)) {
-      if (!ed.nouveau) onCommit(supprimerObjet(doc, pageIndex, objet.id));
+      if (!ed.nouveau) onCommit(doc => supprimerObjet(doc, pageIndex, objet.id));
       return;
     }
-    onCommit(ed.nouveau ? ajouterObjet(doc, pageIndex, objet) : remplacerObjet(doc, pageIndex, objet.id, [objet]));
+    onCommit(doc => (ed.nouveau ? ajouterObjet(doc, pageIndex, objet) : remplacerObjet(doc, pageIndex, objet.id, [objet])));
   };
+
+  // Valide la saisie ouverte (texte ou maths) : appelé par l'éditeur avant export / .cahier / retour,
+  // quand on touche une autre page, et au démontage. Les refs garantissent une seule validation.
+  const validerEdition = () => {
+    if (editionRef.current) finTexte(valeurTexte.current);
+    if (mathsRef.current) finMaths(mathsRef.current.objet);
+  };
+  const validerRef = useRef(validerEdition);
+  validerRef.current = validerEdition;
+  const { inscrireValidation, pageIndex } = p;
+  useEffect(() => {
+    const desinscrire = inscrireValidation(pageIndex, () => validerRef.current());
+    return () => {
+      desinscrire();
+      // StrictMode : le démontage simulé du premier rendu n'a rien d'ouvert, l'appel est sans effet.
+      validerRef.current();
+    };
+  }, [inscrireValidation, pageIndex]);
 
   const creer = (type: TypeCree, q: Point) => {
     if (type === 'texte') {

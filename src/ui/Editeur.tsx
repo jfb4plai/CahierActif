@@ -78,13 +78,31 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   }, [enregistrer]);
 
   // dernier.current tout de suite : une validation de texte suivie d'une fermeture/export dans le même événement doit être vue.
-  const commit = (d: CahierDoc) => {
+  // Une fonction est appliquée au dernier document : plusieurs validations dans le même événement (deux pages) se cumulent.
+  const commit = (maj: CahierDoc | ((d: CahierDoc) => CahierDoc)) => {
+    const d = typeof maj === 'function' ? maj(dernier.current) : maj;
     dernier.current = d;
     dispatch({ type: 'commit', doc: d });
   };
 
-  // iOS ne déclenche pas toujours blur : on force la validation d'une zone de texte ouverte.
-  const validerSaisie = () => (document.activeElement as HTMLElement | null)?.blur();
+  // Chaque page inscrit de quoi valider sa saisie ouverte (texte ou objet maths) : appelé de façon synchrone avant
+  // export, .cahier et retour, et quand on touche une autre page (une seule saisie ouverte à la fois).
+  const validations = useRef(new Map<number, () => void>());
+  const inscrireValidation = useCallback((page: number, valider: () => void) => {
+    validations.current.set(page, valider);
+    return () => {
+      if (validations.current.get(page) === valider) validations.current.delete(page);
+    };
+  }, []);
+  const validerAutres = (page: number | null) => {
+    for (const [i, valider] of validations.current) if (i !== page) valider();
+  };
+
+  // iOS ne déclenche pas toujours blur : on valide explicitement toute saisie ouverte.
+  const validerSaisie = () => {
+    (document.activeElement as HTMLElement | null)?.blur();
+    validerAutres(null);
+  };
 
   const fermer = () => {
     validerSaisie();
@@ -161,7 +179,11 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             pdf={pdf}
             niveau={reglages.niveau}
             onCommit={commit}
-            onActive={() => setPageActive(i)}
+            onActive={() => {
+              validerAutres(i);
+              setPageActive(i);
+            }}
+            inscrireValidation={inscrireValidation}
           />
         ))}
       </div>
