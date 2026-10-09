@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { PDFDocumentProxy } from '../pdf/pdfjs';
-import { MM_PAR_PT } from '../lib/units';
+import { MM_PAR_PT, ratioPixelsMax } from '../lib/units';
 
 type Props = { pdf: PDFDocumentProxy; pageIndex: number; pxMm: number };
 
@@ -14,7 +14,7 @@ export function PdfCanvas({ pdf, pageIndex, pxMm }: Props) {
       const page = await pdf.getPage(pageIndex + 1);
       if (annule || !ref.current) return;
       const vp = page.getViewport({ scale: pxMm * MM_PAR_PT }); // px par pt
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = ratioPixelsMax(vp.width, vp.height, window.devicePixelRatio || 1);
       const c = ref.current;
       c.width = Math.floor(vp.width * dpr);
       c.height = Math.floor(vp.height * dpr);

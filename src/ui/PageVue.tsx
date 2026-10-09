@@ -1,8 +1,8 @@
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Circle, Layer, Line, Stage, Text } from 'react-konva';
 import type Konva from 'konva';
 import { decider, type EtatStylet } from '../input/pointerPolicy';
-import { ptVersMm } from '../lib/units';
+import { ptVersMm, ratioPixelsMax } from '../lib/units';
 import { motifFond, type Motif } from '../model/fonds';
 import { effacerPartiel, objetTouche } from '../model/gomme';
 import { ajouterObjet, modifierObjet, remplacerObjet, supprimerObjet } from '../model/ops';
@@ -89,6 +89,8 @@ export function PageVue(p: Props) {
   const valeurTexte = useRef('');
   const pointeurActif = useRef<number | null>(null);
   const racine = useRef<HTMLDivElement>(null);
+  const scene = useRef<Konva.Stage>(null);
+  const [visible, setVisible] = useState(typeof IntersectionObserver === 'undefined');
   const derniersProps = useRef(p);
   derniersProps.current = p;
 
@@ -250,6 +252,30 @@ export function PageVue(p: Props) {
 
   const w = page.largeurMm * p.pxMm;
   const h = page.hauteurMm * p.pxMm;
+  const ratio = ratioPixelsMax(w, h, window.devicePixelRatio || 1);
+
+  // Mémoire iPad : seules les pages proches de l'écran (± une hauteur d'écran) ont leurs canvas.
+  useEffect(() => {
+    const el = racine.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const obs = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { rootMargin: '100% 0px' });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!visible && pointeurActif.current !== null) terminer(pointeurActif.current);
+  }, [visible]);
+
+  // Stage n'a pas de prop pixelRatio : on l'impose au canvas de chaque couche.
+  useEffect(() => {
+    if (!visible || !scene.current) return;
+    for (const l of scene.current.getLayers()) {
+      l.getCanvas().setPixelRatio(ratio);
+      l.batchDraw();
+    }
+  }, [visible, ratio]);
+
   const deplacable = p.outil === 'deplacer';
 
   return (
@@ -260,26 +286,29 @@ export function PageVue(p: Props) {
       aria-label={`Page ${p.pageIndex + 1}`}
       onPointerCancel={e => terminer(e.pointerId)}
     >
-      {p.pdf && <PdfCanvas pdf={p.pdf} pageIndex={p.pageIndex} pxMm={p.pxMm} />}
-      <Stage
-        width={w}
-        height={h}
-        scaleX={p.pxMm}
-        scaleY={p.pxMm}
-        style={{ position: 'absolute', inset: 0 }}
-        onPointerDown={down}
-        onPointerMove={move}
-        onPointerUp={up}
-        onPointerLeave={up}
-      >
-        <CoucheFond motif={fond} />
-        <CoucheObjets objets={objets} deplacable={deplacable} idMasque={edition?.texte.id ?? null} onDeplace={finDeplacement} />
-        <Layer listening={false}>
-          {enCours && (
-            <Line points={enCours.flatMap(q => [q.x, q.y])} stroke={p.couleur} strokeWidth={p.epaisseur} lineCap="round" lineJoin="round" />
-          )}
-        </Layer>
-      </Stage>
+      {visible && p.pdf && <PdfCanvas pdf={p.pdf} pageIndex={p.pageIndex} pxMm={p.pxMm} />}
+      {visible && (
+        <Stage
+          ref={scene}
+          width={w}
+          height={h}
+          scaleX={p.pxMm}
+          scaleY={p.pxMm}
+          style={{ position: 'absolute', inset: 0 }}
+          onPointerDown={down}
+          onPointerMove={move}
+          onPointerUp={up}
+          onPointerLeave={up}
+        >
+          <CoucheFond motif={fond} />
+          <CoucheObjets objets={objets} deplacable={deplacable} idMasque={edition?.texte.id ?? null} onDeplace={finDeplacement} />
+          <Layer listening={false}>
+            {enCours && (
+              <Line points={enCours.flatMap(q => [q.x, q.y])} stroke={p.couleur} strokeWidth={p.epaisseur} lineCap="round" lineJoin="round" />
+            )}
+          </Layer>
+        </Stage>
+      )}
       {edition && <EditeurTexte texte={edition.texte} pxMm={p.pxMm} onChange={v => { valeurTexte.current = v; }} onFin={finTexte} />}
     </div>
   );
