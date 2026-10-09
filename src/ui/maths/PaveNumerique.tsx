@@ -6,7 +6,7 @@ type Props = { onChiffre: (c: string) => void; onEffacer: () => void; onDirectio
 const garde = (e: React.MouseEvent) => e.preventDefault();
 
 export function PaveNumerique({ onChiffre, onEffacer, onDirection, onFin }: Props) {
-  const b = 'plai-btn min-h-[56px] min-w-[56px] text-xl';
+  const b = 'plai-btn min-h-[56px] min-w-[56px] !text-2xl'; // ! : .plai-btn impose 14px
   const chiffre = (c: string) => <button key={c} type="button" className={b} onMouseDown={garde} onClick={() => onChiffre(c)}>{c}</button>;
   return (
     <div role="group" aria-label="Pavé numérique"

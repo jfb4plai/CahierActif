@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  cle, cleDepart, directionSaisie, ecrireCellule, geometrieOperation, libelleCellule, lireCle, saisieValide,
+  caractereSaisi, cle, cleDepart, directionSaisie, ecrireCellule, geometrieOperation, libelleCellule, lireCle, saisieValide,
   valeurCellule, voisin, type Direction,
 } from '../../maths/operation';
 import type { OperationPosee } from '../../model/types';
@@ -30,12 +30,11 @@ export function EditeurOperation({ o, pxMm, onChange, onFin }: Props) {
 
   const ecrire = (k: string, ch: string) => {
     const { zone, index } = lireCle(k);
-    if (ch === '') {
-      onChange(ecrireCellule(courant.current, zone, index, ''));
-      return;
-    }
-    if (!saisieValide(ch)) return;
-    onChange(ecrireCellule(courant.current, zone, index, ch));
+    if (ch !== '' && !saisieValide(ch)) return;
+    // courant mis à jour tout de suite : deux saisies avant le rendu suivant ne s'écrasent pas.
+    courant.current = ecrireCellule(courant.current, zone, index, ch);
+    onChange(courant.current);
+    if (ch === '') return;
     const d = directionSaisie(courant.current, zone);
     if (d) deplacer(k, d);
   };
@@ -50,10 +49,11 @@ export function EditeurOperation({ o, pxMm, onChange, onFin }: Props) {
               key={k}
               ref={el => { if (el) champs.current.set(k, el); else champs.current.delete(k); }}
               value={valeurCellule(o, c.zone, c.index)}
-              inputMode="numeric"
+              // Pas de clavier de la tablette : le pavé à l'écran sert à écrire (un clavier physique marche toujours).
+              inputMode="none"
               aria-label={libelleCellule(o, c.zone, c.index)}
-              onFocus={() => setFocus(k)}
-              onChange={e => ecrire(k, e.target.value.slice(-1))}
+              onFocus={e => { setFocus(k); e.currentTarget.select(); }}
+              onChange={e => ecrire(k, caractereSaisi(valeurCellule(courant.current, c.zone, c.index), e.target.value))}
               onKeyDown={e => {
                 const d = FLECHES[e.key];
                 if (d) { e.preventDefault(); deplacer(k, d); }

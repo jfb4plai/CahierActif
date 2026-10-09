@@ -16,6 +16,12 @@ export type GeometrieRepere = {
   graduationsY: Graduation[];
 };
 
+/** Borne saisie au clavier : accepte le signe moins typographique et la virgule ; vide ou illisible = NaN (refusé). */
+export function lireBorne(s: string): number {
+  const t = s.trim().replace(/[−–]/g, '-').replace(',', '.');
+  return t === '' || t === '-' ? NaN : Number(t);
+}
+
 export function parametresValides(p: ParamsRepere): string | null {
   const nombres = [p.xmin, p.xmax, p.ymin, p.ymax];
   if (!nombres.every(Number.isInteger)) return 'Les bornes doivent être des nombres entiers.';

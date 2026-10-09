@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   CASE_MM, RETENUE_MM, creerOperation, geometrieOperation, couleurColonne, operateursPour,
   decimalesPermises, chiffresDiviseurMax, voisin, ecrireCellule, valeurCellule, saisieValide,
-  cleDepart, directionSaisie, type ParamsOperation,
+  cleDepart, directionSaisie, caractereSaisi, type ParamsOperation,
 } from './operation';
 
 const params = (p: Partial<ParamsOperation> = {}): ParamsOperation => ({
@@ -109,5 +109,14 @@ describe('operation', () => {
     const d = creerOperation(0, 0, params({ operateur: '÷' }), '#000000');
     expect(cleDepart(d)).toBe('case:0');
     expect(directionSaisie(d, 'case')).toBe('droite');
+  });
+
+  it('caractère tapé au clavier physique dans une case déjà remplie', () => {
+    expect(caractereSaisi('', '4')).toBe('4');
+    expect(caractereSaisi('5', '53')).toBe('3'); // curseur après l'ancien chiffre
+    expect(caractereSaisi('5', '35')).toBe('3'); // curseur avant l'ancien chiffre
+    expect(caractereSaisi('5', '3')).toBe('3'); // chiffre sélectionné puis remplacé
+    expect(caractereSaisi('5', '55')).toBe('5');
+    expect(caractereSaisi('5', '')).toBe('');
   });
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   MARGE_MM, creerRepere, parametresValides, geometrieRepere, versMm, versUnites, ajouterPoint,
-  supprimerPoint, nomSuivant, etiquettePoint, formatNombre,
+  supprimerPoint, nomSuivant, etiquettePoint, formatNombre, lireBorne,
 } from './repere';
 
 const r0 = () => creerRepere(20, 30, { xmin: -2, xmax: 4, ymin: -1, ymax: 3, uniteMm: 10 }, '#000000');
@@ -57,5 +57,15 @@ describe('repere', () => {
     expect(formatNombre(2.5)).toBe('2,5');
     expect(formatNombre(-3)).toBe('-3');
     expect(etiquettePoint({ nom: 'A', x: 2, y: 3.5 })).toBe('A(2 ; 3,5)');
+  });
+
+  it('borne saisie : signe moins, vide et texte illisible', () => {
+    expect(lireBorne('-5')).toBe(-5);
+    expect(lireBorne(' −3 ')).toBe(-3); // moins typographique
+    expect(lireBorne('4')).toBe(4);
+    expect(Number.isNaN(lireBorne(''))).toBe(true);
+    expect(Number.isNaN(lireBorne('-'))).toBe(true);
+    expect(Number.isNaN(lireBorne('a'))).toBe(true);
+    expect(parametresValides({ xmin: lireBorne(''), xmax: 5, ymin: -5, ymax: 5, uniteMm: 10 })).not.toBeNull();
   });
 });

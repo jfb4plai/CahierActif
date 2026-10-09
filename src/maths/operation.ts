@@ -117,6 +117,19 @@ export function couleurColonne(o: OperationPosee, col: number): string | null {
 
 export const saisieValide = (ch: string) => /^[0-9]$/.test(ch);
 
+/**
+ * Caractère tapé au clavier physique dans une case d'un seul chiffre : la valeur du champ peut être
+ * l'ancien chiffre plus le nouveau, avant ou après selon la position du curseur. '' = effacement.
+ */
+export function caractereSaisi(ancien: string, nouveau: string): string {
+  if (nouveau === '') return '';
+  if (ancien && nouveau.length > ancien.length) {
+    if (nouveau.startsWith(ancien)) return nouveau.slice(ancien.length).slice(-1);
+    if (nouveau.endsWith(ancien)) return nouveau.slice(0, nouveau.length - ancien.length).slice(-1);
+  }
+  return nouveau.slice(-1);
+}
+
 function tableau(o: OperationPosee, zone: Zone): string[] {
   return zone === 'case' ? o.cases : zone === 'retenue' ? o.retenues : zone === 'diviseur' ? o.diviseur : o.quotient;
 }

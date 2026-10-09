@@ -11,10 +11,10 @@ function Nombre({ id, label, aide, valeur, min, max, onChange }: { id: string; l
     <div className="mb-3">
       <label htmlFor={id} className="block font-semibold">{label}</label>
       <div className="flex items-center gap-2">
-        <button type="button" className="plai-btn min-h-[44px] min-w-[44px]" aria-label={`${label} : moins`} onClick={() => onChange(Math.max(min, valeur - 1))}>−</button>
-        <input id={id} type="number" inputMode="numeric" min={min} max={max} value={valeur} className="plai-input w-20 text-center"
+        <button type="button" className="plai-btn min-h-[44px] min-w-[44px] !text-base" aria-label={`${label} : moins`} onClick={() => onChange(Math.max(min, valeur - 1))}>−</button>
+        <input id={id} type="number" inputMode="numeric" min={min} max={max} value={valeur} className="plai-input w-20 min-h-[44px] text-center !text-base"
           onChange={e => onChange(Math.min(max, Math.max(min, Number(e.target.value) || min)))} />
-        <button type="button" className="plai-btn min-h-[44px] min-w-[44px]" aria-label={`${label} : plus`} onClick={() => onChange(Math.min(max, valeur + 1))}>+</button>
+        <button type="button" className="plai-btn min-h-[44px] min-w-[44px] !text-base" aria-label={`${label} : plus`} onClick={() => onChange(Math.min(max, valeur + 1))}>+</button>
       </div>
       <p className="text-[var(--text2)]">{aide}</p>
     </div>
@@ -38,7 +38,7 @@ export function DialogueOperation({ niveau, onValider, onAnnuler }: Props) {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" role="dialog" aria-modal="true" aria-labelledby="titre-op">
-      <div className="plai-card max-h-[90vh] w-full max-w-md overflow-auto bg-[var(--surface)] p-5">
+      <div className="plai-card max-h-[90vh] w-full max-w-md overflow-auto bg-[var(--surface)] p-5 text-base">
         <h2 id="titre-op" className="mb-3 font-serif text-2xl">Poser une opération</h2>
         <fieldset className="mb-3">
           <legend className="font-semibold">Opération</legend>
@@ -77,8 +77,8 @@ export function DialogueOperation({ niveau, onValider, onAnnuler }: Props) {
         </label>
         <p className="mb-4 text-[var(--text2)]">Unités en bleu, dizaines en vert, centaines en rouge : aide à garder les chiffres alignés.</p>
         <div className="flex gap-2">
-          <button type="button" className="plai-btn min-h-[44px]" onClick={valider}>Poser l’opération</button>
-          <button type="button" className="plai-btn min-h-[44px]" onClick={onAnnuler}>Annuler</button>
+          <button type="button" className="plai-btn min-h-[44px] !text-base" onClick={valider}>Poser l’opération</button>
+          <button type="button" className="plai-btn min-h-[44px] !text-base" onClick={onAnnuler}>Annuler</button>
         </div>
       </div>
     </div>
