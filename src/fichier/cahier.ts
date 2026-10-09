@@ -23,7 +23,7 @@ export async function versCahier(doc: CahierDoc): Promise<Blob> {
   zip.file('manifeste.json', JSON.stringify({ format: FORMAT, version: VERSION }));
   zip.file('document.json', JSON.stringify({ ...doc, source }));
   const octets = await zip.generateAsync({ type: 'uint8array' });
-  return new Blob([octets], { type: 'application/zip' });
+  return new Blob([octets as BlobPart], { type: 'application/zip' });
 }
 
 export async function depuisCahier(data: ArrayBuffer): Promise<CahierDoc> {
