@@ -66,8 +66,9 @@ export function EditeurTexte({ texte, pxMm, onChange, onFin, onDeplacer }: Props
       onMouseDown={e => e.preventDefault()} // garde le focus dans la zone de texte
       style={{
         position: 'absolute',
-        left: Math.max(0, texte.x * pxMm - POIGNEE - 2),
-        top: texte.y * pxMm,
+        // Au-dessus, alignée sur le bord gauche : le début du texte reste visible pendant qu'on le place.
+        left: texte.x * pxMm,
+        top: Math.max(0, texte.y * pxMm - POIGNEE - 2),
         width: POIGNEE,
         height: POIGNEE,
         borderRadius: 8,
