@@ -30,6 +30,10 @@ function FormeOperation({ o, sansChiffres, ...g0 }: Commun & { o: OperationPosee
         );
       })}
       {g.barres.map((b, i) => <Line key={i} points={[b.x1, b.y1, b.x2, b.y2]} stroke={o.couleur} strokeWidth={0.5} />)}
+      {g.signeSomme && (
+        <Text x={g.signeSomme.x - 5} y={g.signeSomme.y - 5} width={10} height={10} text="+"
+          align="center" verticalAlign="middle" fontFamily="Arial" fontSize={7} fill={o.couleur} />
+      )}
       {g.signe && (
         <Text x={g.signe.x - 5} y={g.signe.y - 5} width={10} height={10} text={o.operateur === '-' ? '−' : o.operateur}
           align="center" verticalAlign="middle" fontFamily="Arial" fontSize={7} fill={o.couleur} />

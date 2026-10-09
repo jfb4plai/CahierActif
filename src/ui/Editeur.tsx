@@ -47,6 +47,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
 
   const dernier = useRef(doc);
   dernier.current = doc;
+  const validations = useRef(new Map<number, () => void>());
   const dernierEnregistre = useRef<CahierDoc | null>(initial);
   const enregistrer = useCallback(() => {
     const d = dernier.current;
@@ -66,13 +67,18 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   }, [doc, enregistrer]);
 
   // Tout de suite si l'app passe en arrière-plan (iPad : l'onglet peut être tué sans autre avertissement), et à la fermeture.
+  // La saisie ouverte (texte, opération…) est d'abord validée : sinon un objet en cours serait perdu.
   useEffect(() => {
-    const siCache = () => { if (document.visibilityState === 'hidden') enregistrer(); };
+    const toutEnregistrer = () => {
+      for (const valider of validations.current.values()) valider();
+      enregistrer();
+    };
+    const siCache = () => { if (document.visibilityState === 'hidden') toutEnregistrer(); };
     document.addEventListener('visibilitychange', siCache);
-    window.addEventListener('pagehide', enregistrer);
+    window.addEventListener('pagehide', toutEnregistrer);
     return () => {
       document.removeEventListener('visibilitychange', siCache);
-      window.removeEventListener('pagehide', enregistrer);
+      window.removeEventListener('pagehide', toutEnregistrer);
       enregistrer();
     };
   }, [enregistrer]);
@@ -87,7 +93,6 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
 
   // Chaque page inscrit de quoi valider sa saisie ouverte (texte ou objet maths) : appelé de façon synchrone avant
   // export, .cahier et retour, et quand on touche une autre page (une seule saisie ouverte à la fois).
-  const validations = useRef(new Map<number, () => void>());
   const inscrireValidation = useCallback((page: number, valider: () => void) => {
     validations.current.set(page, valider);
     return () => {

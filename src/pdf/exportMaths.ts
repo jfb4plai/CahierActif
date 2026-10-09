@@ -37,6 +37,7 @@ export function dessinerOperation(p: PDFPage, r: Origine, o: OperationPosee, fon
   }
   const trait = couleur(o.couleur);
   for (const b of g.barres) ligne(p, r, o.x + b.x1, o.y + b.y1, o.x + b.x2, o.y + b.y2, 0.5, trait);
+  if (g.signeSomme) texteCentre(p, font, '+', X(r, o.x + g.signeSomme.x), Y(r, o.y + g.signeSomme.y), 20, o.couleur);
   if (g.signe) texteCentre(p, font, o.operateur === '-' ? '-' : o.operateur === '×' ? '×' : '+', X(r, o.x + g.signe.x), Y(r, o.y + g.signe.y), 20, o.couleur);
   if (g.virgule) ligne(p, r, o.x + g.virgule.x, o.y + g.virgule.y1, o.x + g.virgule.x, o.y + g.virgule.y2, 0.6, rgb(0.86, 0.15, 0.15));
 }

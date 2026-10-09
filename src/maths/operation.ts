@@ -14,6 +14,7 @@ export type GeometrieOperation = {
   hauteur: number;
   cellules: Cellule[];
   signe: { x: number; y: number } | null; // centre de la case du signe
+  signeSomme: { x: number; y: number } | null; // « + » devant le dernier produit partiel (× avec plusieurs produits)
   barres: Segment[];
   virgule: { x: number; y1: number; y2: number } | null;
 };
@@ -70,12 +71,17 @@ export function geometrieOperation(o: OperationPosee): GeometrieOperation {
     }
     const nb = lignesAvantBarre(o);
     const largeur = x0 + o.colonnes * C;
+    const barres: Segment[] = [{ x1: 0, y1: y0 + nb * C, x2: largeur, y2: y0 + nb * C }];
+    // × avec au moins deux produits partiels : on les additionne, d'où un « + » et un second trait avant le résultat.
+    const somme = o.operateur === '×' && o.lignes - nb >= 3;
+    if (somme) barres.push({ x1: 0, y1: y0 + (o.lignes - 1) * C, x2: largeur, y2: y0 + (o.lignes - 1) * C });
     return {
       largeur,
       hauteur: y0 + o.lignes * C,
       cellules,
       signe: { x: C / 2, y: y0 + (nb - 0.5) * C },
-      barres: [{ x1: 0, y1: y0 + nb * C, x2: largeur, y2: y0 + nb * C }],
+      signeSomme: somme ? { x: C / 2, y: y0 + (o.lignes - 1.5) * C } : null,
+      barres,
       virgule: virgule(o, x0, y0),
     };
   }
@@ -93,6 +99,7 @@ export function geometrieOperation(o: OperationPosee): GeometrieOperation {
     hauteur,
     cellules,
     signe: null,
+    signeSomme: null,
     barres: [
       { x1: xPotence, y1: 0, x2: xPotence, y2: hauteur },
       { x1: xPotence, y1: C, x2: xd + largeurDroite, y2: C },
@@ -186,4 +193,42 @@ export function libelleCellule(o: OperationPosee, zone: Zone, index: number): st
   if (zone === 'case') return `Ligne ${Math.floor(index / o.colonnes) + 1}, colonne ${(index % o.colonnes) + 1}`;
   if (zone === 'retenue') return `Retenue, colonne ${index + 1}`;
   return `${zone === 'diviseur' ? 'Diviseur' : 'Quotient'}, chiffre ${index + 1}`;
+}
+
+/** Lignes au-dessus de la barre (hors division) : l'élève recopie un nombre, il ne calcule pas. */
+export function estLigneARecopier(o: OperationPosee, ligne: number): boolean {
+  return o.operateur !== '÷' && ligne < lignesAvantBarre(o);
+}
+
+function remplacerLigne(o: OperationPosee, ligne: number, chiffres: string[]): OperationPosee {
+  const C = o.colonnes;
+  const rangee = Array<string>(C - chiffres.length).fill('').concat(chiffres);
+  const cases = o.cases.slice();
+  cases.splice(ligne * C, C, ...rangee);
+  return { ...o, cases };
+}
+
+const chiffresDeLigne = (o: OperationPosee, ligne: number) =>
+  o.cases.slice(ligne * o.colonnes, (ligne + 1) * o.colonnes).filter(v => v !== '');
+
+/** Saisie « calculatrice » : chiffres tapés dans l'ordre de lecture, nombre calé à droite (unités sous unités). */
+export function taperCalculatrice(o: OperationPosee, ligne: number, chiffre: string): OperationPosee {
+  const chiffres = chiffresDeLigne(o, ligne);
+  if (!saisieValide(chiffre) || chiffres.length >= o.colonnes) return o;
+  return remplacerLigne(o, ligne, [...chiffres, chiffre]);
+}
+
+export function effacerCalculatrice(o: OperationPosee, ligne: number): OperationPosee {
+  return remplacerLigne(o, ligne, chiffresDeLigne(o, ligne).slice(0, -1));
+}
+
+/** Touche « Nombre suivant » : unités de la ligne suivante (début de ligne pour la division). */
+export function ligneSuivante(o: OperationPosee, k: string): string | null {
+  const { zone, index } = lireCle(k);
+  const C = o.colonnes;
+  const debut = (r: number) => (r >= o.lignes ? null : cle('case', o.operateur === '÷' ? r * C : r * C + C - 1));
+  if (zone === 'case') return debut(Math.floor(index / C) + 1);
+  if (zone === 'retenue') return debut(0);
+  if (zone === 'diviseur') return o.quotient.length ? cle('quotient', 0) : null;
+  return null;
 }

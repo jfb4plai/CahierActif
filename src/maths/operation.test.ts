@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   CASE_MM, RETENUE_MM, creerOperation, geometrieOperation, couleurColonne, operateursPour,
   decimalesPermises, chiffresDiviseurMax, voisin, ecrireCellule, valeurCellule, saisieValide,
-  cleDepart, directionSaisie, caractereSaisi, type ParamsOperation,
+  cleDepart, directionSaisie, caractereSaisi, estLigneARecopier, taperCalculatrice, effacerCalculatrice,
+  ligneSuivante, type ParamsOperation,
 } from './operation';
 
 const params = (p: Partial<ParamsOperation> = {}): ParamsOperation => ({
@@ -45,6 +46,16 @@ describe('operation', () => {
   it('multiplication : la barre suit toujours les deux premières lignes', () => {
     const g = geometrieOperation(creerOperation(0, 0, params({ operateur: '×', lignes: 5 }), '#000000'));
     expect(g.barres[0].y1).toBe(RETENUE_MM + 2 * CASE_MM);
+  });
+
+  it('multiplication à deux produits partiels : « + » et second trait avant le résultat', () => {
+    const g = geometrieOperation(creerOperation(0, 0, params({ operateur: '×', colonnes: 4, lignes: 5 }), '#000000'));
+    expect(g.barres.map(b => b.y1)).toEqual([RETENUE_MM + 2 * CASE_MM, RETENUE_MM + 4 * CASE_MM]);
+    expect(g.signeSomme).toEqual({ x: CASE_MM / 2, y: RETENUE_MM + 3.5 * CASE_MM });
+    const simple = geometrieOperation(creerOperation(0, 0, params({ operateur: '×', lignes: 3 }), '#000000'));
+    expect(simple.barres).toHaveLength(1);
+    expect(simple.signeSomme).toBeNull();
+    expect(geometrieOperation(creerOperation(0, 0, params(), '#000000')).signeSomme).toBeNull();
   });
 
   it('division : potence, diviseur en haut à droite, quotient dessous', () => {
@@ -118,5 +129,53 @@ describe('operation', () => {
     expect(caractereSaisi('5', '3')).toBe('3'); // chiffre sélectionné puis remplacé
     expect(caractereSaisi('5', '55')).toBe('5');
     expect(caractereSaisi('5', '')).toBe('');
+  });
+});
+
+const ligne = (o: { cases: string[]; colonnes: number }, r: number) => o.cases.slice(r * o.colonnes, (r + 1) * o.colonnes);
+
+describe('saisie calculatrice des nombres à recopier', () => {
+  it('lignes au-dessus de la barre : à recopier ; résultat et division : non', () => {
+    const o = creerOperation(0, 0, params(), '#000000'); // 2 nombres + résultat
+    expect([0, 1, 2].map(r => estLigneARecopier(o, r))).toEqual([true, true, false]);
+    const m = creerOperation(0, 0, params({ operateur: '×', lignes: 5 }), '#000000');
+    expect([0, 1, 2, 3, 4].map(r => estLigneARecopier(m, r))).toEqual([true, true, false, false, false]);
+    const d = creerOperation(0, 0, params({ operateur: '÷' }), '#000000');
+    expect(estLigneARecopier(d, 0)).toBe(false);
+  });
+
+  it('245 + 38 tapés dans l’ordre de lecture : unités sous unités', () => {
+    let o = creerOperation(0, 0, params(), '#000000');
+    for (const c of '245') o = taperCalculatrice(o, 0, c);
+    for (const c of '38') o = taperCalculatrice(o, 1, c);
+    expect(ligne(o, 0)).toEqual(['2', '4', '5']);
+    expect(ligne(o, 1)).toEqual(['', '3', '8']);
+    expect(ligne(o, 2)).toEqual(['', '', '']);
+  });
+
+  it('ligne pleine : chiffre de trop ignoré', () => {
+    let o = creerOperation(0, 0, params(), '#000000');
+    for (const c of '2459') o = taperCalculatrice(o, 0, c);
+    expect(ligne(o, 0)).toEqual(['2', '4', '5']);
+  });
+
+  it('Effacer retire le dernier chiffre tapé', () => {
+    let o = creerOperation(0, 0, params(), '#000000');
+    for (const c of '245') o = taperCalculatrice(o, 0, c);
+    o = effacerCalculatrice(o, 0);
+    expect(ligne(o, 0)).toEqual(['', '2', '4']);
+    o = effacerCalculatrice(effacerCalculatrice(effacerCalculatrice(o, 0), 0), 0);
+    expect(ligne(o, 0)).toEqual(['', '', '']);
+  });
+
+  it('Nombre suivant : unités de la ligne suivante ; division : début de ligne', () => {
+    const o = creerOperation(0, 0, params(), '#000000');
+    expect(ligneSuivante(o, 'case:0')).toBe('case:5');
+    expect(ligneSuivante(o, 'case:4')).toBe('case:8');
+    expect(ligneSuivante(o, 'case:8')).toBeNull();
+    expect(ligneSuivante(o, 'retenue:1')).toBe('case:2');
+    const d = creerOperation(0, 0, params({ operateur: '÷' }), '#000000');
+    expect(ligneSuivante(d, 'case:1')).toBe('case:3');
+    expect(ligneSuivante(d, 'diviseur:0')).toBe('quotient:0');
   });
 });
