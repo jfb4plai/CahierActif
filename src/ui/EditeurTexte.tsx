@@ -2,10 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 import { ptVersMm } from '../lib/units';
 import type { Texte } from '../model/types';
 
-type Props = { texte: Texte; pxMm: number; onChange: (valeur: string) => void; onFin: (valeur: string) => void };
+type Props = {
+  texte: Texte;
+  pxMm: number;
+  onChange: (valeur: string) => void;
+  onFin: (valeur: string) => void;
+  onDeplacer: (dxMm: number, dyMm: number) => void;
+};
+
+const POIGNEE = 44; // px, cible tactile minimale
 
 /** Zone de saisie HTML posée exactement sur la zone de texte Konva. */
-export function EditeurTexte({ texte, pxMm, onChange, onFin }: Props) {
+export function EditeurTexte({ texte, pxMm, onChange, onFin, onDeplacer }: Props) {
   const [valeur, setValeur] = useState(texte.texte);
   const ref = useRef<HTMLTextAreaElement>(null);
   const valeurRef = useRef(valeur);
@@ -25,7 +33,57 @@ export function EditeurTexte({ texte, pxMm, onChange, onFin }: Props) {
   }, []);
   const taillePx = ptVersMm(texte.taillePt) * pxMm;
 
+  // Poignée : déplacer le bloc pendant la saisie (glisser dans la zone sélectionnerait le texte).
+  const saisirPoignee = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    let x = e.clientX;
+    let y = e.clientY;
+    const el = e.currentTarget;
+    const bouger = (m: PointerEvent) => {
+      onDeplacer((m.clientX - x) / pxMm, (m.clientY - y) / pxMm);
+      x = m.clientX;
+      y = m.clientY;
+    };
+    const fin = () => {
+      el.removeEventListener('pointermove', bouger);
+      el.removeEventListener('pointerup', fin);
+      el.removeEventListener('pointercancel', fin);
+      ref.current?.focus();
+    };
+    el.addEventListener('pointermove', bouger);
+    el.addEventListener('pointerup', fin);
+    el.addEventListener('pointercancel', fin);
+  };
+
   return (
+    <>
+    <div
+      role="button"
+      aria-label="Déplacer la zone de texte"
+      title="Glisser pour déplacer"
+      onPointerDown={saisirPoignee}
+      onMouseDown={e => e.preventDefault()} // garde le focus dans la zone de texte
+      style={{
+        position: 'absolute',
+        left: Math.max(0, texte.x * pxMm - POIGNEE - 2),
+        top: texte.y * pxMm,
+        width: POIGNEE,
+        height: POIGNEE,
+        borderRadius: 8,
+        background: '#0f6e56',
+        color: '#fff',
+        fontSize: 26,
+        lineHeight: `${POIGNEE}px`,
+        textAlign: 'center',
+        cursor: 'move',
+        touchAction: 'none',
+        userSelect: 'none',
+        zIndex: 11,
+      }}
+    >
+      ✥
+    </div>
     <textarea
       ref={ref}
       value={valeur}
@@ -56,5 +114,6 @@ export function EditeurTexte({ texte, pxMm, onChange, onFin }: Props) {
         zIndex: 10,
       }}
     />
+    </>
   );
 }

@@ -253,7 +253,15 @@ export function PageVue(p: Props) {
       if (!nouveau) onCommit(supprimerObjet(doc, pageIndex, texte.id));
       return;
     }
-    onCommit(nouveau ? ajouterObjet(doc, pageIndex, { ...texte, texte: valeur }) : modifierObjet(doc, pageIndex, texte.id, { texte: valeur }));
+    onCommit(nouveau ? ajouterObjet(doc, pageIndex, { ...texte, texte: valeur }) : modifierObjet(doc, pageIndex, texte.id, { texte: valeur, x: texte.x, y: texte.y }));
+  };
+
+  const deplacerEdition = (dx: number, dy: number) => {
+    const ed = editionRef.current;
+    if (!ed) return;
+    const suivant = { ...ed, texte: { ...ed.texte, x: ed.texte.x + dx, y: ed.texte.y + dy } };
+    editionRef.current = suivant;
+    setEdition(suivant);
   };
 
   // Line : node.x/y = décalage depuis (0,0). Circle et Text : node.x/y = nouvelle position absolue.
@@ -332,7 +340,7 @@ export function PageVue(p: Props) {
           </Layer>
         </Stage>
       )}
-      {edition && <EditeurTexte texte={edition.texte} pxMm={p.pxMm} onChange={v => { valeurTexte.current = v; }} onFin={finTexte} />}
+      {edition && <EditeurTexte texte={edition.texte} pxMm={p.pxMm} onChange={v => { valeurTexte.current = v; }} onFin={finTexte} onDeplacer={deplacerEdition} />}
     </div>
   );
 }
