@@ -8,7 +8,11 @@ type Props = { texte: Texte; pxMm: number; onFin: (valeur: string) => void };
 export function EditeurTexte({ texte, pxMm, onFin }: Props) {
   const [valeur, setValeur] = useState(texte.texte);
   const ref = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => ref.current?.focus(), []);
+  // Focus différé : le mousedown qui a ouvert la zone redonnerait sinon le focus au body (blur → fermeture).
+  useEffect(() => {
+    const t = setTimeout(() => ref.current?.focus(), 0);
+    return () => clearTimeout(t);
+  }, []);
   const taillePx = ptVersMm(texte.taillePt) * pxMm;
 
   return (
