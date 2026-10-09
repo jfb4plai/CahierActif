@@ -29,9 +29,13 @@ type Props = {
 };
 
 type Edition = { texte: Texte; nouveau: boolean };
+// Outil Texte posé sur un texte existant : glisser = déplacer, toucher sans bouger = modifier.
+type TexteSaisi = { texte: Texte; depart: Point; bouge: boolean };
 
 const RAYON_GOMME = 3; // mm
 const RAYON_GOMME_FINE = 2;
+const SEUIL_GLISSER = 1.5; // mm : en dessous, c'est un toucher
+const TAILLE_TEXTE_PT = 14;
 
 const CoucheFond = memo(function CoucheFond({ motif }: { motif: Motif }) {
   return (
@@ -88,6 +92,7 @@ export function PageVue(p: Props) {
   const editionRef = useRef<Edition | null>(null);
   const valeurTexte = useRef('');
   const pointeurActif = useRef<number | null>(null);
+  const texteSaisiRef = useRef<TexteSaisi | null>(null);
   const racine = useRef<HTMLDivElement>(null);
   const scene = useRef<Konva.Stage>(null);
   // Les deux premières pages sont montées d'emblée (pas de page blanche au premier affichage).
@@ -169,13 +174,16 @@ export function PageVue(p: Props) {
       brouillonRef.current = gommer(p.doc, q);
       setBrouillon(brouillonRef.current);
     } else if (p.outil === 'texte') {
-      const existant = [...objets].reverse().find(o => o.type === 'texte' && objetTouche(o, q, 0)) as Texte | undefined;
+      const existant = [...objets].reverse().find(o => o.type === 'texte' && objetTouche(o, q, 1)) as Texte | undefined;
       if (existant) {
-        ouvrirEdition({ texte: existant, nouveau: false });
+        pointeurActif.current = e.evt.pointerId;
+        texteSaisiRef.current = { texte: existant, depart: q, bouge: false };
       } else {
         const largeur = Math.max(20, Math.min(80, page.largeurMm - q.x - 2));
         const x = q.x + largeur > page.largeurMm - 2 ? Math.max(0, page.largeurMm - 2 - largeur) : q.x;
-        ouvrirEdition({ texte: { id: nouvelId(), type: 'texte', x, y: q.y, largeur, texte: '', taillePt: 14, couleur: p.couleur }, nouveau: true });
+        // Le point touché est le bas de la première ligne : le texte s'écrit juste au-dessus des pointillés.
+        const y = Math.max(0, q.y - ptVersMm(TAILLE_TEXTE_PT) * 1.5);
+        ouvrirEdition({ texte: { id: nouvelId(), type: 'texte', x, y, largeur, texte: '', taillePt: TAILLE_TEXTE_PT, couleur: p.couleur }, nouveau: true });
       }
     }
   };
@@ -183,7 +191,15 @@ export function PageVue(p: Props) {
   const move = (e: Konva.KonvaEventObject<PointerEvent>) => {
     if (pointeurActif.current === null || e.evt.pointerId !== pointeurActif.current) return;
     const q = posMm(e);
-    if (traitRef.current) {
+    const saisi = texteSaisiRef.current;
+    if (saisi) {
+      const dx = q.x - saisi.depart.x;
+      const dy = q.y - saisi.depart.y;
+      if (!saisi.bouge && Math.hypot(dx, dy) < SEUIL_GLISSER) return;
+      saisi.bouge = true;
+      brouillonRef.current = modifierObjet(p.doc, p.pageIndex, saisi.texte.id, { x: saisi.texte.x + dx, y: saisi.texte.y + dy });
+      setBrouillon(brouillonRef.current);
+    } else if (traitRef.current) {
       const pts = traitRef.current;
       const der = pts[pts.length - 1];
       if (Math.hypot(q.x - der.x, q.y - der.y) < 0.3) return; // filtre le bruit < 0,3 mm
@@ -199,6 +215,12 @@ export function PageVue(p: Props) {
   const terminer = (pointerId: number) => {
     if (pointeurActif.current === null || pointerId !== pointeurActif.current) return;
     pointeurActif.current = null;
+    const saisi = texteSaisiRef.current;
+    texteSaisiRef.current = null;
+    if (saisi && !saisi.bouge) {
+      ouvrirEdition({ texte: saisi.texte, nouveau: false });
+      return;
+    }
     const trait = traitRef.current;
     const gomme = brouillonRef.current;
     traitRef.current = null;

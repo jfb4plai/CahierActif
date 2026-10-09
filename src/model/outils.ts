@@ -10,7 +10,7 @@ export const OUTILS: Outil[] = [
   { id: 'stylo', libelle: 'Stylo', aide: 'Écrire ou dessiner à main levée', niveaux: TOUS },
   { id: 'gomme-objet', libelle: 'Gomme', aide: 'Toucher un trait ou un texte pour l’effacer en entier', niveaux: TOUS },
   { id: 'gomme-partielle', libelle: 'Gomme fine', aide: 'Effacer seulement une partie d’un trait', niveaux: ['p3p6', 'secondaire'] },
-  { id: 'texte', libelle: 'Texte', aide: 'Toucher la page pour écrire au clavier', niveaux: TOUS },
+  { id: 'texte', libelle: 'Texte', aide: 'Toucher la page pour écrire au clavier ; glisser un texte pour le déplacer', niveaux: TOUS },
   { id: 'deplacer', libelle: 'Déplacer', aide: 'Glisser un trait ou un texte à un autre endroit', niveaux: ['p3p6', 'secondaire'] },
 ];
 

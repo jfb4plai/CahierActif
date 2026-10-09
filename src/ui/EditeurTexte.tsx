@@ -47,8 +47,9 @@ export function EditeurTexte({ texte, pxMm, onChange, onFin }: Props) {
         fontSize: taillePx,
         lineHeight: 1.5,
         color: texte.couleur,
-        background: 'rgba(255,255,255,0.9)',
-        border: '2px solid #0f6e56',
+        background: 'transparent', // on voit la fiche dessous pour bien se placer
+        border: 'none',
+        outline: '1px dashed #0f6e56',
         padding: 0,
         resize: 'none',
         overflow: 'hidden',
