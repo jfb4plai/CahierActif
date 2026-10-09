@@ -30,4 +30,13 @@ describe('taillesPagesPdf', () => {
     await expect(taillesPagesPdf(new Uint8Array([1, 2, 3]).buffer)).rejects.toBeInstanceOf(PdfIllisibleError);
     await expect(taillesPagesPdf(new Uint8Array([1, 2, 3]).buffer)).rejects.toThrow('Ce PDF est protégé ou abîmé');
   });
+
+  it('renvoie la taille de la CropBox (zone visible), pas celle de la MediaBox', async () => {
+    const d = await PDFDocument.create();
+    d.addPage([595.28, 841.89]).setCropBox(50, 100, 283.46, 425.2); // 100 × 150 mm
+    const o = await d.save();
+    const t = await taillesPagesPdf(o.buffer.slice(o.byteOffset, o.byteOffset + o.byteLength) as ArrayBuffer);
+    expect(t[0].largeurMm).toBeCloseTo(100, 1);
+    expect(t[0].hauteurMm).toBeCloseTo(150, 1);
+  });
 });

@@ -26,32 +26,42 @@ function encodable(font: PDFFont, texte: string): string {
     .join('');
 }
 
+// Le modèle part du coin haut-gauche de la zone visible (CropBox), pas de la MediaBox.
+type Repere = { x0: number; haut: number };
+const X = (r: Repere, mm: number) => r.x0 + mm * K;
+const Y = (r: Repere, mm: number) => r.haut - mm * K;
+
+function repere(p: PDFPage): Repere {
+  const cb = p.getCropBox();
+  return { x0: cb.x, haut: cb.y + cb.height };
+}
+
 function dessinerFond(p: PDFPage, page: Page) {
-  const H = p.getHeight();
+  const r0 = repere(p);
   const m = motifFond(page.fond, page.largeurMm, page.hauteurMm);
   for (const l of m.lignes) {
-    p.drawLine({ start: { x: l.x1 * K, y: H - l.y1 * K }, end: { x: l.x2 * K, y: H - l.y2 * K }, thickness: l.epaisseur * K, color: couleur(l.couleur) });
+    p.drawLine({ start: { x: X(r0, l.x1), y: Y(r0, l.y1) }, end: { x: X(r0, l.x2), y: Y(r0, l.y2) }, thickness: l.epaisseur * K, color: couleur(l.couleur) });
   }
-  for (const r of m.ronds) p.drawCircle({ x: r.x * K, y: H - r.y * K, size: r.r * K, color: couleur(r.couleur) });
+  for (const r of m.ronds) p.drawCircle({ x: X(r0, r.x), y: Y(r0, r.y), size: r.r * K, color: couleur(r.couleur) });
 }
 
 function dessinerObjet(p: PDFPage, o: Objet, font: PDFFont) {
-  const H = p.getHeight();
+  const r0 = repere(p);
   if (o.type === 'trait') {
     if (o.points.length === 1) {
-      p.drawCircle({ x: o.points[0].x * K, y: H - o.points[0].y * K, size: (o.epaisseur / 2) * K, color: couleur(o.couleur) });
+      p.drawCircle({ x: X(r0, o.points[0].x), y: Y(r0, o.points[0].y), size: (o.epaisseur / 2) * K, color: couleur(o.couleur) });
       return;
     }
-    // drawSvgPath : origine en (0, H), axe y vers le bas comme dans le modèle.
+    // drawSvgPath : origine au coin haut-gauche de la CropBox, axe y vers le bas comme dans le modèle.
     const chemin = o.points.map((q, i) => `${i === 0 ? 'M' : 'L'} ${(q.x * K).toFixed(2)} ${(q.y * K).toFixed(2)}`).join(' ');
-    p.drawSvgPath(chemin, { x: 0, y: H, borderColor: couleur(o.couleur), borderWidth: o.epaisseur * K, borderLineCap: LineCapStyle.Round });
+    p.drawSvgPath(chemin, { x: r0.x0, y: r0.haut, borderColor: couleur(o.couleur), borderWidth: o.epaisseur * K, borderLineCap: LineCapStyle.Round });
     return;
   }
   if (!o.texte.trim()) return;
   // Ligne de base approximative : haut du cadre + demi-interligne + jambage supérieur.
   p.drawText(encodable(font, o.texte), {
-    x: o.x * K,
-    y: H - o.y * K - o.taillePt * 1.05,
+    x: X(r0, o.x),
+    y: Y(r0, o.y) - o.taillePt * 1.05,
     size: o.taillePt,
     font,
     lineHeight: o.taillePt * 1.5,

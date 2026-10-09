@@ -17,7 +17,7 @@ export async function taillesPagesPdf(data: ArrayBuffer): Promise<TaillePage[]> 
     throw new PdfIllisibleError();
   }
   return pdf.getPages().map(p => {
-    const { width, height } = p.getSize();
+    const { width, height } = p.getCropBox(); // zone visible, pas la MediaBox
     const r = ((p.getRotation().angle % 360) + 360) % 360;
     const [w, h] = r === 90 || r === 270 ? [height, width] : [width, height];
     return { largeurMm: ptVersMm(w), hauteurMm: ptVersMm(h) };

@@ -43,4 +43,21 @@ describe('exporterPdf', () => {
     expect(pdf.getPageCount()).toBe(2);
     expect(pdf.getPage(0).getWidth()).toBeCloseTo(595.28, 0);
   });
+
+  it('PDF avec CropBox décalée : les annotations partent du coin de la zone visible', async () => {
+    const src = await PDFDocument.create();
+    src.addPage([595.28, 841.89]).setCropBox(50, 100, 283.46, 425.2);
+    const o = await src.save();
+    const data = o.buffer.slice(o.byteOffset, o.byteOffset + o.byteLength) as ArrayBuffer;
+    let d = nouveauDocPdf('C', 'p3p6', data, [{ largeurMm: 100, hauteurMm: 150 }]);
+    d = ajouterObjet(d, 0, { id: 't', type: 'texte', x: 20, y: 30, largeur: 60, texte: 'Ici', taillePt: 14, couleur: '#000000' });
+    const out = await exporterPdf(d);
+    const pdf = await pdfjs.getDocument({ data: out.slice() }).promise;
+    const items = (await (await pdf.getPage(1)).getTextContent()).items.filter(i => 'str' in i && i.str === 'Ici');
+    expect(items).toHaveLength(1);
+    const tr = (items[0] as { transform: number[] }).transform;
+    const K = 72 / 25.4;
+    expect(tr[4]).toBeCloseTo(50 + 20 * K, 1);
+    expect(tr[5]).toBeCloseTo(100 + 425.2 - 30 * K - 14 * 1.05, 1);
+  });
 });
