@@ -90,7 +90,8 @@ export function PageVue(p: Props) {
   const pointeurActif = useRef<number | null>(null);
   const racine = useRef<HTMLDivElement>(null);
   const scene = useRef<Konva.Stage>(null);
-  const [visible, setVisible] = useState(typeof IntersectionObserver === 'undefined');
+  // Les deux premières pages sont montées d'emblée (pas de page blanche au premier affichage).
+  const [visible, setVisible] = useState(typeof IntersectionObserver === 'undefined' || p.pageIndex < 2);
   const derniersProps = useRef(p);
   derniersProps.current = p;
 
