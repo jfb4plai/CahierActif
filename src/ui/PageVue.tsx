@@ -5,6 +5,7 @@ import { decider, type EtatStylet } from '../input/pointerPolicy';
 import { SURLIGNEUR_OPACITE } from '../lib/couleurs';
 import { ptVersMm, ratioPixelsMax } from '../lib/units';
 import { motifFond, type Motif } from '../model/fonds';
+import { creerDroite } from '../model/droites';
 import { formeContient, formeDepuisGlisse } from '../model/formes';
 import { effacerPartiel, objetTouche } from '../model/gomme';
 import { ajouterObjet, deplacerObjet, modifierObjet, remplacerObjet, supprimerObjet } from '../model/ops';
@@ -12,7 +13,7 @@ import { boiteDe, objetSous } from '../model/selection';
 import type { ObjetBoite } from '../model/boites';
 import { OUTIL_TYPE, type OutilId } from '../model/outils';
 import { nouvelId } from '../model/types';
-import type { CahierDoc, Forme, ModeEntree, Niveau, Objet, ObjetMaths, Point, Texte, TypeForme } from '../model/types';
+import type { CahierDoc, Droite, Forme, ModeEntree, Niveau, Objet, ObjetMaths, Point, Texte, TypeForme } from '../model/types';
 import { creerFraction } from '../maths/fraction';
 import { creerOperation, type ParamsOperation } from '../maths/operation';
 import { ajouterPoint, creerRepere, type ParamsRepere } from '../maths/repere';
@@ -23,6 +24,7 @@ import { DialogueOperation } from './maths/DialogueOperation';
 import { DialogueRepere } from './maths/DialogueRepere';
 import { EditionMaths } from './maths/EditionMaths';
 import { FormeMaths } from './maths/Formes';
+import { DroiteVue } from './DroiteVue';
 import { FormeVue } from './FormeVue';
 import { PdfCanvas } from './PdfCanvas';
 
@@ -53,6 +55,8 @@ type Edition = { texte: Texte; nouveau: boolean };
 // Outil de création posé sur un objet de son type : glisser = déplacer, toucher sans bouger = modifier.
 // `selection` : saisi avec l'outil Sélectionner (un premier toucher choisit seulement ; un second ouvre l'édition).
 type ObjetSaisi = { objet: Objet; depart: Point; bouge: boolean; selection: boolean; dejaSelectionne: boolean };
+// Droite en cours : premier point `a` posé ; `b` suit le doigt ; `seconde` = le premier point est posé, on attend le second.
+type DroiteEnCours = { a: Point; b: Point | null; seconde: boolean };
 // Forme en cours de tracé : le glissé va de `debut` à `fin`.
 type TraceForme = { debut: Point; fin: Point };
 type EnEditionMaths = { objet: ObjetMaths; nouveau: boolean };
@@ -81,11 +85,13 @@ type PropsObjets = {
   idMasque: string | null;
   idEdition: string | null;
   formesEditables: boolean; // outil Formes : les formes se déplacent d'un glissé
+  largeurPage: number; // mm : les droites se prolongent jusqu'aux bords
+  hauteurPage: number;
   onDeplace: (o: Objet, node: Konva.Node) => void;
   onTransforme: (o: Forme, node: Konva.Node) => void;
 };
 
-const CoucheObjets = memo(function CoucheObjets({ objets, idMasque, idEdition, formesEditables, onDeplace, onTransforme }: PropsObjets) {
+const CoucheObjets = memo(function CoucheObjets({ objets, idMasque, idEdition, formesEditables, largeurPage, hauteurPage, onDeplace, onTransforme }: PropsObjets) {
   return (
     <Layer>
       {objets.map(o =>
@@ -98,6 +104,8 @@ const CoucheObjets = memo(function CoucheObjets({ objets, idMasque, idEdition, f
               lineCap={o.surligneur ? 'butt' : 'round'} lineJoin="round" hitStrokeWidth={4}
               opacity={o.surligneur ? SURLIGNEUR_OPACITE : 1} />
           )
+        ) : o.type === 'droite' ? (
+          <DroiteVue key={o.id} o={o} largeur={largeurPage} hauteur={hauteurPage} />
         ) : o.type === 'forme' ? (
           <FormeVue key={o.id} o={o} draggable={formesEditables} onDragEnd={node => onDeplace(o, node)}
             onTransformEnd={node => onTransforme(o, node)} />
@@ -120,6 +128,8 @@ export function PageVue(p: Props) {
   const traitRef = useRef<Point[] | null>(null);
   const brouillonRef = useRef<CahierDoc | null>(null); // gommage en cours (un seul « annuler »)
   const [enCours, setEnCours] = useState<Point[] | null>(null);
+  const droiteRef = useRef<DroiteEnCours | null>(null);
+  const [droiteEnCours, setDroiteEnCours] = useState<DroiteEnCours | null>(null);
   const traceFormeRef = useRef<TraceForme | null>(null);
   const [traceForme, setTraceForme] = useState<TraceForme | null>(null);
   const transformeur = useRef<Konva.Transformer>(null);
@@ -222,7 +232,8 @@ export function PageVue(p: Props) {
     }
     if (p.outil === 'main') return;
     // Une poignée de la forme sélectionnée : le Transformer de Konva s'en occupe seul.
-    if ((p.outil === 'formes' || p.outil === 'selectionner') && e.target.getParent()?.className === 'Transformer') return;
+    // Poignées (Transformer d'une forme, points d'une droite) : Konva s'en occupe seul.
+    if (e.target.name() === 'poignee-droite' || ((p.outil === 'formes' || p.outil === 'selectionner') && e.target.getParent()?.className === 'Transformer')) return;
     const q = posMm(e);
     if (p.outil === 'formes') {
       const cible = [...objets].reverse().find(o => o.type === 'forme' && formeContient(o, q, 1));
@@ -230,6 +241,15 @@ export function PageVue(p: Props) {
       p.onSelection(null);
       pointeurActif.current = e.evt.pointerId;
       traceFormeRef.current = { debut: q, fin: q };
+      return;
+    }
+    if (p.outil === 'droite') {
+      p.onSelection(null);
+      pointeurActif.current = e.evt.pointerId;
+      const dr = droiteRef.current;
+      // Premier toucher : point A. Toucher suivant : point B, qui suit le doigt jusqu'au relâchement (ajustable).
+      droiteRef.current = dr?.seconde ? { ...dr, b: q } : { a: q, b: null, seconde: false };
+      setDroiteEnCours(droiteRef.current);
       return;
     }
     if (p.outil === 'selectionner') {
@@ -266,7 +286,12 @@ export function PageVue(p: Props) {
     if (pointeurActif.current === null || e.evt.pointerId !== pointeurActif.current) return;
     const q = posMm(e);
     const saisi = objetSaisiRef.current;
-    if (traceFormeRef.current) {
+    if (droiteRef.current) {
+      const dr = droiteRef.current;
+      // Glissé depuis le premier point : le second suit le doigt (même geste que les formes).
+      if (dr.seconde || Math.hypot(q.x - dr.a.x, q.y - dr.a.y) >= SEUIL_GLISSER) droiteRef.current = { ...dr, b: q };
+      setDroiteEnCours(droiteRef.current);
+    } else if (traceFormeRef.current) {
       traceFormeRef.current = { ...traceFormeRef.current, fin: q };
       setTraceForme(traceFormeRef.current);
     } else if (saisi) {
@@ -292,6 +317,21 @@ export function PageVue(p: Props) {
   const terminer = (pointerId: number) => {
     if (pointeurActif.current === null || pointerId !== pointeurActif.current) return;
     pointeurActif.current = null;
+    const dr = droiteRef.current;
+    if (dr) {
+      const d = dr.b ? creerDroite(dr.a, dr.b, p.couleur, p.epaisseur) : null;
+      if (d) {
+        droiteRef.current = null;
+        setDroiteEnCours(null);
+        p.onCommit(ajouterObjet(p.doc, p.pageIndex, d));
+        p.onSelection(d.id); // les deux points sont tout de suite ajustables
+      } else {
+        // Simple toucher (ou second point trop proche du premier) : on attend le second point.
+        droiteRef.current = { a: dr.a, b: null, seconde: true };
+        setDroiteEnCours(droiteRef.current);
+      }
+      return;
+    }
     const tracee = traceFormeRef.current;
     if (tracee) {
       traceFormeRef.current = null;
@@ -308,7 +348,7 @@ export function PageVue(p: Props) {
     if (saisi && !saisi.bouge) {
       if (saisi.selection && !saisi.dejaSelectionne) return; // premier toucher : choisir seulement
       if (saisi.objet.type === 'texte') ouvrirEdition({ texte: saisi.objet, nouveau: false });
-      else if (saisi.objet.type !== 'trait' && saisi.objet.type !== 'forme') ouvrirMaths({ objet: saisi.objet, nouveau: false });
+      else if (saisi.objet.type !== 'trait' && saisi.objet.type !== 'forme' && saisi.objet.type !== 'droite') ouvrirMaths({ objet: saisi.objet, nouveau: false });
       return;
     }
     const trait = traitRef.current;
@@ -450,6 +490,19 @@ export function PageVue(p: Props) {
     }));
   }, []);
 
+  // Poignées d'une droite choisie : déplacer un des deux points (la droite suit pendant le glissé).
+  const majPoignee = (cle: 'a' | 'b', node: Konva.Node, id: string) => {
+    brouillonRef.current = modifierObjet(p.doc, p.pageIndex, id, { [cle]: { x: node.x(), y: node.y() } } as Partial<Droite>);
+    setBrouillon(brouillonRef.current);
+  };
+  const finPoignee = (cle: 'a' | 'b', node: Konva.Node, id: string) => {
+    majPoignee(cle, node, id);
+    const final = brouillonRef.current;
+    brouillonRef.current = null;
+    setBrouillon(null);
+    if (final) p.onCommit(final);
+  };
+
   const w = page.largeurMm * p.pxMm;
   const h = page.hauteurMm * p.pxMm;
   const ratio = ratioPixelsMax(w, h, window.devicePixelRatio || 1);
@@ -477,12 +530,18 @@ export function PageVue(p: Props) {
     }
   }, [visible, ratio]);
 
+  // Un changement d'outil abandonne la droite commencée.
+  useEffect(() => {
+    if (p.outil !== 'droite') { droiteRef.current = null; setDroiteEnCours(null); }
+  }, [p.outil]);
+
   // Poignées sur la forme sélectionnée (retrouvée par son id dans la scène).
   const surFormes = p.outil === 'formes';
-  const surSelection = surFormes || p.outil === 'selectionner';
+  const surSelection = surFormes || p.outil === 'selectionner' || p.outil === 'droite';
   const selectionnee = surSelection && p.selectionId ? objetsAffiches.find(o => o.id === p.selectionId) : undefined;
   const formeSelectionnee = selectionnee?.type === 'forme' ? selectionnee : undefined;
-  const boiteSelection = selectionnee && selectionnee.type !== 'forme' ? boiteDe(selectionnee) : undefined;
+  const droiteSelectionnee = selectionnee?.type === 'droite' ? selectionnee : undefined;
+  const boiteSelection = selectionnee && selectionnee.type !== 'forme' && selectionnee.type !== 'droite' ? boiteDe(selectionnee) : undefined;
   useEffect(() => {
     const tr = transformeur.current;
     if (!tr) return;
@@ -499,7 +558,7 @@ export function PageVue(p: Props) {
     const o = selectionnee;
     if (!o) return;
     if (o.type === 'texte') ouvrirEdition({ texte: o, nouveau: false });
-    else if (o.type !== 'trait' && o.type !== 'forme') ouvrirMaths({ objet: o, nouveau: false });
+    else if (o.type !== 'trait' && o.type !== 'forme' && o.type !== 'droite') ouvrirMaths({ objet: o, nouveau: false });
   }, [p.ordreModifier]);
 
   return (
@@ -526,13 +585,17 @@ export function PageVue(p: Props) {
         >
           <CoucheFond motif={fond} />
           <CoucheObjets objets={objetsAffiches} idMasque={edition?.texte.id ?? null}
-            idEdition={maths?.objet.id ?? null} formesEditables={surFormes} onDeplace={finDeplacement} onTransforme={finTransformation} />
+            idEdition={maths?.objet.id ?? null} formesEditables={surFormes} largeurPage={page.largeurMm} hauteurPage={page.hauteurMm} onDeplace={finDeplacement} onTransforme={finTransformation} />
           <Layer listening={false}>
             {enCours && (
               <Line points={enCours.flatMap(q => [q.x, q.y])} stroke={p.couleur} strokeWidth={p.epaisseur}
                 lineCap={p.outil === 'surligneur' ? 'butt' : 'round'} lineJoin="round" opacity={p.outil === 'surligneur' ? SURLIGNEUR_OPACITE : 1} />
             )}
             {apercuForme && <FormeVue o={apercuForme} draggable={false} listening={false} />}
+            {droiteEnCours && (
+              <DroiteVue o={{ id: 'apercu', type: 'droite', a: droiteEnCours.a, b: droiteEnCours.b ?? droiteEnCours.a, couleur: p.couleur, epaisseur: p.epaisseur }}
+                largeur={page.largeurMm} hauteur={page.hauteurMm} />
+            )}
           </Layer>
           <Layer listening={false}>
             {boiteSelection && (
@@ -540,6 +603,16 @@ export function PageVue(p: Props) {
                 stroke="#0f6e56" strokeWidth={0.6} dash={[2, 1.5]} />
             )}
           </Layer>
+          {droiteSelectionnee && (
+            <Layer>
+              {(['a', 'b'] as const).map(cle => (
+                <Circle key={cle} name="poignee-droite" x={droiteSelectionnee[cle].x} y={droiteSelectionnee[cle].y} radius={3.5}
+                  fill="#ffffff" stroke="#0f6e56" strokeWidth={0.6} draggable
+                  onDragMove={e => majPoignee(cle, e.target, droiteSelectionnee.id)}
+                  onDragEnd={e => finPoignee(cle, e.target, droiteSelectionnee.id)} />
+              ))}
+            </Layer>
+          )}
           <Layer>
             <Transformer ref={transformeur} rotateEnabled flipEnabled={false} keepRatio={false}
               anchorSize={22} anchorCornerRadius={11} rotateAnchorOffset={30} borderStroke="#0f6e56" anchorStroke="#0f6e56" anchorFill="#ffffff" />

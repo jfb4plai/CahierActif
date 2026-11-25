@@ -44,6 +44,7 @@ export function deplacerObjet(doc: CahierDoc, i: number, id: string, dx: number,
     objets: p.objets.map(o => {
       if (o.id !== id) return o;
       if (o.type === 'trait') return { ...o, points: o.points.map(q => ({ ...q, x: q.x + dx, y: q.y + dy })) };
+      if (o.type === 'droite') return { ...o, a: { x: o.a.x + dx, y: o.a.y + dy }, b: { x: o.b.x + dx, y: o.b.y + dy } };
       return { ...o, x: o.x + dx, y: o.y + dy };
     }),
   }));

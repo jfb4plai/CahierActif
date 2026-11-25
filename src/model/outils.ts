@@ -1,7 +1,7 @@
 import type { Niveau, Objet } from './types';
 
 export type OutilId =
-  | 'main' | 'selectionner' | 'stylo' | 'surligneur' | 'formes' | 'gomme-objet' | 'gomme-partielle' | 'texte'
+  | 'main' | 'selectionner' | 'stylo' | 'surligneur' | 'formes' | 'droite' | 'gomme-objet' | 'gomme-partielle' | 'texte'
   | 'operation' | 'fraction' | 'expression' | 'repere';
 export type GroupeId = 'choisir' | 'ecrire' | 'dessiner' | 'maths' | 'corriger';
 export type Outil = { id: OutilId; libelle: string; aide: string; niveaux: Niveau[]; groupe: GroupeId };
@@ -17,7 +17,7 @@ export const GROUPES: { id: GroupeId; titre: string }[] = [
 const GROUPE_DE: Record<OutilId, GroupeId> = {
   main: 'choisir', selectionner: 'choisir',
   stylo: 'ecrire', surligneur: 'ecrire', texte: 'ecrire',
-  formes: 'dessiner',
+  formes: 'dessiner', droite: 'dessiner',
   operation: 'maths', fraction: 'maths', expression: 'maths', repere: 'maths',
   'gomme-objet': 'corriger', 'gomme-partielle': 'corriger',
 };
@@ -30,6 +30,7 @@ export const OUTILS: Outil[] = [
   { id: 'stylo', libelle: 'Stylo', aide: 'Écrire ou dessiner à main levée', niveaux: TOUS, groupe: GROUPE_DE['stylo'] },
   { id: 'surligneur', libelle: 'Surligneur', aide: 'Surligner un mot ou une ligne, en 6 couleurs', niveaux: ['p3p6', 'secondaire'], groupe: GROUPE_DE['surligneur'] },
   { id: 'formes', libelle: 'Formes', aide: 'Glisser sur la page pour tracer une forme ; la toucher pour la modifier ou la déplacer', niveaux: ['p3p6', 'secondaire'], groupe: GROUPE_DE['formes'] },
+  { id: 'droite', libelle: 'Droite', aide: 'Toucher deux points de la page : la droite passe par les deux et se prolonge jusqu’aux bords', niveaux: ['p3p6', 'secondaire'], groupe: GROUPE_DE['droite'] },
   { id: 'gomme-objet', libelle: 'Gomme', aide: 'Toucher un trait ou un texte pour l’effacer en entier', niveaux: TOUS, groupe: GROUPE_DE['gomme-objet'] },
   { id: 'gomme-partielle', libelle: 'Gomme fine', aide: 'Effacer seulement une partie d’un trait', niveaux: ['p3p6', 'secondaire'], groupe: GROUPE_DE['gomme-partielle'] },
   { id: 'texte', libelle: 'Texte', aide: 'Toucher la page pour écrire au clavier ; glisser un texte pour le déplacer', niveaux: TOUS, groupe: GROUPE_DE['texte'] },
@@ -44,7 +45,7 @@ export function outilsPour(n: Niveau): Outil[] {
 }
 
 /** Outils qui créent un objet en touchant la page, et le modifient ou le déplacent ensuite. */
-export const OUTIL_TYPE: Partial<Record<OutilId, Exclude<Objet['type'], 'trait' | 'forme'>>> = {
+export const OUTIL_TYPE: Partial<Record<OutilId, Exclude<Objet['type'], 'trait' | 'forme' | 'droite'>>> = {
   texte: 'texte',
   operation: 'operation',
   fraction: 'fraction',

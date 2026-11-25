@@ -106,10 +106,10 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   };
 
   // Outils Sélectionner et Formes : l'objet choisi est modifiable par la barre (couleur, épaisseur, Modifier, Supprimer).
-  const outilSelection = outil === 'formes' || outil === 'selectionner';
+  const outilSelection = outil === 'formes' || outil === 'selectionner' || outil === 'droite';
   const objetChoisi = outilSelection && selection ? doc.pages[selection.page]?.objets.find(o => o.id === selection.id) : undefined;
   const choisiSurligneur = objetChoisi?.type === 'trait' && !!objetChoisi.surligneur;
-  const aEpaisseur = objetChoisi?.type === 'trait' || objetChoisi?.type === 'forme';
+  const aEpaisseur = objetChoisi?.type === 'trait' || objetChoisi?.type === 'forme' || objetChoisi?.type === 'droite';
   const modifierChoisi = (patch: { couleur: string } | { epaisseur: number }) => {
     if (!objetChoisi || !selection) return;
     commit(modifierObjet(dernier.current, selection.page, selection.id, patch));
@@ -125,7 +125,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   };
   const choisirOutil = (o: OutilId) => {
     setOutil(o);
-    if (o !== 'formes' && o !== 'selectionner') setSelection(null);
+    if (o !== 'formes' && o !== 'selectionner' && o !== 'droite') setSelection(null);
   };
   const supprimerChoisi = () => {
     if (!objetChoisi || !selection) return;
@@ -191,10 +191,10 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     formeChoisie, setFormeChoisie,
     // Réglages affichés seulement pour les outils qui s'en servent (pas pour Main ni les gommes).
     palette: outil === 'selectionner' ? (objetChoisi ? (choisiSurligneur ? 'surligneur' : 'encre') : null) : !dessine ? null : surligneur ? 'surligneur' : 'encre',
-    montrerEpaisseur: outil === 'selectionner' ? aEpaisseur && !choisiSurligneur : outil === 'stylo' || outil === 'formes',
+    montrerEpaisseur: outil === 'selectionner' ? aEpaisseur && !choisiSurligneur : outil === 'stylo' || outil === 'formes' || outil === 'droite',
     selection: outil === 'selectionner' ? {
       present: !!objetChoisi,
-      modifiable: !!objetChoisi && objetChoisi.type !== 'trait' && objetChoisi.type !== 'forme',
+      modifiable: !!objetChoisi && objetChoisi.type !== 'trait' && objetChoisi.type !== 'forme' && objetChoisi.type !== 'droite',
       onModifier: () => setOrdreModifier(n => n + 1),
       onSupprimer: supprimerChoisi,
     } : undefined,

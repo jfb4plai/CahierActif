@@ -73,4 +73,11 @@ describe('exporterPdf', () => {
     const dicts = lu.context.enumerateIndirectObjects().map(([, o]) => String(o));
     expect(dicts.some(t => t.includes('/BM /Multiply') && /\/CA 0\.4/.test(t))).toBe(true);
   });
+
+  it('droite libre : exportée sans erreur, prolongée jusqu’aux bords', async () => {
+    let d = nouveauDocVierge('D', 'p3p6');
+    d = ajouterObjet(d, 0, { id: 'dr', type: 'droite', a: { x: 40, y: 60 }, b: { x: 90, y: 100 }, couleur: '#1d4ed8', epaisseur: 0.8 });
+    const out = await exporterPdf(d);
+    expect((await PDFDocument.load(out)).getPageCount()).toBe(1);
+  });
 });

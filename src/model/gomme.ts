@@ -1,4 +1,5 @@
 import { boiteObjet, hauteurTexte } from './boites';
+import { distPointDroite } from './droites';
 import { formeTouchee } from './formes';
 import { distPointSegmentXY } from './geometrie';
 import type { Objet, Point, Trait } from './types';
@@ -21,6 +22,7 @@ function traitTouche(t: Trait, p: Point, rayon: number): boolean {
 export function objetTouche(o: Objet, p: Point, rayon: number): boolean {
   if (o.type === 'trait') return traitTouche(o, p, rayon);
   if (o.type === 'forme') return formeTouchee(o, p, rayon);
+  if (o.type === 'droite') return distPointDroite(p, o.a, o.b) <= rayon + o.epaisseur / 2;
   const b = boiteObjet(o);
   return p.x >= b.x - rayon && p.x <= b.x + b.largeur + rayon && p.y >= b.y - rayon && p.y <= b.y + b.hauteur + rayon;
 }

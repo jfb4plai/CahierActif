@@ -1,3 +1,4 @@
+import { prolongerDansRect } from '../model/droites';
 import { nouvelId } from '../model/types';
 import type { PointRepere, Repere } from '../model/types';
 
@@ -112,22 +113,11 @@ export const nomDroite = (d: { a: string; b: string }) => `(${d.a}${d.b})`;
 export function extremitesDroite(r: Repere, a: string, b: string): { x1: number; y1: number; x2: number; y2: number } | null {
   const A = r.points.find(p => p.nom === a);
   const B = r.points.find(p => p.nom === b);
-  if (!A || !B || (A.x === B.x && A.y === B.y)) return null;
-  const dx = B.x - A.x;
-  const dy = B.y - A.y;
-  let t0 = -Infinity;
-  let t1 = Infinity;
-  // Contrainte p·t ≤ q : p < 0 borne t par le bas, p > 0 par le haut, p = 0 : vraie ou jamais.
-  const borne = (p: number, q: number) => {
-    if (p === 0) return q >= 0;
-    if (p < 0) t0 = Math.max(t0, q / p);
-    else t1 = Math.min(t1, q / p);
-    return true;
-  };
-  if (!borne(-dx, A.x - r.xmin) || !borne(dx, r.xmax - A.x) || !borne(-dy, A.y - r.ymin) || !borne(dy, r.ymax - A.y)) return null;
-  if (!(t0 <= t1) || !Number.isFinite(t0) || !Number.isFinite(t1)) return null;
-  const p0 = versMm(r, A.x + t0 * dx, A.y + t0 * dy);
-  const p1 = versMm(r, A.x + t1 * dx, A.y + t1 * dy);
+  if (!A || !B) return null;
+  const s = prolongerDansRect(A, B, r.xmin, r.xmax, r.ymin, r.ymax);
+  if (!s) return null;
+  const p0 = versMm(r, s.x1, s.y1);
+  const p1 = versMm(r, s.x2, s.y2);
   return { x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y };
 }
 

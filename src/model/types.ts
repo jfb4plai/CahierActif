@@ -112,8 +112,18 @@ export type Forme = {
   epaisseur: number; // mm
 };
 
+/** Droite par deux points posés sur la feuille ; prolongée jusqu'aux bords de la page. Les deux points sont modifiables. */
+export type Droite = {
+  id: string;
+  type: 'droite';
+  a: Point;
+  b: Point;
+  couleur: string;
+  epaisseur: number; // mm
+};
+
 /** Étendu par le plan 2 (géométrie). */
-export type Objet = Trait | Texte | ObjetMaths | Forme;
+export type Objet = Trait | Texte | ObjetMaths | Forme | Droite;
 
 /** Dossier (cours) de la bibliothèque : classement local, hors du document. */
 export type Dossier = { id: string; nom: string; cree: number };

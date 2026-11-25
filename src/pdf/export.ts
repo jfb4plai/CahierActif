@@ -1,5 +1,6 @@
 import { BlendMode, LineCapStyle, PDFDocument, PDFFont, PDFPage, StandardFonts } from 'pdf-lib';
 import { SURLIGNEUR_OPACITE } from '../lib/couleurs';
+import { droiteSurPage } from '../model/droites';
 import { cheminsPage } from '../model/formes';
 import { motifFond } from '../model/fonds';
 import type { CahierDoc, Objet, Page } from '../model/types';
@@ -17,7 +18,7 @@ function dessinerFond(p: PDFPage, page: Page) {
   for (const r of m.ronds) p.drawCircle({ x: X(r0, r.x), y: Y(r0, r.y), size: r.r * K, color: couleur(r.couleur) });
 }
 
-function dessinerObjet(p: PDFPage, o: Objet, font: PDFFont) {
+function dessinerObjet(p: PDFPage, o: Objet, font: PDFFont, page: Page) {
   const r0 = origine(p);
   if (o.type === 'trait') {
     if (o.points.length === 1) {
@@ -34,6 +35,17 @@ function dessinerObjet(p: PDFPage, o: Objet, font: PDFFont) {
       borderLineCap: o.surligneur ? LineCapStyle.Butt : LineCapStyle.Round,
       ...(o.surligneur ? { borderOpacity: SURLIGNEUR_OPACITE, blendMode: BlendMode.Multiply } : {}),
     });
+    return;
+  }
+  if (o.type === 'droite') {
+    const trait = (x1: number, y1: number, x2: number, y2: number) =>
+      p.drawLine({ start: { x: X(r0, x1), y: Y(r0, y1) }, end: { x: X(r0, x2), y: Y(r0, y2) }, thickness: o.epaisseur * K, color: couleur(o.couleur), lineCap: LineCapStyle.Round });
+    const s = droiteSurPage(o, page.largeurMm, page.hauteurMm);
+    if (s) trait(s.x1, s.y1, s.x2, s.y2);
+    for (const q of [o.a, o.b]) { // une croix sur chaque point
+      trait(q.x - 1.2, q.y - 1.2, q.x + 1.2, q.y + 1.2);
+      trait(q.x - 1.2, q.y + 1.2, q.x + 1.2, q.y - 1.2);
+    }
     return;
   }
   if (o.type === 'forme') {
@@ -88,7 +100,7 @@ export async function exporterPdf(doc: CahierDoc, options: OptionsExport = {}): 
     dessinerFond(p, page);
     for (const o of page.objets) {
       if (o.type === 'expression') await dessinerExpression(p, origine(p), o, font, out, options.rendreExpression);
-      else dessinerObjet(p, o, font);
+      else dessinerObjet(p, o, font, page);
     }
   }
   return out.save();

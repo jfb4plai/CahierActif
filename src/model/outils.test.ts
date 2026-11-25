@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { groupesPour, outilsPour, OUTILS, OUTIL_TYPE } from './outils';
 
 describe('outils', () => {
-  it('P1-P2 : pas de sélection, de surligneur, de formes, de gomme fine, de déplacement, de fraction, d’expression ni de repère', () => {
+  it('P1-P2 : pas de sélection, de surligneur, de formes, de droite, de gomme fine, de déplacement, de fraction, d’expression ni de repère', () => {
     expect(outilsPour('p1p2').map(o => o.id)).toEqual(['main', 'stylo', 'gomme-objet', 'texte', 'operation']);
   });
   it('P3-P6 : opérations et fractions, pas d’expression ni de repère', () => {
@@ -11,6 +11,7 @@ describe('outils', () => {
     expect(ids).toContain('selectionner');
     expect(ids).toContain('surligneur');
     expect(ids).toContain('formes');
+    expect(ids).toContain('droite');
     expect(ids).not.toContain('expression');
     expect(ids).not.toContain('repere');
   });

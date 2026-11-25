@@ -34,5 +34,10 @@ export function boiteObjet(o: ObjetBoite): Boite {
     }
     case 'forme':
       return boiteForme(o);
+    case 'droite': {
+      const x = Math.min(o.a.x, o.b.x);
+      const y = Math.min(o.a.y, o.b.y);
+      return { x, y, largeur: Math.abs(o.b.x - o.a.x), hauteur: Math.abs(o.b.y - o.a.y) };
+    }
   }
 }
