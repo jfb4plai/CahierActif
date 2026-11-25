@@ -258,8 +258,14 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
         <button type="button" className="plai-btn min-h-[44px]" onClick={fermer}>Retour à mes documents</button>
         <h1 className="font-serif text-xl">{doc.titre}</h1>
         <span className="flex-1" />
-        <button type="button" className="plai-btn min-h-[44px]" onClick={exporter}>Exporter en PDF</button>
-        <button type="button" className="plai-btn min-h-[44px]" onClick={exporterCahier}>Enregistrer un fichier .cahier</button>
+        <div className="flex max-w-[15rem] flex-col gap-1">
+          <button type="button" className="plai-btn min-h-[44px]" onClick={exporter} aria-describedby="aide-export-pdf">Exporter en PDF</button>
+          <p id="aide-export-pdf" className="text-base text-[var(--text2)]">Pour rendre le travail ou l’imprimer. Les annotations ne se modifient plus ensuite.</p>
+        </div>
+        <div className="flex max-w-[15rem] flex-col gap-1">
+          <button type="button" className="plai-btn min-h-[44px]" onClick={exporterCahier} aria-describedby="aide-export-cahier">Enregistrer un fichier .cahier</button>
+          <p id="aide-export-cahier" className="text-base text-[var(--text2)]">Pour continuer plus tard ou sur un autre appareil. Seul CahierActif le rouvre.</p>
+        </div>
         {avecColonne && (
           <label className="flex items-center gap-2 text-base">
             Fond de la page
