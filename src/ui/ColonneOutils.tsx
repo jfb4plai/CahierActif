@@ -1,6 +1,7 @@
 import type { PositionColonne } from '../lib/reglages';
 import { groupesPour } from '../model/outils';
 import type { PropsOutils } from './BarreOutils';
+import { IconeOutil, IconeUi } from './iconesOutils';
 
 type Props = PropsOutils & {
   position: PositionColonne;
@@ -10,15 +11,20 @@ type Props = PropsOutils & {
   bouton?: { libelle: string; onClick: () => void; deplie: boolean };
 };
 
-export const LARGEUR_COLONNE_PX = 176;
+export const LARGEUR_COLONNE_PX = 212;
 
-// Outil actif : plein, bleu, texte blanc, bordure épaisse. Tous les autres : gris. Le contraste ne repose pas
-// sur la seule couleur (bordure plus épaisse, texte en gras).
-const BASE = 'min-h-[52px] w-full rounded-xl px-3 text-left text-lg leading-tight disabled:opacity-40';
-export const OUTIL_ACTIF = `${BASE} border-4 border-[#1e3a8a] bg-[#1d4ed8] font-bold text-white`;
-export const OUTIL_GRIS = `${BASE} border-2 border-[#d1d5db] bg-[#e5e7eb] text-[#4b5563]`;
-// Choix à l'intérieur d'un outil (forme, épaisseur) : contour bleu quand choisi, gris sinon.
-export const OPTION_CHOISIE = `${BASE} border-4 border-[#1d4ed8] bg-white font-bold text-[#1d4ed8]`;
+// Outil actif : plein, bleu, texte blanc, ombre portée, gras. Tous les autres : gris doux. Le contraste ne repose pas
+// sur la seule couleur (gras, ombre, anneau).
+const BASE = 'inline-flex min-h-[52px] items-center rounded-2xl px-4 text-lg leading-tight transition-colors duration-150 disabled:opacity-40';
+export const OUTIL_ACTIF = BASE + ' bg-[#1d4ed8] font-bold text-white shadow-md ring-2 ring-[#1e3a8a]/40';
+export const OUTIL_GRIS = BASE + ' bg-[#eceae3] font-medium text-[#55514a] hover:bg-[#e1ded4]';
+// Choix à l'intérieur d'un outil, présentés en « segments » dans un conteneur gris : le segment choisi est blanc,
+// bleu, en gras, avec un anneau bleu.
+const SEG = 'inline-flex min-h-[44px] items-center justify-center rounded-xl px-4 text-lg leading-tight transition duration-150';
+export const SEGMENT = SEG + ' font-medium text-[#55514a] hover:bg-white/70';
+export const SEGMENT_ACTIF = SEG + ' bg-white font-bold text-[#1d4ed8] shadow ring-2 ring-[#1d4ed8]';
+export const CONTENEUR_SEGMENTS = 'inline-flex flex-wrap items-center gap-1 rounded-2xl bg-[#e8e6de] p-1';
+export const OPTION_CHOISIE = BASE + ' bg-white font-bold text-[#1d4ed8] shadow ring-2 ring-[#1d4ed8]';
 
 /** Colonne des outils, rangés par groupes ; Annuler et Rétablir sont avec les gommes (groupe Corriger). */
 export function ColonneOutils(p: Props) {
@@ -40,15 +46,16 @@ export function ColonneOutils(p: Props) {
           <h2 id={`groupe-${g.id}`} className="mb-1 text-base font-semibold text-[var(--text2)]">{g.titre}</h2>
           <div className="flex flex-col gap-1.5">
             {g.outils.map(o => (
-              <button key={o.id} type="button" className={p.outil === o.id ? OUTIL_ACTIF : OUTIL_GRIS} title={o.aide}
+              <button key={o.id} type="button" className={(p.outil === o.id ? OUTIL_ACTIF : OUTIL_GRIS) + ' w-full justify-start gap-2.5 !px-3'} title={o.aide}
                 aria-pressed={p.outil === o.id} onClick={() => p.setOutil(o.id)}>
+                <IconeOutil id={o.id} />
                 {o.libelle}
               </button>
             ))}
             {g.id === 'corriger' && (
               <>
-                <button type="button" className={OUTIL_GRIS} disabled={!p.peutAnnuler} onClick={p.onAnnuler}>↶ Annuler</button>
-                <button type="button" className={OUTIL_GRIS} disabled={!p.peutRetablir} onClick={p.onRetablir}>↷ Rétablir</button>
+                <button type="button" className={OUTIL_GRIS + ' w-full justify-start gap-2.5 !px-3'} disabled={!p.peutAnnuler} onClick={p.onAnnuler}><IconeUi nom="annuler" taille={22} />Annuler</button>
+                <button type="button" className={OUTIL_GRIS + ' w-full justify-start gap-2.5 !px-3'} disabled={!p.peutRetablir} onClick={p.onRetablir}><IconeUi nom="retablir" taille={22} />Rétablir</button>
               </>
             )}
           </div>

@@ -3,7 +3,8 @@ import { FORMES } from '../model/formes';
 import { OUTILS } from '../model/outils';
 import { TAILLES_TEXTE_PT } from '../model/texte';
 import { COULEURS, EPAISSEURS, type PropsOutils } from './BarreOutils';
-import { OPTION_CHOISIE, OUTIL_GRIS } from './ColonneOutils';
+import { CONTENEUR_SEGMENTS, OPTION_CHOISIE, OUTIL_GRIS, SEGMENT, SEGMENT_ACTIF } from './ColonneOutils';
+import { IconeUi } from './iconesOutils';
 import { PaletteCouleurs } from './PaletteCouleurs';
 
 const PUCE = '!w-auto';
@@ -23,9 +24,9 @@ export function BandeauReglages(p: PropsOutils) {
           <p className="max-w-[18rem] text-base text-[var(--text2)]">Toucher le premier point, puis le deuxième : la droite passe par les deux. Les points se déplacent ensuite avec Sélectionner.</p>
         )}
         {p.outil === 'formes' && (
-          <div role="group" aria-label="Forme à tracer" className="flex flex-wrap items-center gap-2">
+          <div role="group" aria-label="Forme à tracer" className={CONTENEUR_SEGMENTS}>
             {FORMES.map(f => (
-              <button key={f.id} type="button" className={`${p.formeChoisie === f.id ? OPTION_CHOISIE : OUTIL_GRIS} ${PUCE}`}
+              <button key={f.id} type="button" className={p.formeChoisie === f.id ? SEGMENT_ACTIF : SEGMENT}
                 aria-pressed={p.formeChoisie === f.id} title={`${f.libelle} : glisser sur la page`} onClick={() => p.setFormeChoisie(f.id)}>
                 {f.libelle}
               </button>
@@ -61,10 +62,10 @@ export function BandeauReglages(p: PropsOutils) {
         {p.surligneur && (
           <div role="group" aria-label="Surligneur" className="flex flex-wrap items-center gap-x-4 gap-y-2">
             {p.surligneur.afficherMode && (
-              <div role="group" aria-label="Mode de tracé" className="flex items-center gap-2">
-                <button type="button" className={`${p.surligneur.mode === 'libre' ? OPTION_CHOISIE : OUTIL_GRIS} ${PUCE}`} aria-pressed={p.surligneur.mode === 'libre'}
+              <div role="group" aria-label="Mode de tracé" className={CONTENEUR_SEGMENTS}>
+                <button type="button" className={p.surligneur.mode === 'libre' ? SEGMENT_ACTIF : SEGMENT} aria-pressed={p.surligneur.mode === 'libre'}
                   title="Le trait suit le doigt" onClick={() => p.surligneur?.setMode('libre')}>Libre</button>
-                <button type="button" className={`${p.surligneur.mode === 'lineaire' ? OPTION_CHOISIE : OUTIL_GRIS} ${PUCE}`} aria-pressed={p.surligneur.mode === 'lineaire'}
+                <button type="button" className={p.surligneur.mode === 'lineaire' ? SEGMENT_ACTIF : SEGMENT} aria-pressed={p.surligneur.mode === 'lineaire'}
                   title="Glisser du début à la fin : le trait reste droit" onClick={() => p.surligneur?.setMode('lineaire')}>Linéaire</button>
               </div>
             )}
@@ -83,20 +84,22 @@ export function BandeauReglages(p: PropsOutils) {
         )}
         {p.tailleTexte && (
           <div role="group" aria-label="Taille du texte" className="flex items-center gap-2">
-            <span className="text-base">Taille</span>
+            <span className="text-base font-medium">Taille</span>
+            <div className={CONTENEUR_SEGMENTS}>
             {TAILLES_TEXTE_PT.map(t => (
-              <button key={t} type="button" className={`${p.tailleTexte?.valeur === t ? OPTION_CHOISIE : OUTIL_GRIS} ${PUCE} !min-w-[56px] text-center`}
+              <button key={t} type="button" className={(p.tailleTexte?.valeur === t ? SEGMENT_ACTIF : SEGMENT) + ' !min-w-[52px]'}
                 aria-pressed={p.tailleTexte?.valeur === t} title={`Taille ${t}`} onClick={() => p.tailleTexte?.onChoisir(t)}>
                 {t}
               </button>
             ))}
+            </div>
           </div>
         )}
         {p.montrerEpaisseur && (
           <>
-            <div role="group" aria-label="Épaisseur du trait" className="flex shrink-0 items-center gap-2">
+            <div role="group" aria-label="Épaisseur du trait" className={CONTENEUR_SEGMENTS}>
               {EPAISSEURS.map(e => (
-                <button key={e.mm} type="button" className={`${p.epaisseur === e.mm ? OPTION_CHOISIE : OUTIL_GRIS} ${PUCE}`}
+                <button key={e.mm} type="button" className={p.epaisseur === e.mm ? SEGMENT_ACTIF : SEGMENT}
                   aria-pressed={p.epaisseur === e.mm} onClick={() => p.setEpaisseur(e.mm)}>
                   {e.libelle}
                 </button>
@@ -107,11 +110,11 @@ export function BandeauReglages(p: PropsOutils) {
         {!aDesReglages && aide && <p className="text-base text-[var(--text2)]">{aide}</p>}
       </div>
       <div className="flex shrink-0 items-center gap-2" role="group" aria-label="Zoom">
-        <button type="button" className={`${OUTIL_GRIS} shrink-0 !w-[52px] !px-0 text-center`} aria-label="Dézoomer"
-          onClick={() => p.setZoom(Math.max(0.5, +(p.zoom - 0.25).toFixed(2)))}>−</button>
+        <button type="button" className={`${OUTIL_GRIS} shrink-0 !h-[48px] !w-[48px] !rounded-full justify-center !px-0`} aria-label="Dézoomer"
+          onClick={() => p.setZoom(Math.max(0.5, +(p.zoom - 0.25).toFixed(2)))}><IconeUi nom="moins" taille={22} /></button>
         <span className="min-w-[3.5rem] text-center text-lg" aria-live="polite">{Math.round(p.zoom * 100)} %</span>
-        <button type="button" className={`${OUTIL_GRIS} shrink-0 !w-[52px] !px-0 text-center`} aria-label="Zoomer"
-          onClick={() => p.setZoom(Math.min(3, +(p.zoom + 0.25).toFixed(2)))}>+</button>
+        <button type="button" className={`${OUTIL_GRIS} shrink-0 !h-[48px] !w-[48px] !rounded-full justify-center !px-0`} aria-label="Zoomer"
+          onClick={() => p.setZoom(Math.min(3, +(p.zoom + 0.25).toFixed(2)))}><IconeUi nom="plus" taille={22} /></button>
       </div>
     </div>
   );

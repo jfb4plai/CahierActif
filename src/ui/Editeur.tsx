@@ -20,6 +20,7 @@ import { BandeauReglages } from './BandeauReglages';
 import { LARGEUR_COLONNE_PX } from './ColonneOutils';
 import { ColonneRepliable, LARGEUR_BANDE_PX } from './ColonneRepliable';
 import { usePeek } from './usePeek';
+import { IconeUi } from './iconesOutils';
 import { ecrireInterface, lireInterface } from '../lib/interface';
 import { GestionPages } from './GestionPages';
 import { extraireDocument } from '../pdf/extraire';
@@ -334,12 +335,12 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     <div>
       <div className="carte-flottante relative mx-3 mt-3 p-3">
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={fermer}>← Retour à mes documents</button>
+          <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={fermer}><IconeUi nom="retour" />Retour à mes documents</button>
           <h1 className="min-w-0 flex-1 truncate text-xl font-bold" title={doc.titre}>{doc.titre}</h1>
           <button type="button" className="plai-btn min-h-[44px]" onClick={exporter} aria-describedby="aide-export-pdf"
-            title="Pour rendre le travail ou l’imprimer. Les annotations ne se modifient plus ensuite.">Exporter en PDF</button>
+            title="Pour rendre le travail ou l’imprimer. Les annotations ne se modifient plus ensuite."><IconeUi nom="telecharger" />Exporter en PDF</button>
           <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={exporterCahier} aria-describedby="aide-export-cahier"
-            title="Pour continuer plus tard ou sur un autre appareil. Seul CahierActif le rouvre.">Enregistrer un fichier .cahier</button>
+            title="Pour continuer plus tard ou sur un autre appareil. Seul CahierActif le rouvre."><IconeUi nom="fichier" />Enregistrer un fichier .cahier</button>
           <button
             type="button"
             className="plai-btn-secondaire min-h-[44px]"
@@ -349,7 +350,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             {...peekEntete.liens}
             onClick={() => { peekEntete.fermer(); setUi(u => ({ ...u, enteteDeplie: !u.enteteDeplie })); }}
           >
-            {ui.enteteDeplie ? '▴ Replier' : '▾ Plus d’options'}
+            <IconeUi nom={ui.enteteDeplie ? 'haut' : 'bas'} />{ui.enteteDeplie ? 'Replier' : 'Plus d’options'}
           </button>
         </div>
         {/* Sélecteurs de fichiers hors du volet : un aperçu qui se ferme ne doit pas les démonter pendant le choix. */}
@@ -370,7 +371,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
               <p id="aide-export-cahier" className="max-w-[18rem] text-base text-[var(--text2)]"><strong>Fichier .cahier :</strong> pour continuer plus tard ou sur un autre appareil. Seul CahierActif le rouvre.</p>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-3">
-              <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => { validerSaisie(); setPagesOuvert(true); }}>Gérer les pages</button>
+              <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => { validerSaisie(); setPagesOuvert(true); }}><IconeUi nom="pages" />Gérer les pages</button>
               {doc.source.type === 'photos' && (
                 <>
                   <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => cameraInput.current?.click()}>Photographier une page</button>

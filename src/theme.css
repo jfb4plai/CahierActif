@@ -60,6 +60,9 @@ body { font-size: 16px; line-height: 1.55; }
 .plai-btn:hover { opacity: 1; box-shadow: 0 2px 8px rgba(15, 110, 86, 0.3); }
 .plai-btn:active { transform: translateY(1px); }
 .plai-btn:disabled { box-shadow: none; }
+/* Boutons à icône : icône et texte alignés */
+.plai-btn, .plai-btn-secondaire { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+
 /* Action secondaire : blanche, contour discret, texte teal */
 .plai-btn-secondaire {
   background: #fff;
