@@ -60,4 +60,17 @@ describe('exporterPdf', () => {
     expect(tr[4]).toBeCloseTo(50 + 20 * K, 1);
     expect(tr[5]).toBeCloseTo(100 + 425.2 - 30 * K - 14 * 1.05, 1);
   });
+
+  it('surligneur : transparence et fusion « produit » ; formes : un tracé par chemin, rotation comprise', async () => {
+    let d = nouveauDocVierge('S', 'p3p6');
+    d = ajouterObjet(d, 0, { id: 's', type: 'trait', points: [{ x: 10, y: 10 }, { x: 80, y: 10 }], couleur: '#facc15', epaisseur: 5, surligneur: true });
+    d = ajouterObjet(d, 0, { id: 'f1', type: 'forme', forme: 'fleche-droite', x: 20, y: 40, largeur: 50, hauteur: 20, rotation: 30, couleur: '#dc2626', epaisseur: 0.8 });
+    d = ajouterObjet(d, 0, { id: 'f2', type: 'forme', forme: 'triangle', x: 20, y: 90, largeur: 30, hauteur: 30, rotation: 0, couleur: '#1d4ed8', epaisseur: 0.8 });
+    const out = await exporterPdf(d);
+    expect((await PDFDocument.load(out)).getPageCount()).toBe(1);
+    // Les dictionnaires sont dans des flux d'objets compressés : on les relit via pdf-lib.
+    const lu = await PDFDocument.load(out);
+    const dicts = lu.context.enumerateIndirectObjects().map(([, o]) => String(o));
+    expect(dicts.some(t => t.includes('/BM /Multiply') && /\/CA 0\.4/.test(t))).toBe(true);
+  });
 });

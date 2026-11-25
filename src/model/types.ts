@@ -10,6 +10,8 @@ export type Trait = {
   points: Point[];
   couleur: string; // #rrggbb
   epaisseur: number; // mm
+  /** Trait de surligneur : large, semi-transparent (opacité fixée par SURLIGNEUR_OPACITE). */
+  surligneur?: boolean;
 };
 
 export type Texte = {
@@ -85,8 +87,32 @@ export type Repere = {
 
 export type ObjetMaths = OperationPosee | Fraction | Expression | Repere;
 
+/** Identifiants du catalogue de formes (voir model/formes.ts : ajouter une forme = ajouter une entrée). */
+export type TypeForme = 'ligne' | 'rond' | 'carre' | 'rectangle' | 'triangle' | 'fleche-gauche' | 'fleche-droite';
+
+/**
+ * Forme géométrique éditable. (x, y) = coin haut-gauche de la boîte avant rotation, en mm ;
+ * la rotation (degrés, sens horaire) se fait autour de ce point.
+ */
+export type Forme = {
+  id: string;
+  type: 'forme';
+  forme: TypeForme;
+  x: number;
+  y: number;
+  largeur: number; // mm, ≥ 0
+  hauteur: number; // mm, ≥ 0
+  rotation: number;
+  inverse?: boolean; // retournée de haut en bas (ligne montante, triangle pointe en bas)
+  couleur: string;
+  epaisseur: number; // mm
+};
+
 /** Étendu par le plan 2 (géométrie). */
-export type Objet = Trait | Texte | ObjetMaths;
+export type Objet = Trait | Texte | ObjetMaths | Forme;
+
+/** Dossier (cours) de la bibliothèque : classement local, hors du document. */
+export type Dossier = { id: string; nom: string; cree: number };
 
 export type Fond = 'aucun' | 'quadrille5' | 'quadrille10' | 'seyes' | 'pointe';
 

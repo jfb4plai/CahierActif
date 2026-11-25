@@ -1,7 +1,7 @@
 import type { Niveau, Objet } from './types';
 
 export type OutilId =
-  | 'main' | 'stylo' | 'gomme-objet' | 'gomme-partielle' | 'texte' | 'deplacer'
+  | 'main' | 'stylo' | 'surligneur' | 'formes' | 'gomme-objet' | 'gomme-partielle' | 'texte' | 'deplacer'
   | 'operation' | 'fraction' | 'expression' | 'repere';
 export type Outil = { id: OutilId; libelle: string; aide: string; niveaux: Niveau[] };
 
@@ -10,6 +10,8 @@ const TOUS: Niveau[] = ['p1p2', 'p3p6', 'secondaire'];
 export const OUTILS: Outil[] = [
   { id: 'main', libelle: 'Main', aide: 'Faire défiler la page sans écrire', niveaux: TOUS },
   { id: 'stylo', libelle: 'Stylo', aide: 'Écrire ou dessiner à main levée', niveaux: TOUS },
+  { id: 'surligneur', libelle: 'Surligneur', aide: 'Surligner un mot ou une ligne, en 6 couleurs', niveaux: TOUS },
+  { id: 'formes', libelle: 'Formes', aide: 'Glisser sur la page pour tracer une forme ; la toucher pour la modifier ou la déplacer', niveaux: TOUS },
   { id: 'gomme-objet', libelle: 'Gomme', aide: 'Toucher un trait ou un texte pour l’effacer en entier', niveaux: TOUS },
   { id: 'gomme-partielle', libelle: 'Gomme fine', aide: 'Effacer seulement une partie d’un trait', niveaux: ['p3p6', 'secondaire'] },
   { id: 'texte', libelle: 'Texte', aide: 'Toucher la page pour écrire au clavier ; glisser un texte pour le déplacer', niveaux: TOUS },
@@ -25,7 +27,7 @@ export function outilsPour(n: Niveau): Outil[] {
 }
 
 /** Outils qui créent un objet en touchant la page, et le modifient ou le déplacent ensuite. */
-export const OUTIL_TYPE: Partial<Record<OutilId, Exclude<Objet['type'], 'trait'>>> = {
+export const OUTIL_TYPE: Partial<Record<OutilId, Exclude<Objet['type'], 'trait' | 'forme'>>> = {
   texte: 'texte',
   operation: 'operation',
   fraction: 'fraction',

@@ -1,15 +1,17 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Circle, Layer, Line, Stage, Text } from 'react-konva';
+import { Circle, Layer, Line, Stage, Text, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import { decider, type EtatStylet } from '../input/pointerPolicy';
+import { SURLIGNEUR_OPACITE } from '../lib/couleurs';
 import { ptVersMm, ratioPixelsMax } from '../lib/units';
 import { motifFond, type Motif } from '../model/fonds';
+import { formeContient, formeDepuisGlisse } from '../model/formes';
 import { effacerPartiel, objetTouche } from '../model/gomme';
 import { ajouterObjet, modifierObjet, remplacerObjet, supprimerObjet } from '../model/ops';
 import type { ObjetBoite } from '../model/boites';
 import { OUTIL_TYPE, type OutilId } from '../model/outils';
 import { nouvelId } from '../model/types';
-import type { CahierDoc, ModeEntree, Niveau, Objet, ObjetMaths, Point, Texte } from '../model/types';
+import type { CahierDoc, Forme, ModeEntree, Niveau, Objet, ObjetMaths, Point, Texte, TypeForme } from '../model/types';
 import { creerFraction } from '../maths/fraction';
 import { creerOperation, type ParamsOperation } from '../maths/operation';
 import { ajouterPoint, creerRepere, type ParamsRepere } from '../maths/repere';
@@ -20,6 +22,7 @@ import { DialogueOperation } from './maths/DialogueOperation';
 import { DialogueRepere } from './maths/DialogueRepere';
 import { EditionMaths } from './maths/EditionMaths';
 import { FormeMaths } from './maths/Formes';
+import { FormeVue } from './FormeVue';
 import { PdfCanvas } from './PdfCanvas';
 
 type Props = {
@@ -34,6 +37,10 @@ type Props = {
   setEtatStylet: (e: EtatStylet) => void;
   pdf: PDFDocumentProxy | null;
   niveau: Niveau;
+  formeChoisie: TypeForme;
+  /** Forme sélectionnée sur cette page (outil Formes) : poignées de taille et de rotation. */
+  selectionId: string | null;
+  onSelection: (id: string | null) => void;
   onCommit: (maj: CahierDoc | ((d: CahierDoc) => CahierDoc)) => void;
   onActive: () => void;
   inscrireValidation: (page: number, valider: () => void) => () => void;
@@ -41,7 +48,9 @@ type Props = {
 
 type Edition = { texte: Texte; nouveau: boolean };
 // Outil de création posé sur un objet de son type : glisser = déplacer, toucher sans bouger = modifier.
-type ObjetSaisi = { objet: ObjetBoite; depart: Point; bouge: boolean };
+type ObjetSaisi = { objet: Exclude<ObjetBoite, Forme>; depart: Point; bouge: boolean };
+// Forme en cours de tracé : le glissé va de `debut` à `fin`.
+type TraceForme = { debut: Point; fin: Point };
 type EnEditionMaths = { objet: ObjetMaths; nouveau: boolean };
 type TypeCree = NonNullable<(typeof OUTIL_TYPE)[OutilId]>;
 
@@ -68,22 +77,29 @@ type PropsObjets = {
   deplacable: boolean;
   idMasque: string | null;
   idEdition: string | null;
+  formesEditables: boolean; // outil Formes : les formes se déplacent d'un glissé
   onDeplace: (o: Objet, node: Konva.Node) => void;
+  onTransforme: (o: Forme, node: Konva.Node) => void;
 };
 
-const CoucheObjets = memo(function CoucheObjets({ objets, deplacable, idMasque, idEdition, onDeplace }: PropsObjets) {
+const CoucheObjets = memo(function CoucheObjets({ objets, deplacable, idMasque, idEdition, formesEditables, onDeplace, onTransforme }: PropsObjets) {
   return (
     <Layer>
       {objets.map(o =>
         o.type === 'trait' ? (
           o.points.length === 1 ? (
             <Circle key={o.id} x={o.points[0].x} y={o.points[0].y} radius={o.epaisseur / 2} fill={o.couleur}
+              opacity={o.surligneur ? SURLIGNEUR_OPACITE : 1}
               draggable={deplacable} onDragEnd={e => onDeplace(o, e.target)} />
           ) : (
             <Line key={o.id} points={o.points.flatMap(q => [q.x, q.y])} stroke={o.couleur} strokeWidth={o.epaisseur}
-              lineCap="round" lineJoin="round" hitStrokeWidth={4}
+              lineCap={o.surligneur ? 'butt' : 'round'} lineJoin="round" hitStrokeWidth={4}
+              opacity={o.surligneur ? SURLIGNEUR_OPACITE : 1}
               draggable={deplacable} onDragEnd={e => onDeplace(o, e.target)} />
           )
+        ) : o.type === 'forme' ? (
+          <FormeVue key={o.id} o={o} draggable={deplacable || formesEditables} onDragEnd={node => onDeplace(o, node)}
+            onTransformEnd={node => onTransforme(o, node)} />
         ) : o.type === 'texte' ? (
           idMasque === o.id ? null : (
             <Text key={o.id} x={o.x} y={o.y} width={o.largeur} text={o.texte} fontFamily="Arial"
@@ -104,6 +120,9 @@ export function PageVue(p: Props) {
   const traitRef = useRef<Point[] | null>(null);
   const brouillonRef = useRef<CahierDoc | null>(null); // gommage en cours (un seul « annuler »)
   const [enCours, setEnCours] = useState<Point[] | null>(null);
+  const traceFormeRef = useRef<TraceForme | null>(null);
+  const [traceForme, setTraceForme] = useState<TraceForme | null>(null);
+  const transformeur = useRef<Konva.Transformer>(null);
   const [brouillon, setBrouillon] = useState<CahierDoc | null>(null);
   const [edition, setEdition] = useState<Edition | null>(null);
   // editionRef garantit une seule validation (blur, toucher suivant et démontage peuvent se suivre).
@@ -127,6 +146,7 @@ export function PageVue(p: Props) {
   const objetsAffiches = !maths ? objets
     : maths.nouveau ? [...objets, maths.objet]
     : objets.map(o => (o.id === maths.objet.id ? maths.objet : o));
+  const apercuForme = traceForme ? formeDepuisGlisse(p.formeChoisie, traceForme.debut, traceForme.fin, p.couleur, p.epaisseur) : null;
   const fond = useMemo(() => motifFond(page.fond, page.largeurMm, page.hauteurMm), [page.fond, page.largeurMm, page.hauteurMm]);
 
   const posMm = (e: Konva.KonvaEventObject<PointerEvent>): Point => {
@@ -201,10 +221,20 @@ export function PageVue(p: Props) {
       return;
     }
     if (p.outil === 'main' || p.outil === 'deplacer') return;
+    // Une poignée de la forme sélectionnée : le Transformer de Konva s'en occupe seul.
+    if (p.outil === 'formes' && e.target.getParent()?.className === 'Transformer') return;
     const q = posMm(e);
+    if (p.outil === 'formes') {
+      const cible = [...objets].reverse().find(o => o.type === 'forme' && formeContient(o, q, 1));
+      if (cible) { p.onSelection(cible.id); return; } // le glissé qui suit la déplace (Konva)
+      p.onSelection(null);
+      pointeurActif.current = e.evt.pointerId;
+      traceFormeRef.current = { debut: q, fin: q };
+      return;
+    }
     const typeOutil = OUTIL_TYPE[p.outil];
     if (typeOutil) {
-      const existant = [...objets].reverse().find(o => o.type === typeOutil && objetTouche(o, q, 1)) as ObjetBoite | undefined;
+      const existant = [...objets].reverse().find(o => o.type === typeOutil && objetTouche(o, q, 1)) as Exclude<ObjetBoite, Forme> | undefined;
       if (existant) {
         pointeurActif.current = e.evt.pointerId;
         objetSaisiRef.current = { objet: existant, depart: q, bouge: false };
@@ -213,7 +243,7 @@ export function PageVue(p: Props) {
       }
       return;
     }
-    if (p.outil === 'stylo') {
+    if (p.outil === 'stylo' || p.outil === 'surligneur') {
       pointeurActif.current = e.evt.pointerId;
       traitRef.current = [q];
       setEnCours(traitRef.current);
@@ -228,7 +258,10 @@ export function PageVue(p: Props) {
     if (pointeurActif.current === null || e.evt.pointerId !== pointeurActif.current) return;
     const q = posMm(e);
     const saisi = objetSaisiRef.current;
-    if (saisi) {
+    if (traceFormeRef.current) {
+      traceFormeRef.current = { ...traceFormeRef.current, fin: q };
+      setTraceForme(traceFormeRef.current);
+    } else if (saisi) {
       const dx = q.x - saisi.depart.x;
       const dy = q.y - saisi.depart.y;
       if (!saisi.bouge && Math.hypot(dx, dy) < SEUIL_GLISSER) return;
@@ -251,6 +284,17 @@ export function PageVue(p: Props) {
   const terminer = (pointerId: number) => {
     if (pointeurActif.current === null || pointerId !== pointeurActif.current) return;
     pointeurActif.current = null;
+    const tracee = traceFormeRef.current;
+    if (tracee) {
+      traceFormeRef.current = null;
+      setTraceForme(null);
+      const f = formeDepuisGlisse(p.formeChoisie, tracee.debut, tracee.fin, p.couleur, p.epaisseur);
+      if (f) {
+        p.onCommit(ajouterObjet(p.doc, p.pageIndex, f));
+        p.onSelection(f.id); // poignées tout de suite : ajuster la taille, tourner
+      }
+      return;
+    }
     const saisi = objetSaisiRef.current;
     objetSaisiRef.current = null;
     if (saisi && !saisi.bouge) {
@@ -265,7 +309,10 @@ export function PageVue(p: Props) {
     setEnCours(null);
     setBrouillon(null);
     if (trait && trait.length > 0) {
-      p.onCommit(ajouterObjet(p.doc, p.pageIndex, { id: nouvelId(), type: 'trait', points: trait, couleur: p.couleur, epaisseur: p.epaisseur }));
+      p.onCommit(ajouterObjet(p.doc, p.pageIndex, {
+        id: nouvelId(), type: 'trait', points: trait, couleur: p.couleur, epaisseur: p.epaisseur,
+        ...(p.outil === 'surligneur' ? { surligneur: true } : {}),
+      }));
     } else if (gomme && gomme !== p.doc) {
       p.onCommit(gomme);
     }
@@ -379,6 +426,21 @@ export function PageVue(p: Props) {
     onCommit(modifierObjet(doc, pageIndex, o.id, { x: node.x(), y: node.y() }));
   }, []);
 
+  // Fin d'un redimensionnement ou d'une rotation : la mise à l'échelle de Konva est reportée dans la taille, puis remise à 1.
+  const finTransformation = useCallback((o: Forme, node: Konva.Node) => {
+    const { doc, pageIndex, onCommit } = derniersProps.current;
+    const sx = Math.abs(node.scaleX());
+    const sy = Math.abs(node.scaleY());
+    node.scale({ x: 1, y: 1 });
+    onCommit(modifierObjet(doc, pageIndex, o.id, {
+      x: node.x(),
+      y: node.y(),
+      rotation: node.rotation(),
+      largeur: o.largeur > 0 ? Math.max(1, o.largeur * sx) : 0,
+      hauteur: o.hauteur > 0 ? Math.max(1, o.hauteur * sy) : 0,
+    }));
+  }, []);
+
   const w = page.largeurMm * p.pxMm;
   const h = page.hauteurMm * p.pxMm;
   const ratio = ratioPixelsMax(w, h, window.devicePixelRatio || 1);
@@ -408,6 +470,17 @@ export function PageVue(p: Props) {
 
   const deplacable = p.outil === 'deplacer';
 
+  // Poignées sur la forme sélectionnée (retrouvée par son id dans la scène).
+  const surFormes = p.outil === 'formes';
+  const formeSelectionnee = surFormes && p.selectionId ? objets.find(o => o.id === p.selectionId) : undefined;
+  useEffect(() => {
+    const tr = transformeur.current;
+    if (!tr) return;
+    const noeud = visible && formeSelectionnee ? scene.current?.findOne('#' + formeSelectionnee.id) : undefined;
+    tr.nodes(noeud ? [noeud] : []);
+    tr.getLayer()?.batchDraw();
+  }, [visible, formeSelectionnee]);
+
   return (
     <div
       ref={racine}
@@ -432,11 +505,17 @@ export function PageVue(p: Props) {
         >
           <CoucheFond motif={fond} />
           <CoucheObjets objets={objetsAffiches} deplacable={deplacable} idMasque={edition?.texte.id ?? null}
-            idEdition={maths?.objet.id ?? null} onDeplace={finDeplacement} />
+            idEdition={maths?.objet.id ?? null} formesEditables={surFormes} onDeplace={finDeplacement} onTransforme={finTransformation} />
           <Layer listening={false}>
             {enCours && (
-              <Line points={enCours.flatMap(q => [q.x, q.y])} stroke={p.couleur} strokeWidth={p.epaisseur} lineCap="round" lineJoin="round" />
+              <Line points={enCours.flatMap(q => [q.x, q.y])} stroke={p.couleur} strokeWidth={p.epaisseur}
+                lineCap={p.outil === 'surligneur' ? 'butt' : 'round'} lineJoin="round" opacity={p.outil === 'surligneur' ? SURLIGNEUR_OPACITE : 1} />
             )}
+            {apercuForme && <FormeVue o={apercuForme} draggable={false} listening={false} />}
+          </Layer>
+          <Layer>
+            <Transformer ref={transformeur} rotateEnabled flipEnabled={false} keepRatio={false}
+              anchorSize={22} anchorCornerRadius={11} rotateAnchorOffset={30} borderStroke="#0f6e56" anchorStroke="#0f6e56" anchorFill="#ffffff" />
           </Layer>
         </Stage>
       )}

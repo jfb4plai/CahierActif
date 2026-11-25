@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { outilsPour, OUTILS, OUTIL_TYPE } from './outils';
 
 describe('outils', () => {
-  it('P1-P2 : pas de gomme fine, de déplacement, de fraction, d’expression ni de repère', () => {
-    expect(outilsPour('p1p2').map(o => o.id)).toEqual(['main', 'stylo', 'gomme-objet', 'texte', 'operation']);
+  it('P1-P2 : surligneur et formes, mais pas de gomme fine, de déplacement, de fraction, d’expression ni de repère', () => {
+    expect(outilsPour('p1p2').map(o => o.id)).toEqual(['main', 'stylo', 'surligneur', 'formes', 'gomme-objet', 'texte', 'operation']);
   });
   it('P3-P6 : opérations et fractions, pas d’expression ni de repère', () => {
     const ids = outilsPour('p3p6').map(o => o.id);

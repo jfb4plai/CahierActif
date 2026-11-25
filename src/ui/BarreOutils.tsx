@@ -1,5 +1,7 @@
-import type { Fond, Niveau } from '../model/types';
+import type { Fond, Niveau, TypeForme } from '../model/types';
+import { COULEURS_SURLIGNEUR } from '../lib/couleurs';
 import { FONDS } from '../model/fonds';
+import { FORMES } from '../model/formes';
 import { outilsPour, type OutilId } from '../model/outils';
 
 export const COULEURS = [
@@ -24,6 +26,8 @@ type Props = {
   setCouleur: (c: string) => void;
   epaisseur: number;
   setEpaisseur: (e: number) => void;
+  formeChoisie: TypeForme;
+  setFormeChoisie: (f: TypeForme) => void;
   fond: Fond;
   setFond: (f: Fond) => void;
   peutAnnuler: boolean;
@@ -46,18 +50,35 @@ export function BarreOutils(p: Props) {
           {o.libelle}
         </button>
       ))}
+      {p.outil === 'formes' && (
+        <>
+          <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Forme à tracer">
+            {FORMES.map(f => (
+              <button key={f.id} type="button" className={bouton(p.formeChoisie === f.id)} aria-pressed={p.formeChoisie === f.id}
+                title={`${f.libelle} : glisser sur la page`} onClick={() => p.setFormeChoisie(f.id)}>
+                {f.libelle}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />
-      {COULEURS.map(c => (
+      {(p.outil === 'surligneur' ? COULEURS_SURLIGNEUR : COULEURS).map(c => (
         <button key={c.hex} type="button" aria-label={c.nom} title={c.nom} aria-pressed={p.couleur === c.hex} onClick={() => p.setCouleur(c.hex)}
           className={`h-11 w-11 rounded-full border-2 ${p.couleur === c.hex ? 'border-[#0f6e56] ring-2 ring-[#0f6e56]' : 'border-white'}`}
           style={{ background: c.hex }} />
       ))}
-      <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />
-      {EPAISSEURS.map(e => (
-        <button key={e.mm} type="button" className={bouton(p.epaisseur === e.mm)} aria-pressed={p.epaisseur === e.mm} onClick={() => p.setEpaisseur(e.mm)}>
-          {e.libelle}
-        </button>
-      ))}
+      {p.outil !== 'surligneur' && (
+        <>
+          <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />
+          {EPAISSEURS.map(e => (
+            <button key={e.mm} type="button" className={bouton(p.epaisseur === e.mm)} aria-pressed={p.epaisseur === e.mm} onClick={() => p.setEpaisseur(e.mm)}>
+              {e.libelle}
+            </button>
+          ))}
+        </>
+      )}
       <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />
       <button type="button" className={bouton(false)} disabled={!p.peutAnnuler} onClick={p.onAnnuler}>Annuler</button>
       <button type="button" className={bouton(false)} disabled={!p.peutRetablir} onClick={p.onRetablir}>Rétablir</button>

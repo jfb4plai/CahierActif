@@ -1,4 +1,6 @@
-import { LineCapStyle, PDFDocument, PDFFont, PDFPage, StandardFonts } from 'pdf-lib';
+import { BlendMode, LineCapStyle, PDFDocument, PDFFont, PDFPage, StandardFonts } from 'pdf-lib';
+import { SURLIGNEUR_OPACITE } from '../lib/couleurs';
+import { cheminsPage } from '../model/formes';
 import { motifFond } from '../model/fonds';
 import type { CahierDoc, Objet, Page } from '../model/types';
 import { K, X, Y, couleur, encodable, origine } from './origine';
@@ -19,12 +21,27 @@ function dessinerObjet(p: PDFPage, o: Objet, font: PDFFont) {
   const r0 = origine(p);
   if (o.type === 'trait') {
     if (o.points.length === 1) {
-      p.drawCircle({ x: X(r0, o.points[0].x), y: Y(r0, o.points[0].y), size: (o.epaisseur / 2) * K, color: couleur(o.couleur) });
+      p.drawCircle({
+        x: X(r0, o.points[0].x), y: Y(r0, o.points[0].y), size: (o.epaisseur / 2) * K, color: couleur(o.couleur),
+        ...(o.surligneur ? { opacity: SURLIGNEUR_OPACITE, blendMode: BlendMode.Multiply } : {}),
+      });
       return;
     }
     // drawSvgPath : origine au coin haut-gauche de la CropBox, axe y vers le bas comme dans le modèle.
     const chemin = o.points.map((q, i) => `${i === 0 ? 'M' : 'L'} ${(q.x * K).toFixed(2)} ${(q.y * K).toFixed(2)}`).join(' ');
-    p.drawSvgPath(chemin, { x: r0.x0, y: r0.haut, borderColor: couleur(o.couleur), borderWidth: o.epaisseur * K, borderLineCap: LineCapStyle.Round });
+    p.drawSvgPath(chemin, {
+      x: r0.x0, y: r0.haut, borderColor: couleur(o.couleur), borderWidth: o.epaisseur * K,
+      borderLineCap: o.surligneur ? LineCapStyle.Butt : LineCapStyle.Round,
+      ...(o.surligneur ? { borderOpacity: SURLIGNEUR_OPACITE, blendMode: BlendMode.Multiply } : {}),
+    });
+    return;
+  }
+  if (o.type === 'forme') {
+    for (const c of cheminsPage(o)) {
+      if (c.pts.length < 2) continue;
+      const d = c.pts.map((q, i) => `${i === 0 ? 'M' : 'L'} ${(q.x * K).toFixed(2)} ${(q.y * K).toFixed(2)}`).join(' ') + (c.ferme ? ' Z' : '');
+      p.drawSvgPath(d, { x: r0.x0, y: r0.haut, borderColor: couleur(o.couleur), borderWidth: o.epaisseur * K, borderLineCap: LineCapStyle.Round });
+    }
     return;
   }
   if (o.type === 'operation') return dessinerOperation(p, r0, o, font);

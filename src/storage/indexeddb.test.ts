@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto';
+import { openDB } from 'idb';
 import { describe, it, expect } from 'vitest';
 import { creerIndexedDBAdapter } from './indexeddb';
 import { nouveauDocPdf, nouveauDocVierge } from '../model/ops';
@@ -35,5 +36,64 @@ describe('IndexedDBAdapter', () => {
     await a.enregistrer(vieux);
     await a.enregistrer(recent);
     expect((await a.lister()).map(m => m.titre)).toEqual(['Récent', 'Vieux']);
+  });
+
+  it('classement : déplacer ne touche pas au document, enregistrer garde le dossier', async () => {
+    const a = creerIndexedDBAdapter(base());
+    const d = nouveauDocVierge('Fiche', 'p3p6');
+    await a.enregistrer(d);
+    await a.deplacer(d.id, 'maths');
+    expect((await a.lister())[0].dossierId).toBe('maths');
+    await a.enregistrer({ ...d, modifie: d.modifie + 5 }); // sauvegarde automatique de l'éditeur
+    expect((await a.lister())[0]).toMatchObject({ dossierId: 'maths', modifie: d.modifie + 5 });
+    expect(await a.charger(d.id)).toEqual({ ...d, modifie: d.modifie + 5 });
+    await a.deplacer(d.id, null);
+    expect('dossierId' in (await a.lister())[0]).toBe(false);
+  });
+
+  it('supprimer un dossier remet ses documents sans dossier, sans les supprimer', async () => {
+    const a = creerIndexedDBAdapter(base());
+    const x = nouveauDocVierge('X', 'p3p6');
+    const y = nouveauDocVierge('Y', 'p3p6');
+    await a.enregistrer(x);
+    await a.enregistrer(y);
+    await a.enregistrerDossier({ id: 'f', nom: 'Français', cree: 1 });
+    await a.enregistrerDossier({ id: 'm', nom: 'Maths', cree: 2 });
+    await a.deplacer(x.id, 'f');
+    await a.deplacer(y.id, 'm');
+    await a.supprimerDossier('f');
+    const metas = await a.lister();
+    expect(metas.find(m => m.id === x.id)?.dossierId).toBeUndefined();
+    expect(metas.find(m => m.id === y.id)?.dossierId).toBe('m');
+    expect((await a.listerDossiers()).map(d => d.id)).toEqual(['m']);
+    expect(await a.charger(x.id)).toBeDefined();
+  });
+
+  it('base existante en version 1 : les documents restent, les dossiers apparaissent', async () => {
+    const nom = base();
+    const ancienne = await openDB(nom, 1, {
+      upgrade(d) {
+        d.createObjectStore('docs', { keyPath: 'id' });
+        d.createObjectStore('meta', { keyPath: 'id' });
+      },
+    });
+    const d = nouveauDocVierge('Avant', 'p3p6');
+    await ancienne.put('docs', d);
+    await ancienne.put('meta', { id: d.id, titre: d.titre, modifie: d.modifie });
+    ancienne.close();
+    const a = creerIndexedDBAdapter(nom);
+    expect(await a.lister()).toEqual([{ id: d.id, titre: 'Avant', modifie: d.modifie }]);
+    expect(await a.charger(d.id)).toEqual(d);
+    expect(await a.listerDossiers()).toEqual([]);
+    await a.deplacer(d.id, 'f');
+    expect((await a.lister())[0].dossierId).toBe('f');
+  });
+
+  it('dossiers : créer, renommer, lister par ordre de création', async () => {
+    const a = creerIndexedDBAdapter(base());
+    await a.enregistrerDossier({ id: '2', nom: 'B', cree: 20 });
+    await a.enregistrerDossier({ id: '1', nom: 'A', cree: 10 });
+    await a.enregistrerDossier({ id: '2', nom: 'B renommé', cree: 20 });
+    expect((await a.listerDossiers()).map(d => d.nom)).toEqual(['A', 'B renommé']);
   });
 });

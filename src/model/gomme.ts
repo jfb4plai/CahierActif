@@ -1,18 +1,13 @@
 import { boiteObjet, hauteurTexte } from './boites';
+import { formeTouchee } from './formes';
+import { distPointSegmentXY } from './geometrie';
 import type { Objet, Point, Trait } from './types';
 
 export { hauteurTexte };
 
 const dist = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 
-export function distPointSegment(p: Point, a: Point, b: Point): number {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const l2 = dx * dx + dy * dy;
-  if (l2 === 0) return dist(p, a);
-  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2));
-  return dist(p, { x: a.x + t * dx, y: a.y + t * dy });
-}
+export const distPointSegment = distPointSegmentXY;
 
 function traitTouche(t: Trait, p: Point, rayon: number): boolean {
   const marge = rayon + t.epaisseur / 2;
@@ -25,6 +20,7 @@ function traitTouche(t: Trait, p: Point, rayon: number): boolean {
 
 export function objetTouche(o: Objet, p: Point, rayon: number): boolean {
   if (o.type === 'trait') return traitTouche(o, p, rayon);
+  if (o.type === 'forme') return formeTouchee(o, p, rayon);
   const b = boiteObjet(o);
   return p.x >= b.x - rayon && p.x <= b.x + b.largeur + rayon && p.y >= b.y - rayon && p.y <= b.y + b.hauteur + rayon;
 }

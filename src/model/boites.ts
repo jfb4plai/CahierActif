@@ -1,4 +1,5 @@
 import { ptVersMm } from '../lib/units';
+import { boiteForme } from './formes';
 import { geometrieFraction } from '../maths/fraction';
 import { geometrieOperation } from '../maths/operation';
 import { geometrieRepere } from '../maths/repere';
@@ -31,5 +32,7 @@ export function boiteObjet(o: ObjetBoite): Boite {
       const g = geometrieRepere(o);
       return { x: o.x, y: o.y, largeur: g.largeur, hauteur: g.hauteur };
     }
+    case 'forme':
+      return boiteForme(o);
   }
 }

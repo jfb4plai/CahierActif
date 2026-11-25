@@ -5,9 +5,10 @@ import { pxParMm } from '../lib/units';
 import type { Reglages } from '../lib/reglages';
 import { versCahier } from '../fichier/cahier';
 import { annuler, creer, peutAnnuler, peutRetablir, pousser, retablir, type Historique } from '../model/history';
-import { ajouterPageVierge, changerFond } from '../model/ops';
+import { COULEURS_SURLIGNEUR, SURLIGNEUR_EPAISSEUR_MM } from '../lib/couleurs';
+import { ajouterPageVierge, changerFond, modifierObjet } from '../model/ops';
 import type { OutilId } from '../model/outils';
-import type { CahierDoc } from '../model/types';
+import type { CahierDoc, TypeForme } from '../model/types';
 import { aDesPagesTournees } from '../pdf/info';
 import { exporterPdf } from '../pdf/export';
 import { ouvrirPdf, type PDFDocumentProxy } from '../pdf/pdfjs';
@@ -29,8 +30,15 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   const doc = h.present;
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [outil, setOutil] = useState<OutilId>('stylo');
-  const [couleur, setCouleur] = useState(COULEURS[0].hex);
-  const [epaisseur, setEpaisseur] = useState(EPAISSEURS[1].mm);
+  const [couleurEncre, setCouleurEncre] = useState(COULEURS[0].hex);
+  const [couleurSurligneur, setCouleurSurligneur] = useState(COULEURS_SURLIGNEUR[0].hex);
+  const [epaisseurEncre, setEpaisseurEncre] = useState(EPAISSEURS[1].mm);
+  const [formeChoisie, setFormeChoisie] = useState<TypeForme>('rectangle');
+  const [selection, setSelection] = useState<{ page: number; id: string } | null>(null);
+  const surligneur = outil === 'surligneur';
+  // Le surligneur a sa palette et son épaisseur fixes ; les autres outils partagent l'encre.
+  const couleur = surligneur ? couleurSurligneur : couleurEncre;
+  const epaisseur = surligneur ? SURLIGNEUR_EPAISSEUR_MM : epaisseurEncre;
   const [zoom, setZoom] = useState(1);
   const [pageActive, setPageActive] = useState(0);
   const [etatStylet, setEtatStylet] = useState<EtatStylet>(ETAT_INITIAL);
@@ -89,6 +97,25 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     const d = typeof maj === 'function' ? maj(dernier.current) : maj;
     dernier.current = d;
     dispatch({ type: 'commit', doc: d });
+  };
+
+  // Choisir une couleur ou une épaisseur quand une forme est sélectionnée la modifie aussi.
+  const surFormeSelectionnee = (patch: { couleur: string } | { epaisseur: number }) => {
+    if (outil !== 'formes' || !selection) return;
+    commit(modifierObjet(dernier.current, selection.page, selection.id, patch));
+  };
+  const choisirCouleur = (c: string) => {
+    if (surligneur) { setCouleurSurligneur(c); return; }
+    setCouleurEncre(c);
+    surFormeSelectionnee({ couleur: c });
+  };
+  const choisirEpaisseur = (e: number) => {
+    setEpaisseurEncre(e);
+    surFormeSelectionnee({ epaisseur: e });
+  };
+  const choisirOutil = (o: OutilId) => {
+    setOutil(o);
+    if (o !== 'formes') setSelection(null);
   };
 
   // Chaque page inscrit de quoi valider sa saisie ouverte (texte ou objet maths) : appelé de façon synchrone avant
@@ -159,9 +186,10 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
       )}
       <BarreOutils
         niveau={reglages.niveau}
-        outil={outil} setOutil={setOutil}
-        couleur={couleur} setCouleur={setCouleur}
-        epaisseur={epaisseur} setEpaisseur={setEpaisseur}
+        outil={outil} setOutil={choisirOutil}
+        couleur={couleur} setCouleur={choisirCouleur}
+        epaisseur={epaisseurEncre} setEpaisseur={choisirEpaisseur}
+        formeChoisie={formeChoisie} setFormeChoisie={setFormeChoisie}
         fond={doc.pages[pageActive]?.fond ?? 'aucun'}
         setFond={f => commit(changerFond(doc, pageActive, f))}
         peutAnnuler={peutAnnuler(h)} peutRetablir={peutRetablir(h)}
@@ -183,6 +211,9 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             setEtatStylet={setEtatStylet}
             pdf={pdf}
             niveau={reglages.niveau}
+            formeChoisie={formeChoisie}
+            selectionId={outil === 'formes' && selection?.page === i ? selection.id : null}
+            onSelection={id => setSelection(id ? { page: i, id } : null)}
             onCommit={commit}
             onActive={() => {
               validerAutres(i);
