@@ -6,7 +6,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // « prompt » : une nouvelle version attend que l'élève la demande. En « autoUpdate », les fichiers de l'ancienne version
+      // disparaissaient sous une page restée ouverte, et le clavier mathématique ne se chargeait plus.
+      registerType: 'prompt',
       includeAssets: ['plai-logo.jpg', 'apple-touch-icon.png'],
       manifest: {
         name: 'CahierActif',

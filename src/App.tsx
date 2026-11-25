@@ -3,6 +3,7 @@ import { ecrireReglages, lireReglages, type Reglages as R } from './lib/reglages
 import type { CahierDoc } from './model/types';
 import { creerIndexedDBAdapter } from './storage/indexeddb';
 import { BanniereInstallation } from './ui/BanniereInstallation';
+import { BanniereMiseAJour } from './ui/BanniereMiseAJour';
 import { Bibliotheque } from './ui/Bibliotheque';
 import { Editeur } from './ui/Editeur';
 import { Reglages } from './ui/Reglages';
@@ -37,6 +38,7 @@ export default function App() {
         </div>
       </nav>
       <BanniereInstallation />
+      <BanniereMiseAJour />
       <main>
         {ecran.nom === 'reglages' || !reglages ? (
           <Reglages initial={reglages} onValider={valider} />
