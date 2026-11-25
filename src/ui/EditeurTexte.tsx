@@ -32,6 +32,10 @@ export function EditeurTexte({ texte, pxMm, onChange, onFin, onDeplacer }: Props
     };
   }, []);
   const taillePx = ptVersMm(texte.taillePt) * pxMm;
+  // La poignée ne doit jamais couvrir le texte : au-dessus s'il y a la place, sinon (texte en haut de page) sous le bloc.
+  const hautTexte = texte.y * pxMm;
+  const hauteurBloc = Math.max(1, valeur.split('\n').length) * 1.5 * taillePx;
+  const topPoignee = hautTexte >= POIGNEE + 2 ? hautTexte - POIGNEE - 2 : hautTexte + hauteurBloc + 2;
 
   // Poignée : déplacer le bloc pendant la saisie (glisser dans la zone sélectionnerait le texte).
   const saisirPoignee = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -66,9 +70,9 @@ export function EditeurTexte({ texte, pxMm, onChange, onFin, onDeplacer }: Props
       onMouseDown={e => e.preventDefault()} // garde le focus dans la zone de texte
       style={{
         position: 'absolute',
-        // Au-dessus, alignée sur le bord gauche : le début du texte reste visible pendant qu'on le place.
+        // Alignée sur le bord gauche, hors du texte : le début de la frappe reste toujours visible.
         left: texte.x * pxMm,
-        top: Math.max(0, texte.y * pxMm - POIGNEE - 2),
+        top: topPoignee,
         width: POIGNEE,
         height: POIGNEE,
         borderRadius: 8,
