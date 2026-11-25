@@ -32,7 +32,18 @@ export type PropsOutils = {
   palette: 'encre' | 'surligneur' | null;
   montrerEpaisseur: boolean;
   /** Outil Sélectionner : état de la sélection et actions sur l'objet choisi. */
-  selection?: { present: boolean; modifiable: boolean; onModifier: () => void; onSupprimer: () => void };
+  selection?: {
+    nombre: number; // objets choisis (un groupe entier compte pour plusieurs)
+    multiple: boolean; // mode « Choisir plusieurs »
+    onMultiple: () => void;
+    modifiable: boolean; // un seul objet choisi, de texte ou de maths
+    peutGrouper: boolean;
+    peutDegrouper: boolean;
+    onModifier: () => void;
+    onGrouper: () => void;
+    onDegrouper: () => void;
+    onSupprimer: () => void;
+  };
   fond: Fond;
   setFond: (f: Fond) => void;
   peutAnnuler: boolean;
@@ -71,7 +82,7 @@ export function BarreOutils(p: PropsOutils) {
       {p.selection && (
         <>
           <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />
-          {p.selection.present ? (
+          {p.selection.nombre > 0 ? (
             <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Objet choisi">
               {p.selection.modifiable && <button type="button" className={bouton(false)} onClick={p.selection.onModifier}>Modifier</button>}
               <button type="button" className={bouton(false)} onClick={p.selection.onSupprimer}>Supprimer</button>

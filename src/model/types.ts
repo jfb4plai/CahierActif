@@ -123,7 +123,10 @@ export type Droite = {
 };
 
 /** Étendu par le plan 2 (géométrie). */
-export type Objet = Trait | Texte | ObjetMaths | Forme | Droite;
+export type Objet = (Trait | Texte | ObjetMaths | Forme | Droite) & AvecGroupe;
+
+/** Objets qui portent le même identifiant de groupe : choisis, déplacés, recolorés et supprimés ensemble. */
+export type AvecGroupe = { groupe?: string };
 
 /** Dossier (cours) de la bibliothèque : classement local, hors du document. */
 export type Dossier = { id: string; nom: string; cree: number };

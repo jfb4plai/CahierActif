@@ -31,14 +31,25 @@ export function BandeauReglages(p: PropsOutils) {
           </div>
         )}
         {p.selection && (
-          p.selection.present ? (
-            <div role="group" aria-label="Objet choisi" className="flex shrink-0 items-center gap-2">
-              {p.selection.modifiable && <button type="button" className={`${OUTIL_GRIS} ${PUCE}`} onClick={p.selection.onModifier}>Modifier</button>}
-              <button type="button" className={`${OUTIL_GRIS} ${PUCE}`} onClick={p.selection.onSupprimer}>Supprimer</button>
-            </div>
-          ) : (
-            <p className="shrink-0 text-base text-[var(--text2)]" aria-live="polite">Toucher un objet de la page pour le choisir.</p>
-          )
+          <div role="group" aria-label="Objets choisis" className="flex flex-wrap items-center gap-2">
+            <button type="button" className={`${p.selection.multiple ? OPTION_CHOISIE : OUTIL_GRIS} ${PUCE}`} aria-pressed={p.selection.multiple}
+              title="Quand c’est activé, toucher un objet l’ajoute à la sélection ou l’en retire" onClick={p.selection.onMultiple}>
+              Choisir plusieurs
+            </button>
+            {p.selection.nombre === 0 ? (
+              <p className="text-base text-[var(--text2)]" aria-live="polite">
+                {p.selection.multiple ? 'Toucher les objets à choisir, l’un après l’autre.' : 'Toucher un objet de la page pour le choisir.'}
+              </p>
+            ) : (
+              <>
+                <span className="text-base text-[var(--text2)]" aria-live="polite">{p.selection.nombre === 1 ? '1 objet choisi' : `${p.selection.nombre} objets choisis`}</span>
+                {p.selection.modifiable && <button type="button" className={`${OUTIL_GRIS} ${PUCE}`} onClick={p.selection.onModifier}>Modifier</button>}
+                {p.selection.peutGrouper && <button type="button" className={`${OUTIL_GRIS} ${PUCE}`} onClick={p.selection.onGrouper}>Grouper</button>}
+                {p.selection.peutDegrouper && <button type="button" className={`${OUTIL_GRIS} ${PUCE}`} onClick={p.selection.onDegrouper}>Dégrouper</button>}
+                <button type="button" className={`${OUTIL_GRIS} ${PUCE}`} onClick={p.selection.onSupprimer}>Supprimer</button>
+              </>
+            )}
+          </div>
         )}
         {p.palette && (
           <>

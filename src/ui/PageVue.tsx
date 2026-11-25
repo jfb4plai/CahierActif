@@ -8,7 +8,7 @@ import { motifFond, type Motif } from '../model/fonds';
 import { creerDroite } from '../model/droites';
 import { formeContient, formeDepuisGlisse } from '../model/formes';
 import { effacerPartiel, objetTouche } from '../model/gomme';
-import { ajouterObjet, deplacerObjet, modifierObjet, remplacerObjet, supprimerObjet } from '../model/ops';
+import { ajouterObjet, deplacerObjets, membresDuGroupe, modifierObjet, remplacerObjet, supprimerObjet } from '../model/ops';
 import { boiteDe, objetSous } from '../model/selection';
 import type { ObjetBoite } from '../model/boites';
 import { OUTIL_TYPE, type OutilId } from '../model/outils';
@@ -45,7 +45,11 @@ type Props = {
   selectionId: string | null;
   /** Change à chaque clic sur « Modifier » : ouvre l'édition de l'objet sélectionné (texte, maths). */
   ordreModifier: number;
-  onSelection: (id: string | null) => void;
+  /** Tous les objets choisis sur cette page (un groupe entier compte pour plusieurs). */
+  selectionIds: string[];
+  /** Mode « Choisir plusieurs » : toucher un objet l'ajoute à la sélection ou l'en retire. */
+  choixMultiple: boolean;
+  onSelection: (ids: string[]) => void;
   onCommit: (maj: CahierDoc | ((d: CahierDoc) => CahierDoc)) => void;
   onActive: () => void;
   inscrireValidation: (page: number, valider: () => void) => () => void;
@@ -54,7 +58,7 @@ type Props = {
 type Edition = { texte: Texte; nouveau: boolean };
 // Outil de création posé sur un objet de son type : glisser = déplacer, toucher sans bouger = modifier.
 // `selection` : saisi avec l'outil Sélectionner (un premier toucher choisit seulement ; un second ouvre l'édition).
-type ObjetSaisi = { objet: Objet; depart: Point; bouge: boolean; selection: boolean; dejaSelectionne: boolean };
+type ObjetSaisi = { objet: Objet; ids: string[]; depart: Point; bouge: boolean; selection: boolean; dejaSelectionne: boolean };
 // Droite en cours : premier point `a` posé ; `b` suit le doigt ; `seconde` = le premier point est posé, on attend le second.
 type DroiteEnCours = { a: Point; b: Point | null; seconde: boolean };
 // Forme en cours de tracé : le glissé va de `debut` à `fin`.
@@ -237,14 +241,14 @@ export function PageVue(p: Props) {
     const q = posMm(e);
     if (p.outil === 'formes') {
       const cible = [...objets].reverse().find(o => o.type === 'forme' && formeContient(o, q, 1));
-      if (cible) { p.onSelection(cible.id); return; } // le glissé qui suit la déplace (Konva)
-      p.onSelection(null);
+      if (cible) { p.onSelection([cible.id]); return; } // le glissé qui suit la déplace (Konva)
+      p.onSelection([]);
       pointeurActif.current = e.evt.pointerId;
       traceFormeRef.current = { debut: q, fin: q };
       return;
     }
     if (p.outil === 'droite') {
-      p.onSelection(null);
+      p.onSelection([]);
       pointeurActif.current = e.evt.pointerId;
       const dr = droiteRef.current;
       // Premier toucher : point A. Toucher suivant : point B, qui suit le doigt jusqu'au relâchement (ajustable).
@@ -254,10 +258,21 @@ export function PageVue(p: Props) {
     }
     if (p.outil === 'selectionner') {
       const cible = objetSous(objets, q, 2.5);
-      if (!cible) { p.onSelection(null); return; }
-      p.onSelection(cible.id);
+      const membres = cible ? membresDuGroupe(objets, cible.id) : [];
+      if (p.choixMultiple) {
+        // Mode « Choisir plusieurs » : un toucher ajoute ou retire l'objet (et son groupe) ; rien n'est déplacé.
+        if (!cible) return;
+        const dejaTous = membres.every(id => p.selectionIds.includes(id));
+        p.onSelection(dejaTous ? p.selectionIds.filter(id => !membres.includes(id)) : [...new Set([...p.selectionIds, ...membres])]);
+        return;
+      }
+      if (!cible) { p.onSelection([]); return; }
+      // Presser un objet déjà choisi (avec d'autres) déplace toute la sélection ; sinon il devient la sélection (son groupe entier).
+      const dansSelection = p.selectionIds.includes(cible.id);
+      const ids = dansSelection ? p.selectionIds : membres;
+      if (!dansSelection) p.onSelection(membres);
       pointeurActif.current = e.evt.pointerId;
-      objetSaisiRef.current = { objet: cible, depart: q, bouge: false, selection: true, dejaSelectionne: cible.id === p.selectionId };
+      objetSaisiRef.current = { objet: cible, ids, depart: q, bouge: false, selection: true, dejaSelectionne: dansSelection && ids.length === 1 };
       return;
     }
     const typeOutil = OUTIL_TYPE[p.outil];
@@ -265,7 +280,7 @@ export function PageVue(p: Props) {
       const existant = [...objets].reverse().find(o => o.type === typeOutil && objetTouche(o, q, 1)) as Exclude<ObjetBoite, Forme> | undefined;
       if (existant) {
         pointeurActif.current = e.evt.pointerId;
-        objetSaisiRef.current = { objet: existant, depart: q, bouge: false, selection: false, dejaSelectionne: false };
+        objetSaisiRef.current = { objet: existant, ids: [existant.id], depart: q, bouge: false, selection: false, dejaSelectionne: false };
       } else {
         creer(typeOutil, q);
       }
@@ -299,7 +314,7 @@ export function PageVue(p: Props) {
       const dy = q.y - saisi.depart.y;
       if (!saisi.bouge && Math.hypot(dx, dy) < SEUIL_GLISSER) return;
       saisi.bouge = true;
-      brouillonRef.current = deplacerObjet(p.doc, p.pageIndex, saisi.objet.id, dx, dy);
+      brouillonRef.current = deplacerObjets(p.doc, p.pageIndex, saisi.ids, dx, dy);
       setBrouillon(brouillonRef.current);
     } else if (traitRef.current) {
       const pts = traitRef.current;
@@ -324,7 +339,7 @@ export function PageVue(p: Props) {
         droiteRef.current = null;
         setDroiteEnCours(null);
         p.onCommit(ajouterObjet(p.doc, p.pageIndex, d));
-        p.onSelection(d.id); // les deux points sont tout de suite ajustables
+        p.onSelection([d.id]); // les deux points sont tout de suite ajustables
       } else {
         // Simple toucher (ou second point trop proche du premier) : on attend le second point.
         droiteRef.current = { a: dr.a, b: null, seconde: true };
@@ -339,7 +354,7 @@ export function PageVue(p: Props) {
       const f = formeDepuisGlisse(p.formeChoisie, tracee.debut, tracee.fin, p.couleur, p.epaisseur);
       if (f) {
         p.onCommit(ajouterObjet(p.doc, p.pageIndex, f));
-        p.onSelection(f.id); // poignées tout de suite : ajuster la taille, tourner
+        p.onSelection([f.id]); // poignées tout de suite : ajuster la taille, tourner
       }
       return;
     }
@@ -541,7 +556,11 @@ export function PageVue(p: Props) {
   const selectionnee = surSelection && p.selectionId ? objetsAffiches.find(o => o.id === p.selectionId) : undefined;
   const formeSelectionnee = selectionnee?.type === 'forme' ? selectionnee : undefined;
   const droiteSelectionnee = selectionnee?.type === 'droite' ? selectionnee : undefined;
-  const boiteSelection = selectionnee && selectionnee.type !== 'forme' && selectionnee.type !== 'droite' ? boiteDe(selectionnee) : undefined;
+  // Cadres pointillés : un par objet choisi ; une forme ou une droite seule a ses poignées à la place.
+  const objetsChoisis = surSelection ? objetsAffiches.filter(o => p.selectionIds.includes(o.id)) : [];
+  const boitesSelection = objetsChoisis
+    .filter(o => objetsChoisis.length > 1 || (o.type !== 'forme' && o.type !== 'droite'))
+    .map(o => ({ id: o.id, ...boiteDe(o) }));
   useEffect(() => {
     const tr = transformeur.current;
     if (!tr) return;
@@ -598,10 +617,10 @@ export function PageVue(p: Props) {
             )}
           </Layer>
           <Layer listening={false}>
-            {boiteSelection && (
-              <Rect x={boiteSelection.x - 1} y={boiteSelection.y - 1} width={boiteSelection.largeur + 2} height={boiteSelection.hauteur + 2}
+            {boitesSelection.map(b => (
+              <Rect key={b.id} x={b.x - 1} y={b.y - 1} width={b.largeur + 2} height={b.hauteur + 2}
                 stroke="#0f6e56" strokeWidth={0.6} dash={[2, 1.5]} />
-            )}
+            ))}
           </Layer>
           {droiteSelectionnee && (
             <Layer>

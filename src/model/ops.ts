@@ -50,6 +50,65 @@ export function deplacerObjet(doc: CahierDoc, i: number, id: string, dx: number,
   }));
 }
 
+/** Comme deplacerObjet, pour plusieurs objets d'un coup (un seul « annuler »). */
+export function deplacerObjets(doc: CahierDoc, i: number, ids: string[], dx: number, dy: number): CahierDoc {
+  return ids.reduce((d, id) => deplacerObjet(d, i, id, dx, dy), doc);
+}
+
+export function supprimerObjets(doc: CahierDoc, i: number, ids: string[]): CahierDoc {
+  const s = new Set(ids);
+  return majPage(doc, i, p => ({ ...p, objets: p.objets.filter(o => !s.has(o.id)) }));
+}
+
+/** Identifiants de tous les objets du groupe de `id` (ou de `id` seul s'il n'est dans aucun groupe). */
+export function membresDuGroupe(objets: Objet[], id: string): string[] {
+  const g = objets.find(o => o.id === id)?.groupe;
+  return g ? objets.filter(o => o.groupe === g).map(o => o.id) : [id];
+}
+
+/** Réunit les objets (au moins 2) dans un nouveau groupe ; ceux qui étaient dans un autre groupe le quittent. */
+export function grouperObjets(doc: CahierDoc, i: number, ids: string[]): CahierDoc {
+  if (new Set(ids).size < 2) return doc;
+  const g = nouvelId();
+  const s = new Set(ids);
+  return majPage(doc, i, p => ({ ...p, objets: p.objets.map(o => (s.has(o.id) ? { ...o, groupe: g } : o)) }));
+}
+
+/** Sort les objets de leur groupe (ils restent là où ils sont). */
+export function degrouperObjets(doc: CahierDoc, i: number, ids: string[]): CahierDoc {
+  const s = new Set(ids);
+  return majPage(doc, i, p => ({
+    ...p,
+    objets: p.objets.map(o => {
+      if (!s.has(o.id) || o.groupe === undefined) return o;
+      const { groupe: _g, ...reste } = o;
+      return reste as Objet;
+    }),
+  }));
+}
+
+/** Couleur appliquée à des objets ; un surligneur n'est recoloré que par `surligneur: true` (sa propre palette). */
+export function recolorerObjets(doc: CahierDoc, i: number, ids: string[], couleur: string, surligneur = false): CahierDoc {
+  const s = new Set(ids);
+  return majPage(doc, i, p => ({
+    ...p,
+    objets: p.objets.map(o => (s.has(o.id) && (o.type === 'trait' && !!o.surligneur) === surligneur ? ({ ...o, couleur } as Objet) : o)),
+  }));
+}
+
+/** Épaisseur appliquée aux traits (hors surligneur), formes et droites choisis ; le texte et les objets de maths n'en ont pas. */
+export function epaissirObjets(doc: CahierDoc, i: number, ids: string[], epaisseur: number): CahierDoc {
+  const s = new Set(ids);
+  return majPage(doc, i, p => ({
+    ...p,
+    objets: p.objets.map(o => {
+      if (!s.has(o.id)) return o;
+      if (o.type === 'forme' || o.type === 'droite' || (o.type === 'trait' && !o.surligneur)) return { ...o, epaisseur };
+      return o;
+    }),
+  }));
+}
+
 export function remplacerObjet(doc: CahierDoc, i: number, id: string, nouveaux: Objet[]): CahierDoc {
   return majPage(doc, i, p => ({ ...p, objets: p.objets.flatMap(o => (o.id === id ? nouveaux : [o])) }));
 }

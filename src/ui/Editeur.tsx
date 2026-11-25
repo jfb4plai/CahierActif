@@ -6,7 +6,7 @@ import type { Reglages } from '../lib/reglages';
 import { versCahier } from '../fichier/cahier';
 import { annuler, creer, peutAnnuler, peutRetablir, pousser, retablir, type Historique } from '../model/history';
 import { COULEURS_SURLIGNEUR, SURLIGNEUR_EPAISSEUR_MM } from '../lib/couleurs';
-import { ajouterPageVierge, changerFond, modifierObjet, supprimerObjet } from '../model/ops';
+import { ajouterPageVierge, changerFond, degrouperObjets, epaissirObjets, grouperObjets, recolorerObjets, supprimerObjets } from '../model/ops';
 import type { OutilId } from '../model/outils';
 import type { CahierDoc, Fond, TypeForme } from '../model/types';
 import { aDesPagesTournees } from '../pdf/info';
@@ -37,7 +37,8 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   const [couleurSurligneur, setCouleurSurligneur] = useState(COULEURS_SURLIGNEUR[0].hex);
   const [epaisseurEncre, setEpaisseurEncre] = useState(EPAISSEURS[1].mm);
   const [formeChoisie, setFormeChoisie] = useState<TypeForme>('rectangle');
-  const [selection, setSelection] = useState<{ page: number; id: string } | null>(null);
+  const [selection, setSelection] = useState<{ page: number; ids: string[] } | null>(null);
+  const [choixMultiple, setChoixMultiple] = useState(false);
   const [ordreModifier, setOrdreModifier] = useState(0);
   const surligneur = outil === 'surligneur';
   // Le surligneur a sa palette et son épaisseur fixes ; les autres outils partagent l'encre.
@@ -105,32 +106,40 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     dispatch({ type: 'commit', doc: d });
   };
 
-  // Outils Sélectionner et Formes : l'objet choisi est modifiable par la barre (couleur, épaisseur, Modifier, Supprimer).
+  // Outils Sélectionner, Formes et Droite : les objets choisis se modifient par la barre (couleur, épaisseur, grouper, supprimer…).
   const outilSelection = outil === 'formes' || outil === 'selectionner' || outil === 'droite';
-  const objetChoisi = outilSelection && selection ? doc.pages[selection.page]?.objets.find(o => o.id === selection.id) : undefined;
-  const choisiSurligneur = objetChoisi?.type === 'trait' && !!objetChoisi.surligneur;
-  const aEpaisseur = objetChoisi?.type === 'trait' || objetChoisi?.type === 'forme' || objetChoisi?.type === 'droite';
-  const modifierChoisi = (patch: { couleur: string } | { epaisseur: number }) => {
-    if (!objetChoisi || !selection) return;
-    commit(modifierObjet(dernier.current, selection.page, selection.id, patch));
-  };
+  const idsChoisis = outilSelection && selection ? selection.ids : [];
+  const objetsChoisis = selection ? (doc.pages[selection.page]?.objets ?? []).filter(o => idsChoisis.includes(o.id)) : [];
+  const unSeul = objetsChoisis.length === 1 ? objetsChoisis[0] : undefined;
+  const estSurligneur = (o: (typeof objetsChoisis)[number]) => o.type === 'trait' && !!o.surligneur;
+  const tousSurligneur = objetsChoisis.length > 0 && objetsChoisis.every(estSurligneur);
+  const aEpaisseur = objetsChoisis.some(o => o.type === 'forme' || o.type === 'droite' || (o.type === 'trait' && !o.surligneur));
+  const groupesChoisis = new Set(objetsChoisis.map(o => o.groupe));
+  const dejaUnGroupe = groupesChoisis.size === 1 && !groupesChoisis.has(undefined); // la sélection est exactement un groupe
   const choisirCouleur = (c: string) => {
-    if (surligneur || choisiSurligneur) setCouleurSurligneur(c);
+    if (surligneur || tousSurligneur) setCouleurSurligneur(c);
     else setCouleurEncre(c);
-    modifierChoisi({ couleur: c });
+    if (selection && objetsChoisis.length > 0) commit(recolorerObjets(dernier.current, selection.page, idsChoisis, c, tousSurligneur));
   };
   const choisirEpaisseur = (e: number) => {
     setEpaisseurEncre(e);
-    if (aEpaisseur) modifierChoisi({ epaisseur: e });
+    if (selection && aEpaisseur) commit(epaissirObjets(dernier.current, selection.page, idsChoisis, e));
   };
   const choisirOutil = (o: OutilId) => {
     setOutil(o);
     if (o !== 'formes' && o !== 'selectionner' && o !== 'droite') setSelection(null);
+    if (o !== 'selectionner') setChoixMultiple(false);
   };
-  const supprimerChoisi = () => {
-    if (!objetChoisi || !selection) return;
-    commit(supprimerObjet(dernier.current, selection.page, selection.id));
+  const supprimerChoisis = () => {
+    if (!selection || objetsChoisis.length === 0) return;
+    commit(supprimerObjets(dernier.current, selection.page, idsChoisis));
     setSelection(null);
+  };
+  const grouperChoisis = () => {
+    if (selection) commit(grouperObjets(dernier.current, selection.page, idsChoisis));
+  };
+  const degrouperChoisis = () => {
+    if (selection) commit(degrouperObjets(dernier.current, selection.page, idsChoisis));
   };
 
   // Chaque page inscrit de quoi valider sa saisie ouverte (texte ou objet maths) : appelé de façon synchrone avant
@@ -190,13 +199,19 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     epaisseur: epaisseurEncre, setEpaisseur: choisirEpaisseur,
     formeChoisie, setFormeChoisie,
     // Réglages affichés seulement pour les outils qui s'en servent (pas pour Main ni les gommes).
-    palette: outil === 'selectionner' ? (objetChoisi ? (choisiSurligneur ? 'surligneur' : 'encre') : null) : !dessine ? null : surligneur ? 'surligneur' : 'encre',
-    montrerEpaisseur: outil === 'selectionner' ? aEpaisseur && !choisiSurligneur : outil === 'stylo' || outil === 'formes' || outil === 'droite',
+    palette: outil === 'selectionner' ? (objetsChoisis.length > 0 ? (tousSurligneur ? 'surligneur' : 'encre') : null) : !dessine ? null : surligneur ? 'surligneur' : 'encre',
+    montrerEpaisseur: outil === 'selectionner' ? aEpaisseur : outil === 'stylo' || outil === 'formes' || outil === 'droite',
     selection: outil === 'selectionner' ? {
-      present: !!objetChoisi,
-      modifiable: !!objetChoisi && objetChoisi.type !== 'trait' && objetChoisi.type !== 'forme' && objetChoisi.type !== 'droite',
+      nombre: objetsChoisis.length,
+      multiple: choixMultiple,
+      onMultiple: () => setChoixMultiple(m => !m),
+      modifiable: !!unSeul && unSeul.type !== 'trait' && unSeul.type !== 'forme' && unSeul.type !== 'droite',
+      peutGrouper: objetsChoisis.length >= 2 && !dejaUnGroupe,
+      peutDegrouper: objetsChoisis.some(o => o.groupe !== undefined),
       onModifier: () => setOrdreModifier(n => n + 1),
-      onSupprimer: supprimerChoisi,
+      onGrouper: grouperChoisis,
+      onDegrouper: degrouperChoisis,
+      onSupprimer: supprimerChoisis,
     } : undefined,
     fond: doc.pages[pageActive]?.fond ?? 'aucun',
     setFond: f => commit(changerFond(doc, pageActive, f)),
@@ -221,9 +236,11 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             pdf={pdf}
             niveau={reglages.niveau}
             formeChoisie={formeChoisie}
-            selectionId={outilSelection && selection?.page === i ? selection.id : null}
+            selectionId={outilSelection && selection?.page === i && selection.ids.length === 1 ? selection.ids[0] : null}
+            selectionIds={outilSelection && selection?.page === i ? selection.ids : []}
+            choixMultiple={choixMultiple}
             ordreModifier={ordreModifier}
-            onSelection={id => setSelection(id ? { page: i, id } : null)}
+            onSelection={ids => setSelection(ids.length > 0 ? { page: i, ids } : null)}
             onCommit={commit}
             onActive={() => {
               validerAutres(i);
