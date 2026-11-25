@@ -2,7 +2,13 @@ import type { PositionColonne } from '../lib/reglages';
 import { groupesPour } from '../model/outils';
 import type { PropsOutils } from './BarreOutils';
 
-type Props = PropsOutils & { position: PositionColonne };
+type Props = PropsOutils & {
+  position: PositionColonne;
+  /** Colonne posée par-dessus la page (aperçu au survol) : ni collée ni décalée. */
+  flottante?: boolean;
+  /** Bouton du haut : replier la colonne, ou la garder dépliée quand on la voit en aperçu. */
+  bouton?: { libelle: string; onClick: () => void; deplie: boolean };
+};
 
 export const LARGEUR_COLONNE_PX = 176;
 
@@ -21,9 +27,14 @@ export function ColonneOutils(p: Props) {
       role="toolbar"
       aria-label="Outils"
       aria-orientation="vertical"
-      className="carte-flottante sticky top-[64px] z-40 m-3 flex shrink-0 flex-col gap-3 self-start overflow-y-auto p-2"
+      className={`carte-flottante flex shrink-0 flex-col gap-3 overflow-y-auto p-2 ${p.flottante ? 'shadow-2xl ring-1 ring-[var(--border2)]' : 'sticky top-[64px] z-40 m-3 self-start'}`}
       style={{ width: LARGEUR_COLONNE_PX, maxHeight: 'calc(100vh - 76px)' }}
     >
+      {p.bouton && (
+        <button type="button" className="plai-btn-secondaire min-h-[44px] !px-2 !text-base" aria-expanded={p.bouton.deplie} onClick={p.bouton.onClick}>
+          {p.bouton.deplie ? (p.position === 'gauche' ? '◀ ' : '▶ ') : ''}{p.bouton.libelle}
+        </button>
+      )}
       {groupesPour(p.niveau).map(g => (
         <section key={g.id} aria-labelledby={`groupe-${g.id}`}>
           <h2 id={`groupe-${g.id}`} className="mb-1 text-base font-semibold text-[var(--text2)]">{g.titre}</h2>

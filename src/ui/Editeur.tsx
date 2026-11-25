@@ -17,7 +17,10 @@ import { ouvrirPdf, type PDFDocumentProxy } from '../pdf/pdfjs';
 import type { StorageAdapter } from '../storage/adapter';
 import { BarreOutils, COULEURS, EPAISSEURS, type PropsOutils } from './BarreOutils';
 import { BandeauReglages } from './BandeauReglages';
-import { ColonneOutils, LARGEUR_COLONNE_PX } from './ColonneOutils';
+import { LARGEUR_COLONNE_PX } from './ColonneOutils';
+import { ColonneRepliable, LARGEUR_BANDE_PX } from './ColonneRepliable';
+import { usePeek } from './usePeek';
+import { ecrireInterface, lireInterface } from '../lib/interface';
 import { GestionPages } from './GestionPages';
 import { extraireDocument } from '../pdf/extraire';
 import { FONDS } from '../model/fonds';
@@ -64,8 +67,12 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   const couleur = surligneur ? couleurSurligneur : couleurEncre;
   const epaisseur = surligneur ? epaisseurSurligneur : epaisseurEncre;
   // P3 et plus : colonne d'outils à côté de la page ; le zoom de départ fait tenir la page dans la largeur restante.
+  // Choix mémorisés : en-tête déplié ou non, colonne repliée ou non.
+  const [ui, setUi] = useState(() => lireInterface());
+  useEffect(() => { ecrireInterface(ui); }, [ui]);
+  const peekEntete = usePeek();
   const avecColonne = reglages.niveau !== 'p1p2';
-  const [zoom, setZoom] = useState(() => (avecColonne ? zoomAjuste(window.innerWidth - LARGEUR_COLONNE_PX - 48, initial.pages[0]?.largeurMm ?? 210) : 1));
+  const [zoom, setZoom] = useState(() => (avecColonne ? zoomAjuste(window.innerWidth - (ui.colonneRepliee ? LARGEUR_BANDE_PX : LARGEUR_COLONNE_PX) - 48, initial.pages[0]?.largeurMm ?? 210) : 1));
   const [pageActive, setPageActive] = useState(0);
   const [etatStylet, setEtatStylet] = useState<EtatStylet>(ETAT_INITIAL);
   const [message, setMessage] = useState<{ type: 'erreur' | 'info'; texte: string } | null>(null);
@@ -325,41 +332,70 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
 
   return (
     <div>
-      <div className="carte-flottante mx-3 mt-3 p-3">
-        <div className="flex flex-wrap items-start gap-3">
+      <div className="carte-flottante relative mx-3 mt-3 p-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={fermer}>← Retour à mes documents</button>
-          <h1 className="min-w-0 flex-1 self-center text-xl font-bold">{doc.titre}</h1>
-          <div className="flex max-w-[15rem] flex-col gap-1">
-            <button type="button" className="plai-btn min-h-[44px]" onClick={exporter} aria-describedby="aide-export-pdf">Exporter en PDF</button>
-            <p id="aide-export-pdf" className="text-base text-[var(--text2)]">Pour rendre le travail ou l’imprimer. Les annotations ne se modifient plus ensuite.</p>
-          </div>
-          <div className="flex max-w-[15rem] flex-col gap-1">
-            <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={exporterCahier} aria-describedby="aide-export-cahier">Enregistrer un fichier .cahier</button>
-            <p id="aide-export-cahier" className="text-base text-[var(--text2)]">Pour continuer plus tard ou sur un autre appareil. Seul CahierActif le rouvre.</p>
-          </div>
+          <h1 className="min-w-0 flex-1 truncate text-xl font-bold" title={doc.titre}>{doc.titre}</h1>
+          <button type="button" className="plai-btn min-h-[44px]" onClick={exporter} aria-describedby="aide-export-pdf"
+            title="Pour rendre le travail ou l’imprimer. Les annotations ne se modifient plus ensuite.">Exporter en PDF</button>
+          <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={exporterCahier} aria-describedby="aide-export-cahier"
+            title="Pour continuer plus tard ou sur un autre appareil. Seul CahierActif le rouvre.">Enregistrer un fichier .cahier</button>
+          <button
+            type="button"
+            className="plai-btn-secondaire min-h-[44px]"
+            aria-expanded={ui.enteteDeplie}
+            aria-controls="entete-details"
+            title={ui.enteteDeplie ? 'Replier les options et les explications' : 'Plus d’options : pages, photos, fond de page'}
+            {...peekEntete.liens}
+            onClick={() => { peekEntete.fermer(); setUi(u => ({ ...u, enteteDeplie: !u.enteteDeplie })); }}
+          >
+            {ui.enteteDeplie ? '▴ Replier' : '▾ Plus d’options'}
+          </button>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-3">
-          <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => { validerSaisie(); setPagesOuvert(true); }}>Gérer les pages</button>
-          {doc.source.type === 'photos' && (
-            <>
-              <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => cameraInput.current?.click()}>Photographier une page</button>
-              <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => photosInput.current?.click()}>Ajouter des photos</button>
-              <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void ajouterPhotos(f); }} />
-              <input ref={photosInput} type="file" accept="image/*" multiple hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void ajouterPhotos(f); }} />
-            </>
-          )}
-          {doc.source.type === 'vierge' && (
-            <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => commit(ajouterPageVierge(doc))}>Ajouter une page</button>
-          )}
-          {avecColonne && (
-            <label className="flex items-center gap-2 text-base">
-              Fond de la page
-              <select className="plai-input min-h-[44px]" value={proprietes.fond} onChange={e => proprietes.setFond(e.target.value as Fond)}>
-                {FONDS.map(f => <option key={f.id} value={f.id}>{f.libelle}</option>)}
-              </select>
-            </label>
-          )}
-        </div>
+        {/* Sélecteurs de fichiers hors du volet : un aperçu qui se ferme ne doit pas les démonter pendant le choix. */}
+        {doc.source.type === 'photos' && (
+          <>
+            <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void ajouterPhotos(f); }} />
+            <input ref={photosInput} type="file" accept="image/*" multiple hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void ajouterPhotos(f); }} />
+          </>
+        )}
+        {(ui.enteteDeplie || peekEntete.peek) && (
+          <div
+            id="entete-details"
+            className={ui.enteteDeplie ? 'mt-3 border-t border-[var(--border)] pt-3' : 'carte-flottante absolute left-0 right-0 top-full z-[60] mt-1 p-3 shadow-2xl ring-1 ring-[var(--border2)]'}
+            {...(ui.enteteDeplie ? {} : peekEntete.liens)}
+          >
+            <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+              <p id="aide-export-pdf" className="max-w-[18rem] text-base text-[var(--text2)]"><strong>Exporter en PDF :</strong> pour rendre le travail ou l’imprimer. Les annotations ne se modifient plus ensuite.</p>
+              <p id="aide-export-cahier" className="max-w-[18rem] text-base text-[var(--text2)]"><strong>Fichier .cahier :</strong> pour continuer plus tard ou sur un autre appareil. Seul CahierActif le rouvre.</p>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-3">
+              <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => { validerSaisie(); setPagesOuvert(true); }}>Gérer les pages</button>
+              {doc.source.type === 'photos' && (
+                <>
+                  <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => cameraInput.current?.click()}>Photographier une page</button>
+                  <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => photosInput.current?.click()}>Ajouter des photos</button>
+                </>
+              )}
+              {doc.source.type === 'vierge' && (
+                <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => commit(ajouterPageVierge(doc))}>Ajouter une page</button>
+              )}
+              {avecColonne && (
+                <label className="flex items-center gap-2 text-base">
+                  Fond de la page
+                  <select className="plai-input min-h-[44px]" value={proprietes.fond} onChange={e => proprietes.setFond(e.target.value as Fond)}>
+                    {FONDS.map(f => <option key={f.id} value={f.id}>{f.libelle}</option>)}
+                  </select>
+                </label>
+              )}
+              {!ui.enteteDeplie && (
+                <button type="button" className="plai-btn-secondaire ml-auto min-h-[44px]" onClick={() => { peekEntete.fermer(); setUi(u => ({ ...u, enteteDeplie: true })); }}>
+                  Garder déplié
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
       {message && (
         <div className={message.type === 'erreur' ? 'plai-error' : 'plai-banner'} role="alert">
@@ -372,7 +408,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
       )}
       {avecColonne ? (
         <div className={`flex ${reglages.colonne === 'droite' ? 'flex-row-reverse' : ''}`}>
-          <ColonneOutils {...proprietes} position={reglages.colonne} />
+          <ColonneRepliable {...proprietes} position={reglages.colonne} replie={ui.colonneRepliee} onBasculer={() => setUi(u => ({ ...u, colonneRepliee: !u.colonneRepliee }))} />
           <div className="flex min-w-0 flex-1 flex-col">
             <BandeauReglages {...proprietes} />
             {pages}
