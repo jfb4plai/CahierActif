@@ -65,7 +65,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   const epaisseur = surligneur ? epaisseurSurligneur : epaisseurEncre;
   // P3 et plus : colonne d'outils à côté de la page ; le zoom de départ fait tenir la page dans la largeur restante.
   const avecColonne = reglages.niveau !== 'p1p2';
-  const [zoom, setZoom] = useState(() => (avecColonne ? zoomAjuste(window.innerWidth - LARGEUR_COLONNE_PX - 24, initial.pages[0]?.largeurMm ?? 210) : 1));
+  const [zoom, setZoom] = useState(() => (avecColonne ? zoomAjuste(window.innerWidth - LARGEUR_COLONNE_PX - 48, initial.pages[0]?.largeurMm ?? 210) : 1));
   const [pageActive, setPageActive] = useState(0);
   const [etatStylet, setEtatStylet] = useState<EtatStylet>(ETAT_INITIAL);
   const [message, setMessage] = useState<{ type: 'erreur' | 'info'; texte: string } | null>(null);
@@ -288,7 +288,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     zoom, setZoom,
   };
   const pages = (
-      <div className={`overflow-auto bg-[var(--surface2)] py-2 ${avecColonne ? 'min-w-0 flex-1' : ''}`}>
+      <div className={`mx-3 mb-6 mt-3 overflow-auto rounded-2xl bg-[var(--surface2)] py-2 ${avecColonne ? 'min-w-0 flex-1' : ''}`}>
         {doc.pages.map((_, i) => (
           <PageVue
             key={i}
@@ -325,38 +325,41 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-2 p-2">
-        <button type="button" className="plai-btn min-h-[44px]" onClick={fermer}>Retour à mes documents</button>
-        <h1 className="font-serif text-xl">{doc.titre}</h1>
-        <span className="flex-1" />
-        <div className="flex max-w-[15rem] flex-col gap-1">
-          <button type="button" className="plai-btn min-h-[44px]" onClick={exporter} aria-describedby="aide-export-pdf">Exporter en PDF</button>
-          <p id="aide-export-pdf" className="text-base text-[var(--text2)]">Pour rendre le travail ou l’imprimer. Les annotations ne se modifient plus ensuite.</p>
+      <div className="carte-flottante mx-3 mt-3 p-3">
+        <div className="flex flex-wrap items-start gap-3">
+          <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={fermer}>← Retour à mes documents</button>
+          <h1 className="min-w-0 flex-1 self-center text-xl font-bold">{doc.titre}</h1>
+          <div className="flex max-w-[15rem] flex-col gap-1">
+            <button type="button" className="plai-btn min-h-[44px]" onClick={exporter} aria-describedby="aide-export-pdf">Exporter en PDF</button>
+            <p id="aide-export-pdf" className="text-base text-[var(--text2)]">Pour rendre le travail ou l’imprimer. Les annotations ne se modifient plus ensuite.</p>
+          </div>
+          <div className="flex max-w-[15rem] flex-col gap-1">
+            <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={exporterCahier} aria-describedby="aide-export-cahier">Enregistrer un fichier .cahier</button>
+            <p id="aide-export-cahier" className="text-base text-[var(--text2)]">Pour continuer plus tard ou sur un autre appareil. Seul CahierActif le rouvre.</p>
+          </div>
         </div>
-        <div className="flex max-w-[15rem] flex-col gap-1">
-          <button type="button" className="plai-btn min-h-[44px]" onClick={exporterCahier} aria-describedby="aide-export-cahier">Enregistrer un fichier .cahier</button>
-          <p id="aide-export-cahier" className="text-base text-[var(--text2)]">Pour continuer plus tard ou sur un autre appareil. Seul CahierActif le rouvre.</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-3">
+          <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => { validerSaisie(); setPagesOuvert(true); }}>Gérer les pages</button>
+          {doc.source.type === 'photos' && (
+            <>
+              <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => cameraInput.current?.click()}>Photographier une page</button>
+              <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => photosInput.current?.click()}>Ajouter des photos</button>
+              <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void ajouterPhotos(f); }} />
+              <input ref={photosInput} type="file" accept="image/*" multiple hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void ajouterPhotos(f); }} />
+            </>
+          )}
+          {doc.source.type === 'vierge' && (
+            <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => commit(ajouterPageVierge(doc))}>Ajouter une page</button>
+          )}
+          {avecColonne && (
+            <label className="flex items-center gap-2 text-base">
+              Fond de la page
+              <select className="plai-input min-h-[44px]" value={proprietes.fond} onChange={e => proprietes.setFond(e.target.value as Fond)}>
+                {FONDS.map(f => <option key={f.id} value={f.id}>{f.libelle}</option>)}
+              </select>
+            </label>
+          )}
         </div>
-        {avecColonne && (
-          <label className="flex items-center gap-2 text-base">
-            Fond de la page
-            <select className="plai-input min-h-[44px]" value={proprietes.fond} onChange={e => proprietes.setFond(e.target.value as Fond)}>
-              {FONDS.map(f => <option key={f.id} value={f.id}>{f.libelle}</option>)}
-            </select>
-          </label>
-        )}
-        <button type="button" className="plai-btn min-h-[44px]" onClick={() => { validerSaisie(); setPagesOuvert(true); }}>Gérer les pages</button>
-        {doc.source.type === 'photos' && (
-          <>
-            <button type="button" className="plai-btn min-h-[44px]" onClick={() => cameraInput.current?.click()}>Photographier une page</button>
-            <button type="button" className="plai-btn min-h-[44px]" onClick={() => photosInput.current?.click()}>Ajouter des photos</button>
-            <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void ajouterPhotos(f); }} />
-            <input ref={photosInput} type="file" accept="image/*" multiple hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void ajouterPhotos(f); }} />
-          </>
-        )}
-        {doc.source.type === 'vierge' && (
-          <button type="button" className="plai-btn min-h-[44px]" onClick={() => commit(ajouterPageVierge(doc))}>Ajouter une page</button>
-        )}
       </div>
       {message && (
         <div className={message.type === 'erreur' ? 'plai-error' : 'plai-banner'} role="alert">

@@ -1,0 +1,143 @@
+/*
+ * Habillage propre à CahierActif, par-dessus plai-style.css (fichier partagé, non modifié).
+ * Langage visuel inspiré de la première page de FlashPLAI : fond chaud, cartes blanches arrondies,
+ * pastille verte, titre gras à accent orange, cartes d'action teintées.
+ * Accessibilité : texte courant ≥ 16 px, contrastes ≥ 4,5:1 (l'orange vif n'est jamais utilisé pour du petit texte).
+ */
+:root {
+  --bg: #f0efe8;
+  --surface2: #e8e6de;
+  --border: #e2dfd6;
+  --border2: #cfcbc0;
+  --text: #1a1a1a;
+  --text2: #55514a;
+  --text3: #6b665e;
+  --radius: 14px;
+  --radius-sm: 10px;
+
+  --ombre-carte: 0 2px 20px rgba(0, 0, 0, 0.08);
+  --carte-douce: #f7f6f3;
+  --accent-titre: #d97706; /* grand titre seulement (3,2:1) */
+  --accent-texte: #b45309; /* texte plus petit (5:1) */
+
+  --teinte-orange-bg: #faeeda;
+  --teinte-orange-bord: #fac775;
+  --teinte-orange-texte: #633806;
+  --teinte-indigo-bg: #eeedfe;
+  --teinte-indigo-bord: #afa9ec;
+  --teinte-indigo-texte: #3c3489;
+  --teinte-teal-bg: #e1f5ee;
+  --teinte-teal-bord: #9fe1cb;
+  --teinte-teal-texte: #085041;
+}
+
+body { font-size: 16px; line-height: 1.55; }
+
+/* En-tête : mot-symbole à gauche, réglages et logo à droite */
+.plai-nav {
+  background: rgba(240, 239, 232, 0.92);
+  border-bottom: none;
+  padding: 0 1.25rem;
+}
+.marque { font-family: 'DM Sans', sans-serif; font-weight: 800; font-size: 20px; letter-spacing: -0.01em; color: var(--text); }
+.marque span { color: var(--accent-titre); }
+.plai-nav-link { font-size: 16px; font-weight: 600; padding: 8px 14px; border-radius: 999px; }
+.plai-nav-link:hover { background: #fff; }
+
+/* Cartes et boutons */
+.plai-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
+}
+.plai-btn {
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 10px 18px;
+  transition: transform 0.08s, box-shadow 0.15s, opacity 0.15s;
+}
+.plai-btn:hover { opacity: 1; box-shadow: 0 2px 8px rgba(15, 110, 86, 0.3); }
+.plai-btn:active { transform: translateY(1px); }
+.plai-btn:disabled { box-shadow: none; }
+/* Action secondaire : blanche, contour discret, texte teal */
+.plai-btn-secondaire {
+  background: #fff;
+  color: var(--teal);
+  border: 1.5px solid var(--border2);
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 10px 18px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.plai-btn-secondaire:hover { background: var(--teinte-teal-bg); border-color: var(--teal); }
+.plai-btn-secondaire:disabled { opacity: 0.45; cursor: not-allowed; }
+.plai-btn-danger { color: #b42318; }
+.plai-btn-danger:hover { background: #fcebeb; border-color: #e24b4a; }
+
+.plai-input { border-radius: 12px; font-size: 16px; background: #fff; }
+.plai-error { border-radius: 12px; }
+.plai-banner { background: var(--teinte-teal-bg); border-bottom: none; font-size: 16px; }
+
+/* Première page : carte blanche, pastille, titre */
+.carte-accueil {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: var(--ombre-carte);
+  padding: 1.5rem;
+}
+@media (min-width: 640px) { .carte-accueil { padding: 2rem 2.25rem; } }
+
+.pastille {
+  display: inline-block;
+  background: var(--teinte-teal-bg);
+  border: 1px solid var(--teinte-teal-bord);
+  color: var(--teinte-teal-texte);
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.titre-accueil { font-size: clamp(1.75rem, 4vw, 2.25rem); font-weight: 800; line-height: 1.2; letter-spacing: -0.02em; }
+.titre-accueil .accent { color: var(--accent-titre); }
+.chapo { color: var(--text2); font-size: 17px; max-width: 46rem; }
+.titre-section { font-size: 20px; font-weight: 700; }
+
+/* Cartes d'action teintées (comme les cartes « Qui es-tu ? » de FlashPLAI) */
+.carte-action {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  width: 100%; text-align: left;
+  border-radius: 14px; border: 2px solid; padding: 18px;
+  cursor: pointer; min-height: 44px;
+  transition: transform 0.1s, box-shadow 0.15s;
+}
+.carte-action:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1); }
+.carte-action:active { transform: translateY(0); }
+.carte-action .icone { width: 36px; height: 36px; margin-bottom: 4px; }
+.carte-action .titre { font-size: 18px; font-weight: 700; }
+.carte-action .texte { font-size: 16px; opacity: 0.85; }
+.carte-action .appel { font-size: 16px; font-weight: 700; margin-top: 4px; }
+.carte-action.orange { background: var(--teinte-orange-bg); border-color: var(--teinte-orange-bord); color: var(--teinte-orange-texte); }
+.carte-action.indigo { background: var(--teinte-indigo-bg); border-color: var(--teinte-indigo-bord); color: var(--teinte-indigo-texte); }
+.carte-action.teal { background: var(--teinte-teal-bg); border-color: var(--teinte-teal-bord); color: var(--teinte-teal-texte); }
+.carte-action.neutre { background: var(--carte-douce); border-color: var(--border2); color: var(--text); }
+
+/* Pastilles de dossiers (cours) */
+.puce-cours {
+  min-height: 44px; border-radius: 999px; border: 1.5px solid var(--border2);
+  background: #fff; color: var(--text); padding: 0 16px; font-size: 16px; font-weight: 500; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.puce-cours:hover { background: var(--teinte-teal-bg); border-color: var(--teal); }
+.puce-cours[aria-pressed='true'] { background: var(--teal); border-color: var(--teal); color: #fff; font-weight: 700; }
+
+/* Éditeur : en-tête, colonne et bandeau en cartes blanches */
+.carte-flottante {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: var(--ombre-carte);
+}
+.plai-footer { border-top: none; font-size: 16px; color: var(--text3); }
+.plai-empty { font-family: 'DM Sans', sans-serif; font-style: normal; font-size: 17px; background: #fff; border-radius: 14px; padding: 2rem 1rem; }

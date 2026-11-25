@@ -39,7 +39,7 @@ export function DialogueOperation({ niveau, onValider, onAnnuler }: Props) {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" role="dialog" aria-modal="true" aria-labelledby="titre-op">
       <div className="plai-card max-h-[90vh] w-full max-w-md overflow-auto bg-[var(--surface)] p-5 text-base">
-        <h2 id="titre-op" className="mb-3 font-serif text-2xl">Poser une opération</h2>
+        <h2 id="titre-op" className="mb-3 text-2xl font-extrabold">Poser une opération</h2>
         <fieldset className="mb-3">
           <legend className="font-semibold">Opération</legend>
           {ops.map(o => (

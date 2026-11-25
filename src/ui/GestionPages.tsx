@@ -65,7 +65,7 @@ export function GestionPages({ doc, pdf, photoUrls, onDeplacer, onExtraire, onRe
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="titre-pages" className="fixed inset-0 z-[70] overflow-auto bg-[var(--bg)] p-4">
       <div className="mx-auto max-w-5xl">
-        <h2 id="titre-pages" className="mb-2 font-serif text-2xl">Pages du document</h2>
+        <h2 id="titre-pages" className="mb-2 text-2xl font-extrabold">Pages du document</h2>
         <p className="mb-3 text-base text-[var(--text2)]">
           Changer l’ordre avec « Monter » et « Descendre ». Pour garder certaines pages à part, les choisir puis les extraire :
           elles sont copiées dans un nouveau document, et ce document-ci n’est pas modifié.
@@ -74,7 +74,7 @@ export function GestionPages({ doc, pdf, photoUrls, onDeplacer, onExtraire, onRe
           <button type="button" className="plai-btn min-h-[44px]" onClick={extraire} disabled={choisies.size === 0 || enCours}>
             {enCours ? 'Extraction…' : `Extraire les pages choisies (${choisies.size})`}
           </button>
-          <button type="button" className="plai-btn min-h-[44px]" onClick={onFermer}>Terminé</button>
+          <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={onFermer}>Terminé</button>
         </div>
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-3">
           {doc.pages.map((p, i) => {
@@ -96,11 +96,11 @@ export function GestionPages({ doc, pdf, photoUrls, onDeplacer, onExtraire, onRe
                   Choisir la page {i + 1}
                 </label>
                 {doc.source.type === 'photos' && (
-                  <button type="button" className="plai-btn min-h-[44px] !text-base" onClick={() => ouvrirRedressement(i)}>Recadrer ou redresser</button>
+                  <button type="button" className="plai-btn-secondaire min-h-[44px] !text-base" onClick={() => ouvrirRedressement(i)}>Recadrer ou redresser</button>
                 )}
                 <div className="flex gap-2">
-                  <button type="button" className="plai-btn min-h-[44px] !text-base" disabled={i === 0} aria-label={`Monter la page ${i + 1}`} onClick={() => deplacer(i, -1)}>↑ Monter</button>
-                  <button type="button" className="plai-btn min-h-[44px] !text-base" disabled={i === doc.pages.length - 1} aria-label={`Descendre la page ${i + 1}`} onClick={() => deplacer(i, 1)}>↓ Descendre</button>
+                  <button type="button" className="plai-btn-secondaire min-h-[44px] !text-base" disabled={i === 0} aria-label={`Monter la page ${i + 1}`} onClick={() => deplacer(i, -1)}>↑ Monter</button>
+                  <button type="button" className="plai-btn-secondaire min-h-[44px] !text-base" disabled={i === doc.pages.length - 1} aria-label={`Descendre la page ${i + 1}`} onClick={() => deplacer(i, 1)}>↓ Descendre</button>
                 </div>
               </li>
             );

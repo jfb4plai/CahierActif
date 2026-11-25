@@ -16,7 +16,7 @@ export function BandeauReglages(p: PropsOutils) {
   const aDesReglages = p.outil === 'formes' || !!p.selection || !!p.palette || p.montrerEpaisseur || !!p.surligneur || !!p.tailleTexte;
 
   return (
-    <div className="sticky top-[52px] z-40 flex min-h-[84px] items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-2" role="group" aria-label="Réglages de l’outil">
+    <div className="carte-flottante sticky top-[64px] z-40 mx-3 mt-3 flex min-h-[84px] items-center gap-3 px-3" role="group" aria-label="Réglages de l’outil">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-6 gap-y-2 py-2">
         {p.outil === 'droite' && (
           <p className="max-w-[18rem] text-base text-[var(--text2)]">Toucher le premier point, puis le deuxième : la droite passe par les deux. Les points se déplacent ensuite avec Sélectionner.</p>

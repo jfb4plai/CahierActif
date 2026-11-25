@@ -21,7 +21,7 @@ export function DialogueRepere({ onValider, onAnnuler }: Props) {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" role="dialog" aria-modal="true" aria-labelledby="titre-rep">
       <div className="plai-card max-h-[90vh] w-full max-w-md overflow-auto bg-[var(--surface)] p-5 text-base">
-        <h2 id="titre-rep" className="mb-3 font-serif text-2xl">Poser un repère</h2>
+        <h2 id="titre-rep" className="mb-3 text-2xl font-extrabold">Poser un repère</h2>
         <div className="grid grid-cols-2 gap-3">
           {CHAMPS.map(c => (
             <div key={c.cle}>

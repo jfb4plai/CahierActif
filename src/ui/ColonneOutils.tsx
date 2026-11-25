@@ -8,7 +8,7 @@ export const LARGEUR_COLONNE_PX = 176;
 
 // Outil actif : plein, bleu, texte blanc, bordure épaisse. Tous les autres : gris. Le contraste ne repose pas
 // sur la seule couleur (bordure plus épaisse, texte en gras).
-const BASE = 'min-h-[52px] w-full rounded-lg px-3 text-left text-lg leading-tight disabled:opacity-40';
+const BASE = 'min-h-[52px] w-full rounded-xl px-3 text-left text-lg leading-tight disabled:opacity-40';
 export const OUTIL_ACTIF = `${BASE} border-4 border-[#1e3a8a] bg-[#1d4ed8] font-bold text-white`;
 export const OUTIL_GRIS = `${BASE} border-2 border-[#d1d5db] bg-[#e5e7eb] text-[#4b5563]`;
 // Choix à l'intérieur d'un outil (forme, épaisseur) : contour bleu quand choisi, gris sinon.
@@ -21,8 +21,8 @@ export function ColonneOutils(p: Props) {
       role="toolbar"
       aria-label="Outils"
       aria-orientation="vertical"
-      className={`sticky top-[52px] z-40 flex shrink-0 flex-col gap-3 self-start overflow-y-auto border-[var(--border)] bg-[var(--surface)] p-2 ${p.position === 'gauche' ? 'border-r' : 'border-l'}`}
-      style={{ width: LARGEUR_COLONNE_PX, maxHeight: 'calc(100vh - 52px)' }}
+      className="carte-flottante sticky top-[64px] z-40 m-3 flex shrink-0 flex-col gap-3 self-start overflow-y-auto p-2"
+      style={{ width: LARGEUR_COLONNE_PX, maxHeight: 'calc(100vh - 76px)' }}
     >
       {groupesPour(p.niveau).map(g => (
         <section key={g.id} aria-labelledby={`groupe-${g.id}`}>

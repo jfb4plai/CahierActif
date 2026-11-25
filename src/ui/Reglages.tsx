@@ -27,7 +27,7 @@ export function Reglages({ initial, onValider }: Props) {
 
   return (
     <section className="plai-section mx-auto max-w-2xl p-4">
-      <h1 className="mb-4 font-serif text-3xl">Réglages</h1>
+      <h1 className="titre-accueil mb-4">Réglages</h1>
       <fieldset className="plai-card mb-4 p-4">
         <legend className="font-semibold">Niveau de l’élève</legend>
         <p className="mb-2 text-[var(--text2)]">Le niveau décide des outils affichés. Moins d’outils = moins de distraction pour les plus jeunes.</p>

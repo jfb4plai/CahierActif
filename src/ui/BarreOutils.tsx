@@ -72,7 +72,7 @@ export function BarreOutils(p: PropsOutils) {
     `plai-btn ${grand ? 'min-h-[64px] min-w-[64px] text-lg' : 'min-h-[44px] min-w-[44px]'} ${actif ? 'ring-4 ring-[#0f6e56]' : ''}`;
 
   return (
-    <div className="sticky top-[52px] z-50 flex flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] p-2" role="toolbar" aria-label="Outils">
+    <div className="carte-flottante sticky top-[64px] z-50 mx-3 mt-3 flex flex-wrap items-center gap-2 p-2" role="toolbar" aria-label="Outils">
       {outilsPour(p.niveau).map(o => (
         <button key={o.id} type="button" className={bouton(p.outil === o.id)} title={o.aide} aria-pressed={p.outil === o.id} onClick={() => p.setOutil(o.id)}>
           {o.libelle}

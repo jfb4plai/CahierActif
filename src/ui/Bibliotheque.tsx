@@ -8,6 +8,7 @@ import { nouvelId } from '../model/types';
 import type { CahierDoc, Dossier } from '../model/types';
 import { taillesPagesPdf, PdfIllisibleError } from '../pdf/info';
 import type { MetaDoc, StorageAdapter } from '../storage/adapter';
+import { IconeCamera, IconeDossier, IconePage, IconePdf, IconePhotos } from './icones';
 
 type Props = { stockage: StorageAdapter; reglages: Reglages; onOuvrir: (d: CahierDoc) => void };
 
@@ -165,40 +166,38 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
     if (filtre.type === 'tous') return true;
     return filtre.type === 'aucun' ? !rangeDansUnDossier(m) : m.dossierId === filtre.id;
   });
-  const puce = (actif: boolean) =>
-    `min-h-[44px] rounded-full border px-4 text-base ${actif ? 'border-[#0f6e56] bg-[#0f6e56] text-white' : 'border-[var(--border)] bg-white text-[var(--text)]'}`;
   const titre = filtre.type === 'dossier' ? (dossierActif?.nom ?? 'Mes documents') : filtre.type === 'aucun' ? 'Sans dossier' : 'Mes documents';
 
   return (
     <>
-      <nav className="border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3" aria-label="Mes dossiers (cours)">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2">
-          <span className="font-serif text-lg">Mes cours</span>
-          <button type="button" className={puce(filtre.type === 'tous')} aria-pressed={filtre.type === 'tous'} onClick={() => setFiltre({ type: 'tous' })}>
+      <nav className="px-4 pb-1 pt-2" aria-label="Mes dossiers (cours)">
+        <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-2">
+          <span className="mr-1 text-lg font-bold">Mes cours</span>
+          <button type="button" className="puce-cours" aria-pressed={filtre.type === 'tous'} onClick={() => setFiltre({ type: 'tous' })}>
             Tous ({docs.length})
           </button>
           {dossiers.map(d => {
             const actif = filtre.type === 'dossier' && filtre.id === d.id;
             return (
-              <button key={d.id} type="button" className={puce(actif)} aria-pressed={actif} onClick={() => setFiltre({ type: 'dossier', id: d.id })}>
+              <button key={d.id} type="button" className="puce-cours" aria-pressed={actif} onClick={() => setFiltre({ type: 'dossier', id: d.id })}>
                 {d.nom} ({docs.filter(m => m.dossierId === d.id).length})
               </button>
             );
           })}
-          <button type="button" className={puce(filtre.type === 'aucun')} aria-pressed={filtre.type === 'aucun'} onClick={() => setFiltre({ type: 'aucun' })}>
+          <button type="button" className="puce-cours" aria-pressed={filtre.type === 'aucun'} onClick={() => setFiltre({ type: 'aucun' })}>
             Sans dossier ({nbSans})
           </button>
-          <button type="button" className="plai-btn min-h-[44px]" onClick={() => ouvrirFormulaire({ mode: 'creer' })}>+ Nouveau dossier</button>
+          <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => ouvrirFormulaire({ mode: 'creer' })}>+ Nouveau dossier</button>
         </div>
         {dossierActif && !formulaire && (
-          <div className="mx-auto mt-2 flex max-w-3xl flex-wrap items-center gap-2">
+          <div className="mx-auto mt-2 flex max-w-4xl flex-wrap items-center gap-2">
             <span className="text-base text-[var(--text2)]">Dossier « {dossierActif.nom} » :</span>
-            <button type="button" className="plai-btn min-h-[44px]" onClick={() => ouvrirFormulaire({ mode: 'renommer', id: dossierActif.id })}>Renommer</button>
-            <button type="button" className="plai-btn min-h-[44px]" onClick={() => supprimerDossier(dossierActif)}>Supprimer ce dossier</button>
+            <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => ouvrirFormulaire({ mode: 'renommer', id: dossierActif.id })}>Renommer</button>
+            <button type="button" className="plai-btn-secondaire plai-btn-danger min-h-[44px]" onClick={() => supprimerDossier(dossierActif)}>Supprimer ce dossier</button>
           </div>
         )}
         {formulaire && (
-          <form className="mx-auto mt-3 max-w-3xl" onSubmit={e => { e.preventDefault(); void validerFormulaire(); }}>
+          <form className="carte-flottante mx-auto mt-3 max-w-4xl p-4" onSubmit={e => { e.preventDefault(); void validerFormulaire(); }}>
             <label htmlFor="nom-dossier" className="block text-base font-semibold">
               {formulaire.mode === 'creer' ? 'Nom du nouveau dossier' : 'Nouveau nom du dossier'}
             </label>
@@ -218,61 +217,98 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
             {erreurNom && <p className="plai-error mt-1" role="alert">{erreurNom}</p>}
             <div className="mt-2 flex gap-2">
               <button type="submit" className="plai-btn min-h-[44px]">{formulaire.mode === 'creer' ? 'Créer le dossier' : 'Enregistrer'}</button>
-              <button type="button" className="plai-btn min-h-[44px]" onClick={() => setFormulaire(null)}>Annuler</button>
+              <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => setFormulaire(null)}>Annuler</button>
             </div>
           </form>
         )}
       </nav>
-      <section className="plai-section mx-auto max-w-3xl p-4">
-        <h1 className="mb-4 font-serif text-3xl">{titre}</h1>
-        <div className="mb-2 flex flex-wrap gap-2">
-          <button type="button" className="plai-btn min-h-[44px]" onClick={() => pdfInput.current?.click()}>Ouvrir un PDF</button>
-          <button type="button" className="plai-btn min-h-[44px]" onClick={() => cameraInput.current?.click()}>Photographier une feuille</button>
-          <button type="button" className="plai-btn min-h-[44px]" onClick={() => photosInput.current?.click()}>Choisir des photos de feuilles</button>
-          <button type="button" className="plai-btn min-h-[44px]" onClick={nouvellePageVierge}>Nouvelle page vierge</button>
-          <button type="button" className="plai-btn min-h-[44px]" onClick={() => cahierInput.current?.click()}>Reprendre un fichier .cahier</button>
-        </div>
-        <p className="mb-4 text-[var(--text2)]">
-          Ouvrir un PDF : la fiche reçue de l’enseignant (Teams, Smartschool, mail). Photographier ou choisir des photos : une feuille papier devient une page à annoter. Fichier .cahier : un travail commencé sur un autre appareil.
-          Tout reste sur cet appareil, rien n’est envoyé sur internet.
-        </p>
-        <input ref={pdfInput} type="file" accept="application/pdf" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void ouvrirPdf(f); }} />
-        <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void importerPhotos(f); }} />
-        <input ref={photosInput} type="file" accept="image/*" multiple hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void importerPhotos(f); }} />
-        <input ref={cahierInput} type="file" accept=".cahier,application/zip" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importerCahier(f); }} />
-        {erreur && <div className="plai-error mb-4" role="alert">{erreur}</div>}
-        {visibles.length === 0 ? (
-          <div className="plai-empty">
-            {docs.length === 0
-              ? 'Aucun document pour l’instant.'
-              : dossierActif
-                ? `Aucun document dans « ${dossierActif.nom} ». Ouvrir un PDF ici le range dans ce dossier.`
-                : 'Aucun document ici.'}
+
+      <section className="mx-auto max-w-4xl px-4 pb-10 pt-3">
+        <div className="carte-accueil">
+          <p className="pastille">Gratuit · Sans compte · Tout reste sur cet appareil</p>
+          <h1 className="titre-accueil mt-3">
+            {filtre.type === 'tous' ? (
+              <>Annoter une fiche <span className="accent">comme sur un cahier</span></>
+            ) : titre}
+          </h1>
+          <p className="chapo mt-2">
+            Ouvrir la fiche reçue de l’enseignant (Teams, Smartschool, mail), photographier une feuille papier ou écrire sur une page vierge.
+            {dossierActif ? ' Le document créé ici est rangé dans « ' + dossierActif.nom + ' ».' : ''}
+          </p>
+
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <button type="button" className="carte-action orange" onClick={() => pdfInput.current?.click()}>
+              <IconePdf />
+              <span className="titre">Ouvrir un PDF</span>
+              <span className="texte">La fiche reçue de l’enseignant.</span>
+              <span className="appel">Choisir un PDF →</span>
+            </button>
+            <button type="button" className="carte-action indigo" onClick={() => cameraInput.current?.click()}>
+              <IconeCamera />
+              <span className="titre">Photographier une feuille</span>
+              <span className="texte">Une feuille papier devient une page à annoter.</span>
+              <span className="appel">Ouvrir l’appareil photo →</span>
+            </button>
+            <button type="button" className="carte-action indigo" onClick={() => photosInput.current?.click()}>
+              <IconePhotos />
+              <span className="titre">Choisir des photos</span>
+              <span className="texte">Plusieurs feuilles d’un coup : une page par photo.</span>
+              <span className="appel">Choisir des photos →</span>
+            </button>
+            <button type="button" className="carte-action teal" onClick={nouvellePageVierge}>
+              <IconePage />
+              <span className="titre">Nouvelle page vierge</span>
+              <span className="texte">Écrire sur une page blanche, avec ou sans quadrillage.</span>
+              <span className="appel">Créer une page →</span>
+            </button>
+            <button type="button" className="carte-action neutre" onClick={() => cahierInput.current?.click()}>
+              <IconeDossier />
+              <span className="titre">Reprendre un fichier .cahier</span>
+              <span className="texte">Un travail commencé sur un autre appareil.</span>
+              <span className="appel">Choisir un fichier →</span>
+            </button>
           </div>
-        ) : (
-          <ul className="space-y-2">
-            {visibles.map(m => (
-              <li key={m.id} className="plai-card flex flex-wrap items-center gap-2 p-3">
-                <button type="button" className="min-w-[12rem] flex-1 text-left text-lg" onClick={() => ouvrirExistant(m.id)}>
-                  {m.titre}
-                  <span className="block text-base text-[var(--text3)]">Modifié le {new Date(m.modifie).toLocaleString('fr-BE')}</span>
-                </button>
-                <label className="flex items-center gap-2 text-base">
-                  Ranger dans
-                  <select
-                    className="plai-input min-h-[44px]"
-                    value={rangeDansUnDossier(m) ? m.dossierId : ''}
-                    onChange={e => void ranger(m, e.target.value)}
-                  >
-                    <option value="">Sans dossier</option>
-                    {dossiers.map(d => <option key={d.id} value={d.id}>{d.nom}</option>)}
-                  </select>
-                </label>
-                <button type="button" className="plai-btn min-h-[44px]" onClick={() => supprimer(m)}>Supprimer</button>
-              </li>
-            ))}
-          </ul>
-        )}
+          <input ref={pdfInput} type="file" accept="application/pdf" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void ouvrirPdf(f); }} />
+          <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void importerPhotos(f); }} />
+          <input ref={photosInput} type="file" accept="image/*" multiple hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void importerPhotos(f); }} />
+          <input ref={cahierInput} type="file" accept=".cahier,application/zip" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importerCahier(f); }} />
+
+          {erreur && <div className="plai-error mt-4" role="alert">{erreur}</div>}
+
+          <h2 className="titre-section mb-3 mt-8">{filtre.type === 'tous' ? 'Mes documents' : titre}</h2>
+          {visibles.length === 0 ? (
+            <div className="plai-empty">
+              {docs.length === 0
+                ? 'Aucun document pour l’instant.'
+                : dossierActif
+                  ? 'Aucun document dans « ' + dossierActif.nom + ' ». Ouvrir un PDF ici le range dans ce dossier.'
+                  : 'Aucun document ici.'}
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {visibles.map(m => (
+                <li key={m.id} className="flex flex-wrap items-center gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--carte-douce)] p-3">
+                  <button type="button" className="min-w-[12rem] flex-1 text-left text-lg font-semibold" onClick={() => ouvrirExistant(m.id)}>
+                    {m.titre}
+                    <span className="block text-base font-normal text-[var(--text3)]">Modifié le {new Date(m.modifie).toLocaleString('fr-BE')}</span>
+                  </button>
+                  <label className="flex items-center gap-2 text-base">
+                    Ranger dans
+                    <select
+                      className="plai-input min-h-[44px]"
+                      value={rangeDansUnDossier(m) ? m.dossierId : ''}
+                      onChange={e => void ranger(m, e.target.value)}
+                    >
+                      <option value="">Sans dossier</option>
+                      {dossiers.map(d => <option key={d.id} value={d.id}>{d.nom}</option>)}
+                    </select>
+                  </label>
+                  <button type="button" className="plai-btn-secondaire plai-btn-danger min-h-[44px]" onClick={() => supprimer(m)}>Supprimer</button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </section>
     </>
   );

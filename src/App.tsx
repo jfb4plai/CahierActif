@@ -26,14 +26,14 @@ export default function App() {
   return (
     <>
       <nav className="plai-nav">
-        <button type="button" className="plai-nav-logo" onClick={() => reglages && setEcran({ nom: 'bibliotheque' })}>
-          <img src="/plai-logo.jpg" alt="PLAI" style={{ height: 32, width: 'auto' }} />
-          CahierActif
+        <button type="button" className="plai-nav-logo" onClick={() => reglages && setEcran({ nom: 'bibliotheque' })} aria-label="CahierActif, retour à mes documents">
+          <span className="marque">Cahier<span>Actif</span></span>
         </button>
         <div className="plai-nav-actions">
           {reglages && ecran.nom !== 'document' && (
             <button type="button" className="plai-nav-link min-h-[44px]" onClick={() => setEcran({ nom: 'reglages' })}>Réglages</button>
           )}
+          <img src="/plai-logo.jpg" alt="PLAI" style={{ height: 32, width: 'auto', marginLeft: 8 }} />
         </div>
       </nav>
       <BanniereInstallation />

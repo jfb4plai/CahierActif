@@ -88,16 +88,16 @@ export function RedresserPhoto({ image, numeroPage, onAppliquer, onAnnuler }: Pr
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="titre-redresser" className="fixed inset-0 z-[80] overflow-auto bg-[var(--bg)] p-4">
       <div className="mx-auto max-w-4xl">
-        <h2 id="titre-redresser" className="mb-2 font-serif text-2xl">Recadrer ou redresser la page {numeroPage}</h2>
+        <h2 id="titre-redresser" className="mb-2 text-2xl font-extrabold">Recadrer ou redresser la page {numeroPage}</h2>
         <p className="mb-3 text-base text-[var(--text2)]">
           Placer les 4 coins numérotés sur les 4 coins de la feuille : la feuille est recadrée et remise droite.
           Le coin 1 devient le haut gauche de la page. Les annotations de cette page seront supprimées.
         </p>
         <div className="mb-3 flex flex-wrap gap-2">
           <button type="button" className="plai-btn min-h-[44px]" onClick={appliquer} disabled={!valide || travail}>{travail ? 'Traitement…' : 'Appliquer'}</button>
-          <button type="button" className="plai-btn min-h-[44px]" onClick={() => setQuad(q => (q ? tournerQuart(q) : q))} disabled={travail}>Tourner d’un quart de tour</button>
-          <button type="button" className="plai-btn min-h-[44px]" onClick={() => dim && setQuad(quadComplet(dim.l, dim.h))} disabled={travail}>Remettre les coins aux angles</button>
-          <button type="button" className="plai-btn min-h-[44px]" onClick={onAnnuler} disabled={travail}>Annuler</button>
+          <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => setQuad(q => (q ? tournerQuart(q) : q))} disabled={travail}>Tourner d’un quart de tour</button>
+          <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => dim && setQuad(quadComplet(dim.l, dim.h))} disabled={travail}>Remettre les coins aux angles</button>
+          <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={onAnnuler} disabled={travail}>Annuler</button>
         </div>
         {!valide && quad && <p className="plai-error mb-3" role="alert">Les coins se croisent : les replacer pour former un quadrilatère.</p>}
         {erreur && <p className="plai-error mb-3" role="alert">{erreur}</p>}
