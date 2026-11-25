@@ -2,6 +2,7 @@ import type { Fond, Niveau, TypeForme } from '../model/types';
 import { COULEURS_SURLIGNEUR } from '../lib/couleurs';
 import { FONDS } from '../model/fonds';
 import { FORMES } from '../model/formes';
+import { TAILLES_TEXTE_PT } from '../model/texte';
 import { outilsPour, type OutilId } from '../model/outils';
 
 export const COULEURS = [
@@ -28,6 +29,17 @@ export type PropsOutils = {
   setEpaisseur: (e: number) => void;
   formeChoisie: TypeForme;
   setFormeChoisie: (f: TypeForme) => void;
+  /** Surligneur : mode de tracé et épaisseur (curseur), seulement quand l'outil ou la sélection est un surligneur. */
+  surligneur?: {
+    mode: 'libre' | 'lineaire';
+    setMode: (m: 'libre' | 'lineaire') => void;
+    afficherMode: boolean; // l'outil Surligneur est actif (pas pour une sélection)
+    epaisseur: number;
+    setEpaisseur: (mm: number) => void;
+    couleur: string;
+  };
+  /** Taille du texte (points) : `valeur` null = tailles différentes parmi les textes choisis. */
+  tailleTexte?: { valeur: number | null; onChoisir: (pt: number) => void };
   /** Palette affichée ; null = aucune (outil Sélectionner sans objet choisi). */
   palette: 'encre' | 'surligneur' | null;
   montrerEpaisseur: boolean;
@@ -98,6 +110,19 @@ export function BarreOutils(p: PropsOutils) {
           className={`h-11 w-11 rounded-full border-2 ${p.couleur === c.hex ? 'border-[#0f6e56] ring-2 ring-[#0f6e56]' : 'border-white'}`}
           style={{ background: c.hex }} />
       ))}
+      {p.tailleTexte && (
+        <>
+          <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />
+          <div role="group" aria-label="Taille du texte" className="flex items-center gap-2">
+            <span>Taille</span>
+            {TAILLES_TEXTE_PT.map(t => (
+              <button key={t} type="button" className={bouton(p.tailleTexte?.valeur === t)} aria-pressed={p.tailleTexte?.valeur === t} onClick={() => p.tailleTexte?.onChoisir(t)}>
+                {t}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       {p.montrerEpaisseur && (
         <>
           <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />

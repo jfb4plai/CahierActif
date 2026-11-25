@@ -6,7 +6,8 @@ import type { Reglages } from '../lib/reglages';
 import { versCahier } from '../fichier/cahier';
 import { annuler, creer, peutAnnuler, peutRetablir, pousser, retablir, type Historique } from '../model/history';
 import { COULEURS_SURLIGNEUR, SURLIGNEUR_EPAISSEUR_MM } from '../lib/couleurs';
-import { ajouterPageVierge, changerFond, degrouperObjets, epaissirObjets, grouperObjets, recolorerObjets, supprimerObjets } from '../model/ops';
+import { TAILLE_TEXTE_DEFAUT_PT } from '../model/texte';
+import { ajouterPageVierge, changerFond, degrouperObjets, epaissirObjets, grouperObjets, recolorerObjets, redimensionnerTextes, supprimerObjets } from '../model/ops';
 import type { OutilId } from '../model/outils';
 import type { CahierDoc, Fond, TypeForme } from '../model/types';
 import { aDesPagesTournees } from '../pdf/info';
@@ -40,10 +41,13 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   const [selection, setSelection] = useState<{ page: number; ids: string[] } | null>(null);
   const [choixMultiple, setChoixMultiple] = useState(false);
   const [ordreModifier, setOrdreModifier] = useState(0);
+  const [modeSurligneur, setModeSurligneur] = useState<'libre' | 'lineaire'>('libre');
+  const [epaisseurSurligneur, setEpaisseurSurligneur] = useState(SURLIGNEUR_EPAISSEUR_MM);
+  const [taillePtTexte, setTaillePtTexte] = useState(TAILLE_TEXTE_DEFAUT_PT);
   const surligneur = outil === 'surligneur';
   // Le surligneur a sa palette et son épaisseur fixes ; les autres outils partagent l'encre.
   const couleur = surligneur ? couleurSurligneur : couleurEncre;
-  const epaisseur = surligneur ? SURLIGNEUR_EPAISSEUR_MM : epaisseurEncre;
+  const epaisseur = surligneur ? epaisseurSurligneur : epaisseurEncre;
   // P3 et plus : colonne d'outils à côté de la page ; le zoom de départ fait tenir la page dans la largeur restante.
   const avecColonne = reglages.niveau !== 'p1p2';
   const [zoom, setZoom] = useState(() => (avecColonne ? zoomAjuste(window.innerWidth - LARGEUR_COLONNE_PX - 24, initial.pages[0]?.largeurMm ?? 210) : 1));
@@ -125,6 +129,20 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     setEpaisseurEncre(e);
     if (selection && aEpaisseur) commit(epaissirObjets(dernier.current, selection.page, idsChoisis, e));
   };
+  // Surligneurs choisis : le curseur montre leur épaisseur (si elle est commune), pas celle de l'outil.
+  const epaisseursChoisies = new Set(objetsChoisis.filter(estSurligneur).map(o => (o.type === 'trait' ? o.epaisseur : 0)));
+  const epaisseurSurligneurAffichee = outil === 'selectionner' && tousSurligneur && epaisseursChoisies.size === 1 ? [...epaisseursChoisies][0] : epaisseurSurligneur;
+  const choisirEpaisseurSurligneur = (mm: number) => {
+    setEpaisseurSurligneur(mm);
+    if (selection && tousSurligneur) commit(epaissirObjets(dernier.current, selection.page, idsChoisis, mm, true));
+  };
+  // Textes choisis (outil Sélectionner) : leur taille se change ; avec l'outil Texte, elle vaut pour les nouveaux textes.
+  const textesChoisis = outil === 'selectionner' ? objetsChoisis.filter(o => o.type === 'texte') : [];
+  const taillesChoisies = new Set(textesChoisis.map(o => (o.type === 'texte' ? o.taillePt : 0)));
+  const choisirTaille = (pt: number) => {
+    if (outil === 'texte') { setTaillePtTexte(pt); return; }
+    if (selection && textesChoisis.length > 0) commit(redimensionnerTextes(dernier.current, selection.page, idsChoisis, pt));
+  };
   const choisirOutil = (o: OutilId) => {
     setOutil(o);
     if (o !== 'formes' && o !== 'selectionner' && o !== 'droite') setSelection(null);
@@ -199,6 +217,12 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     epaisseur: epaisseurEncre, setEpaisseur: choisirEpaisseur,
     formeChoisie, setFormeChoisie,
     // Réglages affichés seulement pour les outils qui s'en servent (pas pour Main ni les gommes).
+    surligneur: surligneur || (outil === 'selectionner' && tousSurligneur)
+      ? { mode: modeSurligneur, setMode: setModeSurligneur, afficherMode: surligneur, epaisseur: epaisseurSurligneurAffichee, setEpaisseur: choisirEpaisseurSurligneur, couleur: couleurSurligneur }
+      : undefined,
+    tailleTexte: outil === 'texte'
+      ? { valeur: taillePtTexte, onChoisir: choisirTaille }
+      : textesChoisis.length > 0 ? { valeur: taillesChoisies.size === 1 ? [...taillesChoisies][0] : null, onChoisir: choisirTaille } : undefined,
     palette: outil === 'selectionner' ? (objetsChoisis.length > 0 ? (tousSurligneur ? 'surligneur' : 'encre') : null) : !dessine ? null : surligneur ? 'surligneur' : 'encre',
     montrerEpaisseur: outil === 'selectionner' ? aEpaisseur : outil === 'stylo' || outil === 'formes' || outil === 'droite',
     selection: outil === 'selectionner' ? {
@@ -236,6 +260,8 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             pdf={pdf}
             niveau={reglages.niveau}
             formeChoisie={formeChoisie}
+            modeSurligneur={modeSurligneur}
+            taillePtTexte={taillePtTexte}
             selectionId={outilSelection && selection?.page === i && selection.ids.length === 1 ? selection.ids[0] : null}
             selectionIds={outilSelection && selection?.page === i ? selection.ids : []}
             choixMultiple={choixMultiple}

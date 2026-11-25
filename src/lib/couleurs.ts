@@ -14,4 +14,7 @@ export const COULEURS_SURLIGNEUR = [
   { hex: '#c084fc', nom: 'Violet' },
 ];
 export const SURLIGNEUR_OPACITE = 0.4;
-export const SURLIGNEUR_EPAISSEUR_MM = 5;
+export const SURLIGNEUR_EPAISSEUR_MM = 5; // épaisseur de départ
+export const SURLIGNEUR_EPAISSEUR_MIN_MM = 2;
+export const SURLIGNEUR_EPAISSEUR_MAX_MM = 14;
+export const SURLIGNEUR_EPAISSEUR_PAS_MM = 0.5;

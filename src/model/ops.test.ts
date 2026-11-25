@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { CahierDoc, Trait, Texte } from './types';
 import {
-  nouveauDocVierge, nouveauDocPdf, ajouterObjet, modifierObjet, supprimerObjet, deplacerObjet, deplacerObjets, supprimerObjets, membresDuGroupe, grouperObjets, degrouperObjets, recolorerObjets, epaissirObjets,
+  nouveauDocVierge, nouveauDocPdf, ajouterObjet, modifierObjet, supprimerObjet, deplacerObjet, deplacerObjets, supprimerObjets, membresDuGroupe, grouperObjets, degrouperObjets, recolorerObjets, epaissirObjets, redimensionnerTextes,
   remplacerObjet, changerFond, ajouterPageVierge,
 } from './ops';
 
@@ -134,6 +134,25 @@ describe('groupes', () => {
     expect(encre.pages[0].objets.map(o => (o as Trait).couleur)).toEqual(['#dc2626', trait('s').couleur]);
     const surl = recolorerObjets(d, 0, ['a', 's'], '#4ade80', true);
     expect(surl.pages[0].objets.map(o => (o as Trait).couleur)).toEqual([trait('a').couleur, '#4ade80']);
+  });
+  it('épaisseur du surligneur : seulement les traits de surligneur', () => {
+    let d = nouveauDocVierge('E', 'p3p6');
+    d = ajouterObjet(d, 0, trait('a'));
+    d = ajouterObjet(d, 0, { ...trait('s'), surligneur: true, epaisseur: 5 });
+    const surl = epaissirObjets(d, 0, ['a', 's'], 9, true);
+    expect(surl.pages[0].objets.map(o => (o as Trait).epaisseur)).toEqual([trait('a').epaisseur, 9]);
+    const encre = epaissirObjets(d, 0, ['a', 's'], 1.6);
+    expect(encre.pages[0].objets.map(o => (o as Trait).epaisseur)).toEqual([1.6, 5]);
+  });
+  it('taille du texte : seulement les textes choisis', () => {
+    let d = nouveauDocVierge('T', 'p3p6');
+    d = ajouterObjet(d, 0, texte('t1'));
+    d = ajouterObjet(d, 0, texte('t2'));
+    d = ajouterObjet(d, 0, trait('a'));
+    d = redimensionnerTextes(d, 0, ['t1', 'a'], 20);
+    expect((d.pages[0].objets[0] as Texte).taillePt).toBe(20);
+    expect((d.pages[0].objets[1] as Texte).taillePt).toBe(14);
+    expect('taillePt' in d.pages[0].objets[2]).toBe(false);
   });
   it('épaisseur : traits, formes et droites seulement', () => {
     let d = nouveauDocVierge('E', 'p3p6');

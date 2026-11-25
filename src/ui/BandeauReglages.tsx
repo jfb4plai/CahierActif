@@ -1,6 +1,7 @@
-import { COULEURS_SURLIGNEUR } from '../lib/couleurs';
+import { COULEURS_SURLIGNEUR, SURLIGNEUR_EPAISSEUR_MAX_MM, SURLIGNEUR_EPAISSEUR_MIN_MM, SURLIGNEUR_EPAISSEUR_PAS_MM, SURLIGNEUR_OPACITE } from '../lib/couleurs';
 import { FORMES } from '../model/formes';
 import { OUTILS } from '../model/outils';
+import { TAILLES_TEXTE_PT } from '../model/texte';
 import { COULEURS, EPAISSEURS, type PropsOutils } from './BarreOutils';
 import { OPTION_CHOISIE, OUTIL_GRIS } from './ColonneOutils';
 
@@ -12,7 +13,7 @@ const PUCE = '!w-auto';
  */
 export function BandeauReglages(p: PropsOutils) {
   const aide = OUTILS.find(o => o.id === p.outil)?.aide;
-  const aDesReglages = p.outil === 'formes' || !!p.selection || !!p.palette || p.montrerEpaisseur;
+  const aDesReglages = p.outil === 'formes' || !!p.selection || !!p.palette || p.montrerEpaisseur || !!p.surligneur || !!p.tailleTexte;
 
   return (
     <div className="sticky top-[52px] z-40 flex min-h-[84px] items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-2" role="group" aria-label="Réglages de l’outil">
@@ -61,6 +62,40 @@ export function BandeauReglages(p: PropsOutils) {
               ))}
             </div>
           </>
+        )}
+        {p.surligneur && (
+          <div role="group" aria-label="Surligneur" className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            {p.surligneur.afficherMode && (
+              <div role="group" aria-label="Mode de tracé" className="flex items-center gap-2">
+                <button type="button" className={`${p.surligneur.mode === 'libre' ? OPTION_CHOISIE : OUTIL_GRIS} ${PUCE}`} aria-pressed={p.surligneur.mode === 'libre'}
+                  title="Le trait suit le doigt" onClick={() => p.surligneur?.setMode('libre')}>Libre</button>
+                <button type="button" className={`${p.surligneur.mode === 'lineaire' ? OPTION_CHOISIE : OUTIL_GRIS} ${PUCE}`} aria-pressed={p.surligneur.mode === 'lineaire'}
+                  title="Glisser du début à la fin : le trait reste droit" onClick={() => p.surligneur?.setMode('lineaire')}>Linéaire</button>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <label htmlFor="epaisseur-surligneur" className="text-base">Épaisseur</label>
+              <input id="epaisseur-surligneur" type="range" className="h-11 w-36 cursor-pointer accent-[#1d4ed8]"
+                min={SURLIGNEUR_EPAISSEUR_MIN_MM} max={SURLIGNEUR_EPAISSEUR_MAX_MM} step={SURLIGNEUR_EPAISSEUR_PAS_MM}
+                value={p.surligneur.epaisseur} onChange={e => p.surligneur?.setEpaisseur(Number(e.target.value))}
+                aria-valuetext={`${String(p.surligneur.epaisseur).replace('.', ',')} millimètres`} />
+              <span className="min-w-[4.5rem] text-base" aria-live="polite">{String(p.surligneur.epaisseur).replace('.', ',')} mm</span>
+              {/* Aperçu : un trait de la vraie épaisseur (1 mm ≈ 3,78 px à 100 %) */}
+              <span aria-hidden className="inline-block w-14 shrink-0 rounded-sm"
+                style={{ height: `${Math.max(2, p.surligneur.epaisseur * 3.78)}px`, background: p.surligneur.couleur, opacity: SURLIGNEUR_OPACITE }} />
+            </div>
+          </div>
+        )}
+        {p.tailleTexte && (
+          <div role="group" aria-label="Taille du texte" className="flex items-center gap-2">
+            <span className="text-base">Taille</span>
+            {TAILLES_TEXTE_PT.map(t => (
+              <button key={t} type="button" className={`${p.tailleTexte?.valeur === t ? OPTION_CHOISIE : OUTIL_GRIS} ${PUCE} !min-w-[56px] text-center`}
+                aria-pressed={p.tailleTexte?.valeur === t} title={`Taille ${t}`} onClick={() => p.tailleTexte?.onChoisir(t)}>
+                {t}
+              </button>
+            ))}
+          </div>
         )}
         {p.montrerEpaisseur && (
           <>

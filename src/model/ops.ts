@@ -96,17 +96,27 @@ export function recolorerObjets(doc: CahierDoc, i: number, ids: string[], couleu
   }));
 }
 
-/** Épaisseur appliquée aux traits (hors surligneur), formes et droites choisis ; le texte et les objets de maths n'en ont pas. */
-export function epaissirObjets(doc: CahierDoc, i: number, ids: string[], epaisseur: number): CahierDoc {
+/**
+ * Épaisseur appliquée aux traits d'encre, formes et droites choisis ; le texte et les objets de maths n'en ont pas.
+ * Avec `surligneur: true` : seulement les traits de surligneur (qui ont leur propre curseur).
+ */
+export function epaissirObjets(doc: CahierDoc, i: number, ids: string[], epaisseur: number, surligneur = false): CahierDoc {
   const s = new Set(ids);
   return majPage(doc, i, p => ({
     ...p,
     objets: p.objets.map(o => {
       if (!s.has(o.id)) return o;
+      if (surligneur) return o.type === 'trait' && o.surligneur ? { ...o, epaisseur } : o;
       if (o.type === 'forme' || o.type === 'droite' || (o.type === 'trait' && !o.surligneur)) return { ...o, epaisseur };
       return o;
     }),
   }));
+}
+
+/** Taille (points) appliquée aux textes choisis ; les autres objets sont ignorés. */
+export function redimensionnerTextes(doc: CahierDoc, i: number, ids: string[], taillePt: number): CahierDoc {
+  const s = new Set(ids);
+  return majPage(doc, i, p => ({ ...p, objets: p.objets.map(o => (s.has(o.id) && o.type === 'texte' ? { ...o, taillePt } : o)) }));
 }
 
 export function remplacerObjet(doc: CahierDoc, i: number, id: string, nouveaux: Objet[]): CahierDoc {

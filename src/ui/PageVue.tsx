@@ -41,6 +41,10 @@ type Props = {
   pdf: PDFDocumentProxy | null;
   niveau: Niveau;
   formeChoisie: TypeForme;
+  /** Surligneur : « libre » suit le doigt, « lineaire » trace une droite du début à la fin du glissé. */
+  modeSurligneur: 'libre' | 'lineaire';
+  /** Taille (points) des nouveaux textes. */
+  taillePtTexte: number;
   /** Objet sélectionné sur cette page (outils Sélectionner et Formes) : cadre, ou poignées pour une forme. */
   selectionId: string | null;
   /** Change à chaque clic sur « Modifier » : ouvre l'édition de l'objet sélectionné (texte, maths). */
@@ -69,7 +73,6 @@ type TypeCree = NonNullable<(typeof OUTIL_TYPE)[OutilId]>;
 const RAYON_GOMME = 3; // mm
 const RAYON_GOMME_FINE = 2;
 const SEUIL_GLISSER = 1.5; // mm : en dessous, c'est un toucher
-const TAILLE_TEXTE_PT = 14;
 
 const CoucheFond = memo(function CoucheFond({ motif }: { motif: Motif }) {
   return (
@@ -320,7 +323,8 @@ export function PageVue(p: Props) {
       const pts = traitRef.current;
       const der = pts[pts.length - 1];
       if (Math.hypot(q.x - der.x, q.y - der.y) < 0.3) return; // filtre le bruit < 0,3 mm
-      traitRef.current = [...pts, q];
+      // Surligneur linéaire : le trait reste droit, du point de départ au doigt.
+      traitRef.current = p.outil === 'surligneur' && p.modeSurligneur === 'lineaire' ? [pts[0], q] : [...pts, q];
       setEnCours(traitRef.current);
     } else if (brouillonRef.current) {
       brouillonRef.current = gommer(brouillonRef.current, q);
@@ -454,8 +458,8 @@ export function PageVue(p: Props) {
       const largeur = Math.max(20, Math.min(80, page.largeurMm - q.x - 2));
       const x = q.x + largeur > page.largeurMm - 2 ? Math.max(0, page.largeurMm - 2 - largeur) : q.x;
       // Le point touché est le bas de la première ligne : le texte s'écrit juste au-dessus des pointillés.
-      const y = Math.max(0, q.y - ptVersMm(TAILLE_TEXTE_PT) * 1.5);
-      ouvrirEdition({ texte: { id: nouvelId(), type: 'texte', x, y, largeur, texte: '', taillePt: TAILLE_TEXTE_PT, couleur: p.couleur }, nouveau: true });
+      const y = Math.max(0, q.y - ptVersMm(p.taillePtTexte) * 1.5);
+      ouvrirEdition({ texte: { id: nouvelId(), type: 'texte', x, y, largeur, texte: '', taillePt: p.taillePtTexte, couleur: p.couleur }, nouveau: true });
     } else if (type === 'operation' || type === 'repere') {
       setDialogue({ type, x: q.x, y: q.y });
     } else if (type === 'fraction') {
