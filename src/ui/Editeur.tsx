@@ -1,19 +1,22 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { ETAT_INITIAL, type EtatStylet } from '../input/pointerPolicy';
 import { nomFichier, partagerOuTelecharger } from '../lib/partage';
-import { pxParMm } from '../lib/units';
+import { pxParMm, zoomAjuste } from '../lib/units';
 import type { Reglages } from '../lib/reglages';
 import { versCahier } from '../fichier/cahier';
 import { annuler, creer, peutAnnuler, peutRetablir, pousser, retablir, type Historique } from '../model/history';
 import { COULEURS_SURLIGNEUR, SURLIGNEUR_EPAISSEUR_MM } from '../lib/couleurs';
 import { ajouterPageVierge, changerFond, modifierObjet, supprimerObjet } from '../model/ops';
 import type { OutilId } from '../model/outils';
-import type { CahierDoc, TypeForme } from '../model/types';
+import type { CahierDoc, Fond, TypeForme } from '../model/types';
 import { aDesPagesTournees } from '../pdf/info';
 import { exporterPdf } from '../pdf/export';
 import { ouvrirPdf, type PDFDocumentProxy } from '../pdf/pdfjs';
 import type { StorageAdapter } from '../storage/adapter';
-import { BarreOutils, COULEURS, EPAISSEURS } from './BarreOutils';
+import { BarreOutils, COULEURS, EPAISSEURS, type PropsOutils } from './BarreOutils';
+import { BandeauReglages } from './BandeauReglages';
+import { ColonneOutils, LARGEUR_COLONNE_PX } from './ColonneOutils';
+import { FONDS } from '../model/fonds';
 import { PageVue } from './PageVue';
 
 type Action = { type: 'commit'; doc: CahierDoc } | { type: 'annuler' } | { type: 'retablir' };
@@ -40,7 +43,9 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   // Le surligneur a sa palette et son épaisseur fixes ; les autres outils partagent l'encre.
   const couleur = surligneur ? couleurSurligneur : couleurEncre;
   const epaisseur = surligneur ? SURLIGNEUR_EPAISSEUR_MM : epaisseurEncre;
-  const [zoom, setZoom] = useState(1);
+  // P3 et plus : colonne d'outils à côté de la page ; le zoom de départ fait tenir la page dans la largeur restante.
+  const avecColonne = reglages.niveau !== 'p1p2';
+  const [zoom, setZoom] = useState(() => (avecColonne ? zoomAjuste(window.innerWidth - LARGEUR_COLONNE_PX - 24, initial.pages[0]?.largeurMm ?? 210) : 1));
   const [pageActive, setPageActive] = useState(0);
   const [etatStylet, setEtatStylet] = useState<EtatStylet>(ETAT_INITIAL);
   const [message, setMessage] = useState<{ type: 'erreur' | 'info'; texte: string } | null>(null);
@@ -177,44 +182,30 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     }
   };
 
-  return (
-    <div>
-      <div className="flex flex-wrap items-center gap-2 p-2">
-        <button type="button" className="plai-btn min-h-[44px]" onClick={fermer}>Retour à mes documents</button>
-        <h1 className="font-serif text-xl">{doc.titre}</h1>
-        <span className="flex-1" />
-        <button type="button" className="plai-btn min-h-[44px]" onClick={exporter}>Exporter en PDF</button>
-        <button type="button" className="plai-btn min-h-[44px]" onClick={exporterCahier}>Enregistrer un fichier .cahier</button>
-        {doc.source.type === 'vierge' && (
-          <button type="button" className="plai-btn min-h-[44px]" onClick={() => commit(ajouterPageVierge(doc))}>Ajouter une page</button>
-        )}
-      </div>
-      {message && (
-        <div className={message.type === 'erreur' ? 'plai-error' : 'plai-banner'} role="alert">
-          {message.texte} <button type="button" className="min-h-[44px] min-w-[44px] underline" onClick={() => setMessage(null)}>Fermer</button>
-        </div>
-      )}
-      <BarreOutils
-        niveau={reglages.niveau}
-        outil={outil} setOutil={choisirOutil}
-        couleur={couleur} setCouleur={choisirCouleur}
-        epaisseur={epaisseurEncre} setEpaisseur={choisirEpaisseur}
-        formeChoisie={formeChoisie} setFormeChoisie={setFormeChoisie}
-        palette={outil === 'selectionner' && !objetChoisi ? null : surligneur || choisiSurligneur ? 'surligneur' : 'encre'}
-        montrerEpaisseur={outil === 'selectionner' ? aEpaisseur && !choisiSurligneur : !surligneur}
-        selection={outil === 'selectionner' ? {
-          present: !!objetChoisi,
-          modifiable: !!objetChoisi && objetChoisi.type !== 'trait' && objetChoisi.type !== 'forme',
-          onModifier: () => setOrdreModifier(n => n + 1),
-          onSupprimer: supprimerChoisi,
-        } : undefined}
-        fond={doc.pages[pageActive]?.fond ?? 'aucun'}
-        setFond={f => commit(changerFond(doc, pageActive, f))}
-        peutAnnuler={peutAnnuler(h)} peutRetablir={peutRetablir(h)}
-        onAnnuler={() => dispatch({ type: 'annuler' })} onRetablir={() => dispatch({ type: 'retablir' })}
-        zoom={zoom} setZoom={setZoom}
-      />
-      <div className="overflow-auto bg-[var(--surface2)] py-2">
+  const dessine = outil !== 'main' && outil !== 'gomme-objet' && outil !== 'gomme-partielle';
+  const proprietes: PropsOutils = {
+    niveau: reglages.niveau,
+    outil, setOutil: choisirOutil,
+    couleur, setCouleur: choisirCouleur,
+    epaisseur: epaisseurEncre, setEpaisseur: choisirEpaisseur,
+    formeChoisie, setFormeChoisie,
+    // Réglages affichés seulement pour les outils qui s'en servent (pas pour Main ni les gommes).
+    palette: outil === 'selectionner' ? (objetChoisi ? (choisiSurligneur ? 'surligneur' : 'encre') : null) : !dessine ? null : surligneur ? 'surligneur' : 'encre',
+    montrerEpaisseur: outil === 'selectionner' ? aEpaisseur && !choisiSurligneur : outil === 'stylo' || outil === 'formes',
+    selection: outil === 'selectionner' ? {
+      present: !!objetChoisi,
+      modifiable: !!objetChoisi && objetChoisi.type !== 'trait' && objetChoisi.type !== 'forme',
+      onModifier: () => setOrdreModifier(n => n + 1),
+      onSupprimer: supprimerChoisi,
+    } : undefined,
+    fond: doc.pages[pageActive]?.fond ?? 'aucun',
+    setFond: f => commit(changerFond(doc, pageActive, f)),
+    peutAnnuler: peutAnnuler(h), peutRetablir: peutRetablir(h),
+    onAnnuler: () => dispatch({ type: 'annuler' }), onRetablir: () => dispatch({ type: 'retablir' }),
+    zoom, setZoom,
+  };
+  const pages = (
+      <div className={`overflow-auto bg-[var(--surface2)] py-2 ${avecColonne ? 'min-w-0 flex-1' : ''}`}>
         {doc.pages.map((_, i) => (
           <PageVue
             key={i}
@@ -242,6 +233,47 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
           />
         ))}
       </div>
+  );
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-2 p-2">
+        <button type="button" className="plai-btn min-h-[44px]" onClick={fermer}>Retour à mes documents</button>
+        <h1 className="font-serif text-xl">{doc.titre}</h1>
+        <span className="flex-1" />
+        <button type="button" className="plai-btn min-h-[44px]" onClick={exporter}>Exporter en PDF</button>
+        <button type="button" className="plai-btn min-h-[44px]" onClick={exporterCahier}>Enregistrer un fichier .cahier</button>
+        {avecColonne && (
+          <label className="flex items-center gap-2 text-base">
+            Fond de la page
+            <select className="plai-input min-h-[44px]" value={proprietes.fond} onChange={e => proprietes.setFond(e.target.value as Fond)}>
+              {FONDS.map(f => <option key={f.id} value={f.id}>{f.libelle}</option>)}
+            </select>
+          </label>
+        )}
+        {doc.source.type === 'vierge' && (
+          <button type="button" className="plai-btn min-h-[44px]" onClick={() => commit(ajouterPageVierge(doc))}>Ajouter une page</button>
+        )}
+      </div>
+      {message && (
+        <div className={message.type === 'erreur' ? 'plai-error' : 'plai-banner'} role="alert">
+          {message.texte} <button type="button" className="min-h-[44px] min-w-[44px] underline" onClick={() => setMessage(null)}>Fermer</button>
+        </div>
+      )}
+      {avecColonne ? (
+        <div className={`flex ${reglages.colonne === 'droite' ? 'flex-row-reverse' : ''}`}>
+          <ColonneOutils {...proprietes} position={reglages.colonne} />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <BandeauReglages {...proprietes} />
+            {pages}
+          </div>
+        </div>
+      ) : (
+        <>
+          <BarreOutils {...proprietes} />
+          {pages}
+        </>
+      )}
     </div>
   );
 }

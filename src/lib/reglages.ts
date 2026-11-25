@@ -1,6 +1,8 @@
 import type { ModeEntree, Niveau } from '../model/types';
 
-export type Reglages = { niveau: Niveau; modeEntree: ModeEntree };
+/** Côté de la colonne d'outils (P3 et plus) : à droite pour écrire de la main gauche. */
+export type PositionColonne = 'gauche' | 'droite';
+export type Reglages = { niveau: Niveau; modeEntree: ModeEntree; colonne: PositionColonne };
 
 const CLE = 'cahieractif.reglages';
 const NIVEAUX: Niveau[] = ['p1p2', 'p3p6', 'secondaire'];
@@ -20,7 +22,8 @@ export function lireReglages(s: Storage | null = stockageLocal()): Reglages | nu
     if (!brut) return null;
     const r = JSON.parse(brut);
     if (!NIVEAUX.includes(r?.niveau) || !MODES.includes(r?.modeEntree)) return null;
-    return { niveau: r.niveau, modeEntree: r.modeEntree };
+    // Réglages enregistrés avant l'existence de la colonne : à gauche par défaut.
+    return { niveau: r.niveau, modeEntree: r.modeEntree, colonne: r.colonne === 'droite' ? 'droite' : 'gauche' };
   } catch {
     return null;
   }

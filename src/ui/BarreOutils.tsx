@@ -18,7 +18,7 @@ export const EPAISSEURS = [
   { mm: 1.6, libelle: 'Épais' },
 ];
 
-type Props = {
+export type PropsOutils = {
   niveau: Niveau;
   outil: OutilId;
   setOutil: (o: OutilId) => void;
@@ -43,7 +43,7 @@ type Props = {
   setZoom: (z: number) => void;
 };
 
-export function BarreOutils(p: Props) {
+export function BarreOutils(p: PropsOutils) {
   const grand = p.niveau === 'p1p2';
   const bouton = (actif: boolean) =>
     `plai-btn ${grand ? 'min-h-[64px] min-w-[64px] text-lg' : 'min-h-[44px] min-w-[44px]'} ${actif ? 'ring-4 ring-[#0f6e56]' : ''}`;

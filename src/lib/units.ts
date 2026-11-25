@@ -23,3 +23,9 @@ export function ratioPixelsMax(wCss: number, hCss: number, dpr: number): number 
   if (surface <= 0) return dpr;
   return Math.min(dpr, Math.sqrt(PIXELS_CANVAS_MAX / surface));
 }
+
+/** Zoom (≤ 1, par pas de 5 %, ≥ 0,5) pour que la page tienne dans `largeurDispoPx` sans défilement horizontal. */
+export function zoomAjuste(largeurDispoPx: number, largeurPageMm: number): number {
+  const brut = largeurDispoPx / (largeurPageMm * PX_PAR_MM_ZOOM1);
+  return Math.max(0.5, Math.min(1, Math.floor(brut * 20) / 20));
+}

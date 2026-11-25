@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pxParMm, ptVersMm, mmVersPt, MM_PAR_PT, ratioPixelsMax, PIXELS_CANVAS_MAX } from './units';
+import { zoomAjuste, pxParMm, ptVersMm, mmVersPt, MM_PAR_PT, ratioPixelsMax, PIXELS_CANVAS_MAX } from './units';
 
 describe('units', () => {
   it('à zoom 1, 25,4 mm = 96 px CSS', () => {
@@ -33,5 +33,17 @@ describe('ratioPixelsMax', () => {
   });
   it('surface nulle : ratio inchangé', () => {
     expect(ratioPixelsMax(0, 100, 3)).toBe(3);
+  });
+});
+
+describe('zoomAjuste', () => {
+  it('large écran : 100 % au maximum', () => {
+    expect(zoomAjuste(1600, 210)).toBe(1);
+  });
+  it('tablette portrait avec colonne : réduit par pas de 5 %', () => {
+    expect(zoomAjuste(620, 210)).toBe(0.75); // page A4 = 794 px à 100 %
+  });
+  it('jamais sous 50 %', () => {
+    expect(zoomAjuste(200, 210)).toBe(0.5);
   });
 });

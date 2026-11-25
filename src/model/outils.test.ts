@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { outilsPour, OUTILS, OUTIL_TYPE } from './outils';
+import { groupesPour, outilsPour, OUTILS, OUTIL_TYPE } from './outils';
 
 describe('outils', () => {
   it('P1-P2 : pas de sélection, de surligneur, de formes, de gomme fine, de déplacement, de fraction, d’expression ni de repère', () => {
@@ -25,5 +25,14 @@ describe('outils', () => {
   });
   it('OUTIL_TYPE relie les outils de création à leur type d’objet', () => {
     expect(OUTIL_TYPE).toEqual({ texte: 'texte', operation: 'operation', fraction: 'fraction', expression: 'expression', repere: 'repere' });
+  });
+  it('colonne : outils regroupés dans l’ordre, sans groupe vide, aucun outil oublié', () => {
+    const g = groupesPour('p3p6');
+    expect(g.map(x => x.id)).toEqual(['choisir', 'ecrire', 'corriger', 'dessiner', 'maths']);
+    expect(g.flatMap(x => x.outils.map(o => o.id)).sort()).toEqual(outilsPour('p3p6').map(o => o.id).sort());
+    expect(g[0].outils.map(o => o.id)).toEqual(['main', 'selectionner']);
+  });
+  it('P1-P2 : pas de groupe Dessiner', () => {
+    expect(groupesPour('p1p2').map(x => x.id)).not.toContain('dessiner');
   });
 });
