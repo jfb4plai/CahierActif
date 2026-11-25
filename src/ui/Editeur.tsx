@@ -6,7 +6,7 @@ import type { Reglages } from '../lib/reglages';
 import { versCahier } from '../fichier/cahier';
 import { annuler, creer, peutAnnuler, peutRetablir, pousser, retablir, type Historique } from '../model/history';
 import { COULEURS_SURLIGNEUR, SURLIGNEUR_EPAISSEUR_MM } from '../lib/couleurs';
-import { ajouterPageVierge, changerFond, modifierObjet } from '../model/ops';
+import { ajouterPageVierge, changerFond, modifierObjet, supprimerObjet } from '../model/ops';
 import type { OutilId } from '../model/outils';
 import type { CahierDoc, TypeForme } from '../model/types';
 import { aDesPagesTournees } from '../pdf/info';
@@ -35,6 +35,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   const [epaisseurEncre, setEpaisseurEncre] = useState(EPAISSEURS[1].mm);
   const [formeChoisie, setFormeChoisie] = useState<TypeForme>('rectangle');
   const [selection, setSelection] = useState<{ page: number; id: string } | null>(null);
+  const [ordreModifier, setOrdreModifier] = useState(0);
   const surligneur = outil === 'surligneur';
   // Le surligneur a sa palette et son épaisseur fixes ; les autres outils partagent l'encre.
   const couleur = surligneur ? couleurSurligneur : couleurEncre;
@@ -99,23 +100,32 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     dispatch({ type: 'commit', doc: d });
   };
 
-  // Choisir une couleur ou une épaisseur quand une forme est sélectionnée la modifie aussi.
-  const surFormeSelectionnee = (patch: { couleur: string } | { epaisseur: number }) => {
-    if (outil !== 'formes' || !selection) return;
+  // Outils Sélectionner et Formes : l'objet choisi est modifiable par la barre (couleur, épaisseur, Modifier, Supprimer).
+  const outilSelection = outil === 'formes' || outil === 'selectionner';
+  const objetChoisi = outilSelection && selection ? doc.pages[selection.page]?.objets.find(o => o.id === selection.id) : undefined;
+  const choisiSurligneur = objetChoisi?.type === 'trait' && !!objetChoisi.surligneur;
+  const aEpaisseur = objetChoisi?.type === 'trait' || objetChoisi?.type === 'forme';
+  const modifierChoisi = (patch: { couleur: string } | { epaisseur: number }) => {
+    if (!objetChoisi || !selection) return;
     commit(modifierObjet(dernier.current, selection.page, selection.id, patch));
   };
   const choisirCouleur = (c: string) => {
-    if (surligneur) { setCouleurSurligneur(c); return; }
-    setCouleurEncre(c);
-    surFormeSelectionnee({ couleur: c });
+    if (surligneur || choisiSurligneur) setCouleurSurligneur(c);
+    else setCouleurEncre(c);
+    modifierChoisi({ couleur: c });
   };
   const choisirEpaisseur = (e: number) => {
     setEpaisseurEncre(e);
-    surFormeSelectionnee({ epaisseur: e });
+    if (aEpaisseur) modifierChoisi({ epaisseur: e });
   };
   const choisirOutil = (o: OutilId) => {
     setOutil(o);
-    if (o !== 'formes') setSelection(null);
+    if (o !== 'formes' && o !== 'selectionner') setSelection(null);
+  };
+  const supprimerChoisi = () => {
+    if (!objetChoisi || !selection) return;
+    commit(supprimerObjet(dernier.current, selection.page, selection.id));
+    setSelection(null);
   };
 
   // Chaque page inscrit de quoi valider sa saisie ouverte (texte ou objet maths) : appelé de façon synchrone avant
@@ -190,6 +200,14 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
         couleur={couleur} setCouleur={choisirCouleur}
         epaisseur={epaisseurEncre} setEpaisseur={choisirEpaisseur}
         formeChoisie={formeChoisie} setFormeChoisie={setFormeChoisie}
+        palette={outil === 'selectionner' && !objetChoisi ? null : surligneur || choisiSurligneur ? 'surligneur' : 'encre'}
+        montrerEpaisseur={outil === 'selectionner' ? aEpaisseur && !choisiSurligneur : !surligneur}
+        selection={outil === 'selectionner' ? {
+          present: !!objetChoisi,
+          modifiable: !!objetChoisi && objetChoisi.type !== 'trait' && objetChoisi.type !== 'forme',
+          onModifier: () => setOrdreModifier(n => n + 1),
+          onSupprimer: supprimerChoisi,
+        } : undefined}
         fond={doc.pages[pageActive]?.fond ?? 'aucun'}
         setFond={f => commit(changerFond(doc, pageActive, f))}
         peutAnnuler={peutAnnuler(h)} peutRetablir={peutRetablir(h)}
@@ -212,7 +230,8 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             pdf={pdf}
             niveau={reglages.niveau}
             formeChoisie={formeChoisie}
-            selectionId={outil === 'formes' && selection?.page === i ? selection.id : null}
+            selectionId={outilSelection && selection?.page === i ? selection.id : null}
+            ordreModifier={ordreModifier}
             onSelection={id => setSelection(id ? { page: i, id } : null)}
             onCommit={commit}
             onActive={() => {

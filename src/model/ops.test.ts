@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { CahierDoc, Trait, Texte } from './types';
 import {
-  nouveauDocVierge, nouveauDocPdf, ajouterObjet, modifierObjet, supprimerObjet,
+  nouveauDocVierge, nouveauDocPdf, ajouterObjet, modifierObjet, supprimerObjet, deplacerObjet,
   remplacerObjet, changerFond, ajouterPageVierge,
 } from './ops';
 
@@ -48,6 +48,17 @@ describe('ops', () => {
     let d = ajouterObjet(nouveauDocVierge('E', 'p3p6'), 0, trait('a'));
     d = supprimerObjet(d, 0, 'a');
     expect(d.pages[0].objets).toHaveLength(0);
+  });
+
+  it('deplacerObjet : un trait décale tous ses points, un texte son coin, les autres objets sont intacts', () => {
+    let d = nouveauDocVierge('E', 'p3p6');
+    d = ajouterObjet(d, 0, trait('a'));
+    d = ajouterObjet(d, 0, trait('b'));
+    d = deplacerObjet(d, 0, 'a', 5, -2);
+    const a = d.pages[0].objets[0] as Trait;
+    const b = d.pages[0].objets[1] as Trait;
+    expect(a.points.map(q => [q.x, q.y])).toEqual(trait('a').points.map(q => [q.x + 5, q.y - 2]));
+    expect(b).toEqual(trait('b'));
   });
 
   it('remplacerObjet remplace en place par 0..n objets', () => {

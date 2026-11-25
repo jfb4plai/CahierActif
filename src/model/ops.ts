@@ -37,6 +37,18 @@ export function supprimerObjet(doc: CahierDoc, i: number, id: string): CahierDoc
   return majPage(doc, i, p => ({ ...p, objets: p.objets.filter(o => o.id !== id) }));
 }
 
+/** Déplace n'importe quel objet de (dx, dy) mm : un trait décale tous ses points, les autres leur coin. */
+export function deplacerObjet(doc: CahierDoc, i: number, id: string, dx: number, dy: number): CahierDoc {
+  return majPage(doc, i, p => ({
+    ...p,
+    objets: p.objets.map(o => {
+      if (o.id !== id) return o;
+      if (o.type === 'trait') return { ...o, points: o.points.map(q => ({ ...q, x: q.x + dx, y: q.y + dy })) };
+      return { ...o, x: o.x + dx, y: o.y + dy };
+    }),
+  }));
+}
+
 export function remplacerObjet(doc: CahierDoc, i: number, id: string, nouveaux: Objet[]): CahierDoc {
   return majPage(doc, i, p => ({ ...p, objets: p.objets.flatMap(o => (o.id === id ? nouveaux : [o])) }));
 }

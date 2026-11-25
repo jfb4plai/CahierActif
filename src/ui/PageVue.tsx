@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Circle, Layer, Line, Stage, Text, Transformer } from 'react-konva';
+import { Circle, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import { decider, type EtatStylet } from '../input/pointerPolicy';
 import { SURLIGNEUR_OPACITE } from '../lib/couleurs';
@@ -7,7 +7,8 @@ import { ptVersMm, ratioPixelsMax } from '../lib/units';
 import { motifFond, type Motif } from '../model/fonds';
 import { formeContient, formeDepuisGlisse } from '../model/formes';
 import { effacerPartiel, objetTouche } from '../model/gomme';
-import { ajouterObjet, modifierObjet, remplacerObjet, supprimerObjet } from '../model/ops';
+import { ajouterObjet, deplacerObjet, modifierObjet, remplacerObjet, supprimerObjet } from '../model/ops';
+import { boiteDe, objetSous } from '../model/selection';
 import type { ObjetBoite } from '../model/boites';
 import { OUTIL_TYPE, type OutilId } from '../model/outils';
 import { nouvelId } from '../model/types';
@@ -38,8 +39,10 @@ type Props = {
   pdf: PDFDocumentProxy | null;
   niveau: Niveau;
   formeChoisie: TypeForme;
-  /** Forme sélectionnée sur cette page (outil Formes) : poignées de taille et de rotation. */
+  /** Objet sélectionné sur cette page (outils Sélectionner et Formes) : cadre, ou poignées pour une forme. */
   selectionId: string | null;
+  /** Change à chaque clic sur « Modifier » : ouvre l'édition de l'objet sélectionné (texte, maths). */
+  ordreModifier: number;
   onSelection: (id: string | null) => void;
   onCommit: (maj: CahierDoc | ((d: CahierDoc) => CahierDoc)) => void;
   onActive: () => void;
@@ -48,7 +51,8 @@ type Props = {
 
 type Edition = { texte: Texte; nouveau: boolean };
 // Outil de création posé sur un objet de son type : glisser = déplacer, toucher sans bouger = modifier.
-type ObjetSaisi = { objet: Exclude<ObjetBoite, Forme>; depart: Point; bouge: boolean };
+// `selection` : saisi avec l'outil Sélectionner (un premier toucher choisit seulement ; un second ouvre l'édition).
+type ObjetSaisi = { objet: Objet; depart: Point; bouge: boolean; selection: boolean; dejaSelectionne: boolean };
 // Forme en cours de tracé : le glissé va de `debut` à `fin`.
 type TraceForme = { debut: Point; fin: Point };
 type EnEditionMaths = { objet: ObjetMaths; nouveau: boolean };
@@ -74,7 +78,6 @@ const CoucheFond = memo(function CoucheFond({ motif }: { motif: Motif }) {
 
 type PropsObjets = {
   objets: Objet[];
-  deplacable: boolean;
   idMasque: string | null;
   idEdition: string | null;
   formesEditables: boolean; // outil Formes : les formes se déplacent d'un glissé
@@ -82,32 +85,29 @@ type PropsObjets = {
   onTransforme: (o: Forme, node: Konva.Node) => void;
 };
 
-const CoucheObjets = memo(function CoucheObjets({ objets, deplacable, idMasque, idEdition, formesEditables, onDeplace, onTransforme }: PropsObjets) {
+const CoucheObjets = memo(function CoucheObjets({ objets, idMasque, idEdition, formesEditables, onDeplace, onTransforme }: PropsObjets) {
   return (
     <Layer>
       {objets.map(o =>
         o.type === 'trait' ? (
           o.points.length === 1 ? (
             <Circle key={o.id} x={o.points[0].x} y={o.points[0].y} radius={o.epaisseur / 2} fill={o.couleur}
-              opacity={o.surligneur ? SURLIGNEUR_OPACITE : 1}
-              draggable={deplacable} onDragEnd={e => onDeplace(o, e.target)} />
+              opacity={o.surligneur ? SURLIGNEUR_OPACITE : 1} />
           ) : (
             <Line key={o.id} points={o.points.flatMap(q => [q.x, q.y])} stroke={o.couleur} strokeWidth={o.epaisseur}
               lineCap={o.surligneur ? 'butt' : 'round'} lineJoin="round" hitStrokeWidth={4}
-              opacity={o.surligneur ? SURLIGNEUR_OPACITE : 1}
-              draggable={deplacable} onDragEnd={e => onDeplace(o, e.target)} />
+              opacity={o.surligneur ? SURLIGNEUR_OPACITE : 1} />
           )
         ) : o.type === 'forme' ? (
-          <FormeVue key={o.id} o={o} draggable={deplacable || formesEditables} onDragEnd={node => onDeplace(o, node)}
+          <FormeVue key={o.id} o={o} draggable={formesEditables} onDragEnd={node => onDeplace(o, node)}
             onTransformEnd={node => onTransforme(o, node)} />
         ) : o.type === 'texte' ? (
           idMasque === o.id ? null : (
             <Text key={o.id} x={o.x} y={o.y} width={o.largeur} text={o.texte} fontFamily="Arial"
-              fontSize={ptVersMm(o.taillePt)} lineHeight={1.5} fill={o.couleur}
-              draggable={deplacable} onDragEnd={e => onDeplace(o, e.target)} />
+              fontSize={ptVersMm(o.taillePt)} lineHeight={1.5} fill={o.couleur} />
           )
         ) : (
-          <FormeMaths key={o.id} o={o} enEdition={idEdition === o.id} draggable={deplacable} onDragEnd={node => onDeplace(o, node)} />
+          <FormeMaths key={o.id} o={o} enEdition={idEdition === o.id} draggable={false} onDragEnd={() => undefined} />
         ),
       )}
     </Layer>
@@ -220,9 +220,9 @@ export function PageVue(p: Props) {
       finMaths(m);
       return;
     }
-    if (p.outil === 'main' || p.outil === 'deplacer') return;
+    if (p.outil === 'main') return;
     // Une poignée de la forme sélectionnée : le Transformer de Konva s'en occupe seul.
-    if (p.outil === 'formes' && e.target.getParent()?.className === 'Transformer') return;
+    if ((p.outil === 'formes' || p.outil === 'selectionner') && e.target.getParent()?.className === 'Transformer') return;
     const q = posMm(e);
     if (p.outil === 'formes') {
       const cible = [...objets].reverse().find(o => o.type === 'forme' && formeContient(o, q, 1));
@@ -232,12 +232,20 @@ export function PageVue(p: Props) {
       traceFormeRef.current = { debut: q, fin: q };
       return;
     }
+    if (p.outil === 'selectionner') {
+      const cible = objetSous(objets, q, 2.5);
+      if (!cible) { p.onSelection(null); return; }
+      p.onSelection(cible.id);
+      pointeurActif.current = e.evt.pointerId;
+      objetSaisiRef.current = { objet: cible, depart: q, bouge: false, selection: true, dejaSelectionne: cible.id === p.selectionId };
+      return;
+    }
     const typeOutil = OUTIL_TYPE[p.outil];
     if (typeOutil) {
       const existant = [...objets].reverse().find(o => o.type === typeOutil && objetTouche(o, q, 1)) as Exclude<ObjetBoite, Forme> | undefined;
       if (existant) {
         pointeurActif.current = e.evt.pointerId;
-        objetSaisiRef.current = { objet: existant, depart: q, bouge: false };
+        objetSaisiRef.current = { objet: existant, depart: q, bouge: false, selection: false, dejaSelectionne: false };
       } else {
         creer(typeOutil, q);
       }
@@ -266,7 +274,7 @@ export function PageVue(p: Props) {
       const dy = q.y - saisi.depart.y;
       if (!saisi.bouge && Math.hypot(dx, dy) < SEUIL_GLISSER) return;
       saisi.bouge = true;
-      brouillonRef.current = modifierObjet(p.doc, p.pageIndex, saisi.objet.id, { x: saisi.objet.x + dx, y: saisi.objet.y + dy });
+      brouillonRef.current = deplacerObjet(p.doc, p.pageIndex, saisi.objet.id, dx, dy);
       setBrouillon(brouillonRef.current);
     } else if (traitRef.current) {
       const pts = traitRef.current;
@@ -298,8 +306,9 @@ export function PageVue(p: Props) {
     const saisi = objetSaisiRef.current;
     objetSaisiRef.current = null;
     if (saisi && !saisi.bouge) {
+      if (saisi.selection && !saisi.dejaSelectionne) return; // premier toucher : choisir seulement
       if (saisi.objet.type === 'texte') ouvrirEdition({ texte: saisi.objet, nouveau: false });
-      else ouvrirMaths({ objet: saisi.objet, nouveau: false });
+      else if (saisi.objet.type !== 'trait' && saisi.objet.type !== 'forme') ouvrirMaths({ objet: saisi.objet, nouveau: false });
       return;
     }
     const trait = traitRef.current;
@@ -468,11 +477,12 @@ export function PageVue(p: Props) {
     }
   }, [visible, ratio]);
 
-  const deplacable = p.outil === 'deplacer';
-
   // Poignées sur la forme sélectionnée (retrouvée par son id dans la scène).
   const surFormes = p.outil === 'formes';
-  const formeSelectionnee = surFormes && p.selectionId ? objets.find(o => o.id === p.selectionId) : undefined;
+  const surSelection = surFormes || p.outil === 'selectionner';
+  const selectionnee = surSelection && p.selectionId ? objetsAffiches.find(o => o.id === p.selectionId) : undefined;
+  const formeSelectionnee = selectionnee?.type === 'forme' ? selectionnee : undefined;
+  const boiteSelection = selectionnee && selectionnee.type !== 'forme' ? boiteDe(selectionnee) : undefined;
   useEffect(() => {
     const tr = transformeur.current;
     if (!tr) return;
@@ -480,6 +490,17 @@ export function PageVue(p: Props) {
     tr.nodes(noeud ? [noeud] : []);
     tr.getLayer()?.batchDraw();
   }, [visible, formeSelectionnee]);
+
+  // Bouton « Modifier » de la barre : ouvre l'édition de l'objet sélectionné sur cette page.
+  const ordreVu = useRef(p.ordreModifier);
+  useEffect(() => {
+    if (p.ordreModifier === ordreVu.current) return;
+    ordreVu.current = p.ordreModifier;
+    const o = selectionnee;
+    if (!o) return;
+    if (o.type === 'texte') ouvrirEdition({ texte: o, nouveau: false });
+    else if (o.type !== 'trait' && o.type !== 'forme') ouvrirMaths({ objet: o, nouveau: false });
+  }, [p.ordreModifier]);
 
   return (
     <div
@@ -504,7 +525,7 @@ export function PageVue(p: Props) {
           onPointerLeave={up}
         >
           <CoucheFond motif={fond} />
-          <CoucheObjets objets={objetsAffiches} deplacable={deplacable} idMasque={edition?.texte.id ?? null}
+          <CoucheObjets objets={objetsAffiches} idMasque={edition?.texte.id ?? null}
             idEdition={maths?.objet.id ?? null} formesEditables={surFormes} onDeplace={finDeplacement} onTransforme={finTransformation} />
           <Layer listening={false}>
             {enCours && (
@@ -512,6 +533,12 @@ export function PageVue(p: Props) {
                 lineCap={p.outil === 'surligneur' ? 'butt' : 'round'} lineJoin="round" opacity={p.outil === 'surligneur' ? SURLIGNEUR_OPACITE : 1} />
             )}
             {apercuForme && <FormeVue o={apercuForme} draggable={false} listening={false} />}
+          </Layer>
+          <Layer listening={false}>
+            {boiteSelection && (
+              <Rect x={boiteSelection.x - 1} y={boiteSelection.y - 1} width={boiteSelection.largeur + 2} height={boiteSelection.hauteur + 2}
+                stroke="#0f6e56" strokeWidth={0.6} dash={[2, 1.5]} />
+            )}
           </Layer>
           <Layer>
             <Transformer ref={transformeur} rotateEnabled flipEnabled={false} keepRatio={false}

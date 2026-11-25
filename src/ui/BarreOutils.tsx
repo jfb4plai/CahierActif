@@ -28,6 +28,11 @@ type Props = {
   setEpaisseur: (e: number) => void;
   formeChoisie: TypeForme;
   setFormeChoisie: (f: TypeForme) => void;
+  /** Palette affichée ; null = aucune (outil Sélectionner sans objet choisi). */
+  palette: 'encre' | 'surligneur' | null;
+  montrerEpaisseur: boolean;
+  /** Outil Sélectionner : état de la sélection et actions sur l'objet choisi. */
+  selection?: { present: boolean; modifiable: boolean; onModifier: () => void; onSupprimer: () => void };
   fond: Fond;
   setFond: (f: Fond) => void;
   peutAnnuler: boolean;
@@ -63,13 +68,26 @@ export function BarreOutils(p: Props) {
           </div>
         </>
       )}
-      <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />
-      {(p.outil === 'surligneur' ? COULEURS_SURLIGNEUR : COULEURS).map(c => (
+      {p.selection && (
+        <>
+          <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />
+          {p.selection.present ? (
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Objet choisi">
+              {p.selection.modifiable && <button type="button" className={bouton(false)} onClick={p.selection.onModifier}>Modifier</button>}
+              <button type="button" className={bouton(false)} onClick={p.selection.onSupprimer}>Supprimer</button>
+            </div>
+          ) : (
+            <span className="text-base text-[var(--text2)]" aria-live="polite">Toucher un objet de la page pour le choisir.</span>
+          )}
+        </>
+      )}
+      {p.palette && <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />}
+      {p.palette && (p.palette === 'surligneur' ? COULEURS_SURLIGNEUR : COULEURS).map(c => (
         <button key={c.hex} type="button" aria-label={c.nom} title={c.nom} aria-pressed={p.couleur === c.hex} onClick={() => p.setCouleur(c.hex)}
           className={`h-11 w-11 rounded-full border-2 ${p.couleur === c.hex ? 'border-[#0f6e56] ring-2 ring-[#0f6e56]' : 'border-white'}`}
           style={{ background: c.hex }} />
       ))}
-      {p.outil !== 'surligneur' && (
+      {p.montrerEpaisseur && (
         <>
           <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />
           {EPAISSEURS.map(e => (
