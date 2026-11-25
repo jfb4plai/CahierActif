@@ -10,8 +10,8 @@ const TOUS: Niveau[] = ['p1p2', 'p3p6', 'secondaire'];
 export const OUTILS: Outil[] = [
   { id: 'main', libelle: 'Main', aide: 'Faire défiler la page sans écrire', niveaux: TOUS },
   { id: 'stylo', libelle: 'Stylo', aide: 'Écrire ou dessiner à main levée', niveaux: TOUS },
-  { id: 'surligneur', libelle: 'Surligneur', aide: 'Surligner un mot ou une ligne, en 6 couleurs', niveaux: TOUS },
-  { id: 'formes', libelle: 'Formes', aide: 'Glisser sur la page pour tracer une forme ; la toucher pour la modifier ou la déplacer', niveaux: TOUS },
+  { id: 'surligneur', libelle: 'Surligneur', aide: 'Surligner un mot ou une ligne, en 6 couleurs', niveaux: ['p3p6', 'secondaire'] },
+  { id: 'formes', libelle: 'Formes', aide: 'Glisser sur la page pour tracer une forme ; la toucher pour la modifier ou la déplacer', niveaux: ['p3p6', 'secondaire'] },
   { id: 'gomme-objet', libelle: 'Gomme', aide: 'Toucher un trait ou un texte pour l’effacer en entier', niveaux: TOUS },
   { id: 'gomme-partielle', libelle: 'Gomme fine', aide: 'Effacer seulement une partie d’un trait', niveaux: ['p3p6', 'secondaire'] },
   { id: 'texte', libelle: 'Texte', aide: 'Toucher la page pour écrire au clavier ; glisser un texte pour le déplacer', niveaux: TOUS },
