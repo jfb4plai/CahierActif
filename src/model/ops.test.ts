@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { CahierDoc, Trait, Texte } from './types';
 import {
-  nouveauDocVierge, nouveauDocPdf, ajouterObjet, modifierObjet, supprimerObjet, deplacerObjet, deplacerObjets, supprimerObjets, membresDuGroupe, grouperObjets, degrouperObjets, recolorerObjets, epaissirObjets, redimensionnerTextes,
+  nouveauDocVierge, nouveauDocPdf, ajouterObjet, modifierObjet, supprimerObjet, deplacerObjet, deplacerObjets, supprimerObjets, membresDuGroupe, grouperObjets, degrouperObjets, recolorerObjets, epaissirObjets, redimensionnerTextes, nouveauDocPhotos, ajouterPagesPhotos,
   remplacerObjet, changerFond, ajouterPageVierge,
 } from './ops';
 
@@ -163,4 +163,30 @@ describe('groupes', () => {
     expect('epaisseur' in d.pages[0].objets[1]).toBe(false);
   });
 });
+});
+
+describe('photos', () => {
+  const img = (n: number) => ({ mime: 'image/jpeg' as const, data: new Uint8Array([n]).buffer });
+  const t = { largeurMm: 222.75, hauteurMm: 297 };
+  it('nouveauDocPhotos : une page par photo, à la taille de la photo', () => {
+    const d = nouveauDocPhotos('Feuilles', 'p3p6', [img(1), img(2)], [t, { largeurMm: 297, hauteurMm: 222.75 }]);
+    expect(d.source.type).toBe('photos');
+    expect(d.pages.map(p => [p.largeurMm, p.hauteurMm])).toEqual([[222.75, 297], [297, 222.75]]);
+    expect(d.pages.every(p => p.objets.length === 0)).toBe(true);
+  });
+  it('nouveauDocPhotos : sans photo ou tailles incohérentes → erreur', () => {
+    expect(() => nouveauDocPhotos('X', 'p3p6', [], [])).toThrow(RangeError);
+    expect(() => nouveauDocPhotos('X', 'p3p6', [img(1)], [])).toThrow(RangeError);
+  });
+  it('ajouterPagesPhotos : photos et pages ajoutées à la fin, annotations existantes gardées', () => {
+    let d = nouveauDocPhotos('F', 'p3p6', [img(1)], [t]);
+    d = ajouterObjet(d, 0, trait('a'));
+    const d2 = ajouterPagesPhotos(d, [img(2)], [t]);
+    expect(d2.source.type === 'photos' && d2.source.images.length).toBe(2);
+    expect(d2.pages).toHaveLength(2);
+    expect(d2.pages[0].objets).toHaveLength(1);
+  });
+  it('ajouterPagesPhotos : refusé hors document de photos', () => {
+    expect(() => ajouterPagesPhotos(nouveauDocVierge('V', 'p3p6'), [img(1)], [t])).toThrow(RangeError);
+  });
 });

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { depuisCahier } from '../fichier/cahier';
 import { amorcerDossiers, NOM_MAX, verifierNomDossier } from '../lib/dossiers';
 import type { Reglages } from '../lib/reglages';
-import { nouveauDocPdf, nouveauDocVierge } from '../model/ops';
+import { PhotoIllisibleError, preparerPhotos } from '../lib/photo';
+import { nouveauDocPdf, nouveauDocPhotos, nouveauDocVierge } from '../model/ops';
 import { nouvelId } from '../model/types';
 import type { CahierDoc, Dossier } from '../model/types';
 import { taillesPagesPdf, PdfIllisibleError } from '../pdf/info';
@@ -24,6 +25,8 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
   const [erreur, setErreur] = useState<string | null>(null);
   const pdfInput = useRef<HTMLInputElement>(null);
   const cahierInput = useRef<HTMLInputElement>(null);
+  const photosInput = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
 
   const rafraichir = () =>
     Promise.all([stockage.lister(), stockage.listerDossiers()])
@@ -100,6 +103,19 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
       await creerEtOuvrir(nouveauDocPdf(f.name.replace(/\.pdf$/i, ''), reglages.niveau, data, tailles));
     } catch (e) {
       setErreur(e instanceof PdfIllisibleError ? e.message : 'Ce fichier ne peut pas être ouvert.');
+    }
+  };
+
+  // Une ou plusieurs photos de feuilles : une page par photo, annotables comme un PDF.
+  const importerPhotos = async (fichiers: File[]) => {
+    setErreur(null);
+    if (fichiers.length === 0) return;
+    try {
+      const { images, tailles } = await preparerPhotos(fichiers);
+      const titre = images.length === 1 ? 'Feuille photographiée' : `Feuilles photographiées (${images.length})`;
+      await creerEtOuvrir(nouveauDocPhotos(titre, reglages.niveau, images, tailles));
+    } catch (e) {
+      setErreur(e instanceof PhotoIllisibleError ? e.message : 'Les photos n’ont pas pu être enregistrées (stockage plein ?). Libérer de la place et réessayer.');
     }
   };
 
@@ -211,14 +227,18 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
         <h1 className="mb-4 font-serif text-3xl">{titre}</h1>
         <div className="mb-2 flex flex-wrap gap-2">
           <button type="button" className="plai-btn min-h-[44px]" onClick={() => pdfInput.current?.click()}>Ouvrir un PDF</button>
+          <button type="button" className="plai-btn min-h-[44px]" onClick={() => cameraInput.current?.click()}>Photographier une feuille</button>
+          <button type="button" className="plai-btn min-h-[44px]" onClick={() => photosInput.current?.click()}>Choisir des photos de feuilles</button>
           <button type="button" className="plai-btn min-h-[44px]" onClick={nouvellePageVierge}>Nouvelle page vierge</button>
           <button type="button" className="plai-btn min-h-[44px]" onClick={() => cahierInput.current?.click()}>Reprendre un fichier .cahier</button>
         </div>
         <p className="mb-4 text-[var(--text2)]">
-          Ouvrir un PDF : la fiche reçue de l’enseignant (Teams, Smartschool, mail). Fichier .cahier : un travail commencé sur un autre appareil.
+          Ouvrir un PDF : la fiche reçue de l’enseignant (Teams, Smartschool, mail). Photographier ou choisir des photos : une feuille papier devient une page à annoter. Fichier .cahier : un travail commencé sur un autre appareil.
           Tout reste sur cet appareil, rien n’est envoyé sur internet.
         </p>
         <input ref={pdfInput} type="file" accept="application/pdf" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void ouvrirPdf(f); }} />
+        <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void importerPhotos(f); }} />
+        <input ref={photosInput} type="file" accept="image/*" multiple hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void importerPhotos(f); }} />
         <input ref={cahierInput} type="file" accept=".cahier,application/zip" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importerCahier(f); }} />
         {erreur && <div className="plai-error mb-4" role="alert">{erreur}</div>}
         {visibles.length === 0 ? (

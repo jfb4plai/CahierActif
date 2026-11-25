@@ -41,6 +41,8 @@ type Props = {
   pdf: PDFDocumentProxy | null;
   niveau: Niveau;
   formeChoisie: TypeForme;
+  /** Document de photos : la photo de cette page, affichée sous les annotations. */
+  photoUrl?: string;
   /** Surligneur : « libre » suit le doigt, « lineaire » trace une droite du début à la fin du glissé. */
   modeSurligneur: 'libre' | 'lineaire';
   /** Taille (points) des nouveaux textes. */
@@ -593,6 +595,10 @@ export function PageVue(p: Props) {
       onPointerCancel={e => terminer(e.pointerId)}
     >
       {visible && p.pdf && <PdfCanvas pdf={p.pdf} pageIndex={p.pageIndex} pxMm={p.pxMm} />}
+      {visible && p.photoUrl && (
+        <img src={p.photoUrl} alt={`Photo de la page ${p.pageIndex + 1}`} draggable={false}
+          style={{ position: 'absolute', left: 0, top: 0, width: w, height: h, userSelect: 'none', pointerEvents: 'none' }} />
+      )}
       {visible && (
         <Stage
           ref={scene}

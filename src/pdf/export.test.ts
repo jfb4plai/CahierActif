@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { PDFDocument } from 'pdf-lib';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { exporterPdf } from './export';
-import { ajouterObjet, ajouterPageVierge, changerFond, nouveauDocPdf, nouveauDocVierge } from '../model/ops';
+import { ajouterObjet, ajouterPageVierge, changerFond, nouveauDocPdf, nouveauDocPhotos, nouveauDocVierge } from '../model/ops';
 
 async function texteDe(octets: Uint8Array, page: number): Promise<string> {
   const d = await pdfjs.getDocument({ data: octets.slice() }).promise;
@@ -79,5 +79,21 @@ describe('exporterPdf', () => {
     d = ajouterObjet(d, 0, { id: 'dr', type: 'droite', a: { x: 40, y: 60 }, b: { x: 90, y: 100 }, couleur: '#1d4ed8', epaisseur: 0.8 });
     const out = await exporterPdf(d);
     expect((await PDFDocument.load(out)).getPageCount()).toBe(1);
+  });
+
+  it('photos de feuilles : une page par photo, à la taille prévue, photo posée en fond, annotations par-dessus', async () => {
+    const png = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'));
+    const img = { mime: 'image/png' as const, data: png.buffer.slice(png.byteOffset, png.byteOffset + png.byteLength) as ArrayBuffer };
+    let d = nouveauDocPhotos('Feuilles', 'p3p6', [img, img], [{ largeurMm: 222.75, hauteurMm: 297 }, { largeurMm: 297, hauteurMm: 222.75 }]);
+    d = ajouterObjet(d, 1, { id: 's', type: 'trait', points: [{ x: 10, y: 10 }, { x: 60, y: 40 }], couleur: '#dc2626', epaisseur: 0.8 });
+    const pdf = await PDFDocument.load(await exporterPdf(d));
+    expect(pdf.getPageCount()).toBe(2);
+    const K = 72 / 25.4;
+    expect(pdf.getPage(0).getWidth()).toBeCloseTo(222.75 * K, 0);
+    expect(pdf.getPage(1).getWidth()).toBeCloseTo(297 * K, 0);
+    expect(pdf.getPage(1).getHeight()).toBeCloseTo(222.75 * K, 0);
+    // une image par page (objets XObject de type Image)
+    const images = pdf.context.enumerateIndirectObjects().filter(([, o]) => String(o).includes('/Subtype /Image'));
+    expect(images.length).toBeGreaterThanOrEqual(1);
   });
 });

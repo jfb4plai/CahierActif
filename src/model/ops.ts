@@ -1,5 +1,5 @@
 import { A4, nouvelId } from './types';
-import type { CahierDoc, Fond, Niveau, Objet, Page, TaillePage } from './types';
+import type { CahierDoc, Fond, ImageSource, Niveau, Objet, Page, TaillePage } from './types';
 
 function pageVide(t: TaillePage): Page {
   return { largeurMm: t.largeurMm, hauteurMm: t.hauteurMm, fond: 'aucun', objets: [] };
@@ -13,6 +13,25 @@ export function nouveauDocVierge(titre: string, niveau: Niveau): CahierDoc {
 export function nouveauDocPdf(titre: string, niveau: Niveau, data: ArrayBuffer, tailles: TaillePage[]): CahierDoc {
   const now = Date.now();
   return { id: nouvelId(), titre, niveau, cree: now, modifie: now, source: { type: 'pdf', data }, pages: tailles.map(pageVide) };
+}
+
+/** Document à partir de photos de feuilles : une page par photo, à la forme de la photo. */
+export function nouveauDocPhotos(titre: string, niveau: Niveau, images: ImageSource[], tailles: TaillePage[]): CahierDoc {
+  if (images.length === 0 || images.length !== tailles.length) throw new RangeError('une taille de page par photo');
+  const now = Date.now();
+  return { id: nouvelId(), titre, niveau, cree: now, modifie: now, source: { type: 'photos', images }, pages: tailles.map(pageVide) };
+}
+
+/** Ajoute des pages-photos à la fin d'un document de photos. */
+export function ajouterPagesPhotos(doc: CahierDoc, images: ImageSource[], tailles: TaillePage[]): CahierDoc {
+  if (doc.source.type !== 'photos') throw new RangeError('ce document ne vient pas de photos');
+  if (images.length !== tailles.length) throw new RangeError('une taille de page par photo');
+  return {
+    ...doc,
+    source: { type: 'photos', images: [...doc.source.images, ...images] },
+    pages: [...doc.pages, ...tailles.map(pageVide)],
+    modifie: Date.now(),
+  };
 }
 
 function majPage(doc: CahierDoc, i: number, f: (p: Page) => Page): CahierDoc {

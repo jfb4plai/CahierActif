@@ -7,7 +7,8 @@ import { versCahier } from '../fichier/cahier';
 import { annuler, creer, peutAnnuler, peutRetablir, pousser, retablir, type Historique } from '../model/history';
 import { COULEURS_SURLIGNEUR, SURLIGNEUR_EPAISSEUR_MM } from '../lib/couleurs';
 import { TAILLE_TEXTE_DEFAUT_PT } from '../model/texte';
-import { ajouterPageVierge, changerFond, degrouperObjets, epaissirObjets, grouperObjets, recolorerObjets, redimensionnerTextes, supprimerObjets } from '../model/ops';
+import { PhotoIllisibleError, preparerPhotos } from '../lib/photo';
+import { ajouterPageVierge, ajouterPagesPhotos, changerFond, degrouperObjets, epaissirObjets, grouperObjets, recolorerObjets, redimensionnerTextes, supprimerObjets } from '../model/ops';
 import type { OutilId } from '../model/outils';
 import type { CahierDoc, Fond, TypeForme } from '../model/types';
 import { aDesPagesTournees } from '../pdf/info';
@@ -33,6 +34,17 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   const [h, dispatch] = useReducer(reducteur, initial, creer);
   const doc = h.present;
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
+  // Document de photos : une URL locale par photo pour l'afficher sous les annotations.
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const imagesPhotos = doc.source.type === 'photos' ? doc.source.images : null;
+  useEffect(() => {
+    if (!imagesPhotos) { setPhotoUrls([]); return; }
+    const urls = imagesPhotos.map(i => URL.createObjectURL(new Blob([i.data], { type: i.mime })));
+    setPhotoUrls(urls);
+    return () => urls.forEach(u => URL.revokeObjectURL(u));
+  }, [imagesPhotos]);
+  const photosInput = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
   const [outil, setOutil] = useState<OutilId>('stylo');
   const [couleurEncre, setCouleurEncre] = useState(COULEURS[0].hex);
   const [couleurSurligneur, setCouleurSurligneur] = useState(COULEURS_SURLIGNEUR[0].hex);
@@ -178,6 +190,17 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     validerAutres(null);
   };
 
+  const ajouterPhotos = async (fichiers: File[]) => {
+    if (fichiers.length === 0) return;
+    validerSaisie();
+    try {
+      const { images, tailles } = await preparerPhotos(fichiers);
+      commit(ajouterPagesPhotos(dernier.current, images, tailles));
+    } catch (e) {
+      setMessage({ type: 'erreur', texte: e instanceof PhotoIllisibleError ? e.message : 'Les photos n’ont pas pu être ajoutées. Réessayer.' });
+    }
+  };
+
   const fermer = () => {
     validerSaisie();
     onFermer();
@@ -260,6 +283,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             pdf={pdf}
             niveau={reglages.niveau}
             formeChoisie={formeChoisie}
+            photoUrl={photoUrls[i]}
             modeSurligneur={modeSurligneur}
             taillePtTexte={taillePtTexte}
             selectionId={outilSelection && selection?.page === i && selection.ids.length === 1 ? selection.ids[0] : null}
@@ -299,6 +323,14 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
               {FONDS.map(f => <option key={f.id} value={f.id}>{f.libelle}</option>)}
             </select>
           </label>
+        )}
+        {doc.source.type === 'photos' && (
+          <>
+            <button type="button" className="plai-btn min-h-[44px]" onClick={() => cameraInput.current?.click()}>Photographier une page</button>
+            <button type="button" className="plai-btn min-h-[44px]" onClick={() => photosInput.current?.click()}>Ajouter des photos</button>
+            <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void ajouterPhotos(f); }} />
+            <input ref={photosInput} type="file" accept="image/*" multiple hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void ajouterPhotos(f); }} />
+          </>
         )}
         {doc.source.type === 'vierge' && (
           <button type="button" className="plai-btn min-h-[44px]" onClick={() => commit(ajouterPageVierge(doc))}>Ajouter une page</button>
