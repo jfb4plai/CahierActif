@@ -3,6 +3,7 @@ import { COULEURS_SURLIGNEUR } from '../lib/couleurs';
 import { FONDS } from '../model/fonds';
 import { FORMES } from '../model/formes';
 import { TAILLES_TEXTE_PT } from '../model/texte';
+import { PaletteCouleurs } from './PaletteCouleurs';
 import { outilsPour, type OutilId } from '../model/outils';
 
 export const COULEURS = [
@@ -105,11 +106,7 @@ export function BarreOutils(p: PropsOutils) {
         </>
       )}
       {p.palette && <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />}
-      {p.palette && (p.palette === 'surligneur' ? COULEURS_SURLIGNEUR : COULEURS).map(c => (
-        <button key={c.hex} type="button" aria-label={c.nom} title={c.nom} aria-pressed={p.couleur === c.hex} onClick={() => p.setCouleur(c.hex)}
-          className={`h-11 w-11 rounded-full border-2 ${p.couleur === c.hex ? 'border-[#0f6e56] ring-2 ring-[#0f6e56]' : 'border-white'}`}
-          style={{ background: c.hex }} />
-      ))}
+      {p.palette && <PaletteCouleurs couleurs={p.palette === 'surligneur' ? COULEURS_SURLIGNEUR : COULEURS} choisie={p.couleur} onChoisir={p.setCouleur} taille={44} />}
       {p.tailleTexte && (
         <>
           <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />

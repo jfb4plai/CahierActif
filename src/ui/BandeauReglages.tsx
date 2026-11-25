@@ -4,6 +4,7 @@ import { OUTILS } from '../model/outils';
 import { TAILLES_TEXTE_PT } from '../model/texte';
 import { COULEURS, EPAISSEURS, type PropsOutils } from './BarreOutils';
 import { OPTION_CHOISIE, OUTIL_GRIS } from './ColonneOutils';
+import { PaletteCouleurs } from './PaletteCouleurs';
 
 const PUCE = '!w-auto';
 
@@ -54,13 +55,7 @@ export function BandeauReglages(p: PropsOutils) {
         )}
         {p.palette && (
           <>
-            <div role="group" aria-label="Couleur" className="flex shrink-0 items-center gap-2">
-              {(p.palette === 'surligneur' ? COULEURS_SURLIGNEUR : COULEURS).map(c => (
-                <button key={c.hex} type="button" aria-label={c.nom} title={c.nom} aria-pressed={p.couleur === c.hex} onClick={() => p.setCouleur(c.hex)}
-                  className={`h-12 w-12 shrink-0 rounded-full border-4 ${p.couleur === c.hex ? 'border-[#1d4ed8]' : 'border-white'}`}
-                  style={{ background: c.hex, boxShadow: '0 0 0 1px #9ca3af' }} />
-              ))}
-            </div>
+            <PaletteCouleurs couleurs={p.palette === 'surligneur' ? COULEURS_SURLIGNEUR : COULEURS} choisie={p.couleur} onChoisir={p.setCouleur} taille={48} />
           </>
         )}
         {p.surligneur && (
