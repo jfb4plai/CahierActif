@@ -3,7 +3,7 @@ import { Group, Image as KImage, Line, Rect, Text } from 'react-konva';
 import type Konva from 'konva';
 import { couleurColonne, geometrieOperation, valeurCellule } from '../../maths/operation';
 import { geometrieFraction } from '../../maths/fraction';
-import { MARGE_MM, etiquettePoint, formatNombre, geometrieRepere, versMm } from '../../maths/repere';
+import { MARGE_MM, etiquettePoint, extremitesDroite, formatNombre, geometrieRepere, versMm } from '../../maths/repere';
 import { ptVersMm } from '../../lib/units';
 import type { Expression, Fraction, ObjetMaths, OperationPosee, Repere } from '../../model/types';
 
@@ -81,6 +81,10 @@ function FormeRepere({ o, ...g0 }: Commun & { o: Repere }) {
         <Text key={`ly${t.valeur}`} x={ox - 9} y={ry(t.position) - 1.4} width={7.5} text={formatNombre(t.valeur)} align="right" fontFamily="Arial" fontSize={2.8} fill={o.couleur} />
       ))}
       <Text x={ox - 4} y={oy + 1.2} width={3.5} text="0" align="right" fontFamily="Arial" fontSize={2.8} fill={o.couleur} />
+      {(o.droites ?? []).map(d => {
+        const e = extremitesDroite(o, d.a, d.b);
+        return e && <Line key={`d${d.a}${d.b}`} points={[rx(e.x1), ry(e.y1), rx(e.x2), ry(e.y2)]} stroke={o.couleur} strokeWidth={0.5} lineCap="round" />;
+      })}
       {o.points.map(pt => {
         const m = versMm(o, pt.x, pt.y);
         const x = rx(m.x);

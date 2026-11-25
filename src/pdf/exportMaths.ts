@@ -2,7 +2,7 @@ import type { PDFDocument, PDFFont, PDFPage } from 'pdf-lib';
 import { rgb } from 'pdf-lib';
 import { couleurColonne, geometrieOperation, valeurCellule } from '../maths/operation';
 import { geometrieFraction } from '../maths/fraction';
-import { MARGE_MM, etiquettePoint, formatNombre, geometrieRepere, versMm } from '../maths/repere';
+import { MARGE_MM, etiquettePoint, extremitesDroite, formatNombre, geometrieRepere, versMm } from '../maths/repere';
 import { hexVersRgb01 } from '../lib/couleurs';
 import type { Expression, Fraction, OperationPosee, Repere } from '../model/types';
 import { K, X, Y, couleur, encodable, type Origine } from './origine';
@@ -71,6 +71,10 @@ export function dessinerRepere(p: PDFPage, r: Origine, o: Repere, font: PDFFont)
     if (t.valeur !== 0) texteCentre(p, font, formatNombre(t.valeur), X(r, g.origine.x - 3), Y(r, t.position), 8, o.couleur);
   }
   texteCentre(p, font, '0', X(r, g.origine.x - 2.5), Y(r, g.origine.y + 3), 8, o.couleur);
+  for (const d of o.droites ?? []) {
+    const e = extremitesDroite(o, d.a, d.b);
+    if (e) ligne(p, r, e.x1, e.y1, e.x2, e.y2, 0.5, c);
+  }
   for (const pt of o.points) {
     const m = versMm(o, pt.x, pt.y);
     ligne(p, r, m.x - 1.2, m.y - 1.2, m.x + 1.2, m.y + 1.2, 0.35, c);

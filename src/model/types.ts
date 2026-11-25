@@ -71,6 +71,9 @@ export type Expression = {
 /** Coordonnées en unités du repère. */
 export type PointRepere = { nom: string; x: number; y: number };
 
+/** Droite passant par deux points du repère, désignés par leur nom. */
+export type DroiteRepere = { a: string; b: string };
+
 export type Repere = {
   id: string;
   type: 'repere';
@@ -82,6 +85,7 @@ export type Repere = {
   ymax: number;
   uniteMm: number;
   points: PointRepere[];
+  droites?: DroiteRepere[]; // absent dans les documents créés avant les droites
   couleur: string;
 };
 

@@ -82,8 +82,53 @@ export function ajouterPoint(r: Repere, xmm: number, ymm: number): Repere {
   return { ...r, points: [...r.points, { nom: nomSuivant(r.points), x, y }] };
 }
 
+/** Supprimer un point supprime aussi les droites qui passent par lui. */
 export function supprimerPoint(r: Repere, nom: string): Repere {
-  return { ...r, points: r.points.filter(p => p.nom !== nom) };
+  const reste = (r.droites ?? []).filter(d => d.a !== nom && d.b !== nom);
+  const out: Repere = { ...r, points: r.points.filter(p => p.nom !== nom) };
+  if (r.droites) out.droites = reste;
+  return out;
+}
+
+/** Deux points distincts du repère, droite pas encore tracée (AB et BA sont la même droite) : sinon repère inchangé. */
+export function ajouterDroite(r: Repere, a: string, b: string): Repere {
+  const connus = new Set(r.points.map(p => p.nom));
+  if (a === b || !connus.has(a) || !connus.has(b)) return r;
+  const droites = r.droites ?? [];
+  if (droites.some(d => (d.a === a && d.b === b) || (d.a === b && d.b === a))) return r;
+  return { ...r, droites: [...droites, { a, b }] };
+}
+
+export function supprimerDroite(r: Repere, a: string, b: string): Repere {
+  return { ...r, droites: (r.droites ?? []).filter(d => !(d.a === a && d.b === b)) };
+}
+
+export const nomDroite = (d: { a: string; b: string }) => `(${d.a}${d.b})`;
+
+/**
+ * Extrémités (mm page) de la droite (ab), prolongée jusqu'aux bords du quadrillage (découpe de Liang-Barsky).
+ * null si un point manque (document modifié à la main) ou si les deux points sont confondus.
+ */
+export function extremitesDroite(r: Repere, a: string, b: string): { x1: number; y1: number; x2: number; y2: number } | null {
+  const A = r.points.find(p => p.nom === a);
+  const B = r.points.find(p => p.nom === b);
+  if (!A || !B || (A.x === B.x && A.y === B.y)) return null;
+  const dx = B.x - A.x;
+  const dy = B.y - A.y;
+  let t0 = -Infinity;
+  let t1 = Infinity;
+  // Contrainte p·t ≤ q : p < 0 borne t par le bas, p > 0 par le haut, p = 0 : vraie ou jamais.
+  const borne = (p: number, q: number) => {
+    if (p === 0) return q >= 0;
+    if (p < 0) t0 = Math.max(t0, q / p);
+    else t1 = Math.min(t1, q / p);
+    return true;
+  };
+  if (!borne(-dx, A.x - r.xmin) || !borne(dx, r.xmax - A.x) || !borne(-dy, A.y - r.ymin) || !borne(dy, r.ymax - A.y)) return null;
+  if (!(t0 <= t1) || !Number.isFinite(t0) || !Number.isFinite(t1)) return null;
+  const p0 = versMm(r, A.x + t0 * dx, A.y + t0 * dy);
+  const p1 = versMm(r, A.x + t1 * dx, A.y + t1 * dy);
+  return { x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y };
 }
 
 export function formatNombre(v: number): string {
