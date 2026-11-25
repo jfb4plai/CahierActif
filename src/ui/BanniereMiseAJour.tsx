@@ -13,11 +13,28 @@ export function BanniereMiseAJour() {
   const mettreAJour = useRef<(recharger?: boolean) => Promise<void>>();
 
   useEffect(() => {
-    mettreAJour.current = registerSW({ onNeedRefresh: () => setEtat(e => e ?? 'prete') });
+    let minuterie: number | undefined;
+    let surRetour: (() => void) | undefined;
+    mettreAJour.current = registerSW({
+      onNeedRefresh: () => setEtat(e => e ?? 'prete'),
+      // Le navigateur ne cherche une nouvelle version qu'à l'ouverture de la page : une application laissée ouverte
+      // des jours ne verrait rien. On cherche au retour sur l'application et toutes les heures.
+      onRegisteredSW(_url, reg) {
+        if (!reg) return;
+        const chercher = () => { void reg.update().catch(() => undefined); };
+        minuterie = window.setInterval(chercher, 60 * 60 * 1000);
+        surRetour = () => { if (document.visibilityState === 'visible') chercher(); };
+        document.addEventListener('visibilitychange', surRetour);
+      },
+    });
     // Vite signale l'échec d'un chargement à la demande avant de le laisser échouer.
     const surEchec = (e: Event) => { e.preventDefault(); setEtat('chargement-impossible'); };
     window.addEventListener('vite:preloadError', surEchec);
-    return () => window.removeEventListener('vite:preloadError', surEchec);
+    return () => {
+      window.removeEventListener('vite:preloadError', surEchec);
+      window.clearInterval(minuterie);
+      if (surRetour) document.removeEventListener('visibilitychange', surRetour);
+    };
   }, []);
 
   if (!etat) return null;
@@ -31,7 +48,15 @@ export function BanniereMiseAJour() {
       <button
         type="button"
         className="plai-btn min-h-[44px]"
-        onClick={() => (etat === 'prete' && mettreAJour.current ? void mettreAJour.current(true) : window.location.reload())}
+        onClick={() => {
+          if (etat === 'prete' && mettreAJour.current) {
+            void mettreAJour.current(true); // active la nouvelle version, puis recharge
+            // Page jamais contrôlée par le service worker (première visite) : aucun rechargement automatique, on le fait.
+            window.setTimeout(() => window.location.reload(), 1500);
+          } else {
+            window.location.reload();
+          }
+        }}
       >
         {etat === 'prete' ? 'Mettre à jour' : 'Recharger la page'}
       </button>
