@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { CahierDoc, Trait, Texte } from './types';
 import {
-  nouveauDocVierge, nouveauDocPdf, ajouterObjet, modifierObjet, supprimerObjet, deplacerObjet, deplacerObjets, supprimerObjets, membresDuGroupe, grouperObjets, degrouperObjets, recolorerObjets, epaissirObjets, redimensionnerTextes, nouveauDocPhotos, ajouterPagesPhotos,
+  nouveauDocVierge, nouveauDocPdf, ajouterObjet, modifierObjet, supprimerObjet, deplacerObjet, deplacerObjets, supprimerObjets, membresDuGroupe, grouperObjets, degrouperObjets, recolorerObjets, epaissirObjets, redimensionnerTextes, nouveauDocPhotos, ajouterPagesPhotos, deplacerPage, origineDe,
   remplacerObjet, changerFond, ajouterPageVierge,
 } from './ops';
 
@@ -188,5 +188,42 @@ describe('photos', () => {
   });
   it('ajouterPagesPhotos : refusé hors document de photos', () => {
     expect(() => ajouterPagesPhotos(nouveauDocVierge('V', 'p3p6'), [img(1)], [t])).toThrow(RangeError);
+  });
+});
+
+describe('ordre des pages', () => {
+  const doc3 = () => {
+    let d = nouveauDocVierge('P', 'p3p6');
+    d = ajouterPageVierge(ajouterPageVierge(d));
+    d = ajouterObjet(d, 0, trait('p0'));
+    d = ajouterObjet(d, 1, trait('p1'));
+    d = ajouterObjet(d, 2, trait('p2'));
+    return d;
+  };
+  const ids = (d: CahierDoc) => d.pages.map(p => p.objets[0].id);
+
+  it('descendre la première page : elle passe en deuxième, avec ses annotations', () => {
+    expect(ids(deplacerPage(doc3(), 0, 1))).toEqual(['p1', 'p0', 'p2']);
+  });
+  it('monter la dernière page', () => {
+    expect(ids(deplacerPage(doc3(), 2, -1))).toEqual(['p0', 'p2', 'p1']);
+  });
+  it('au bord : document inchangé', () => {
+    const d = doc3();
+    expect(deplacerPage(d, 0, -1)).toBe(d);
+    expect(deplacerPage(d, 2, 1)).toBe(d);
+  });
+  it('chaque page note l’origine de son fond avant le changement d’ordre', () => {
+    const d = deplacerPage(doc3(), 0, 1);
+    expect(d.pages.map(p => p.origine)).toEqual([1, 0, 2]);
+    expect(d.pages.map((_, i) => origineDe(d, i))).toEqual([1, 0, 2]);
+  });
+  it('ajouter des photos après un changement d’ordre : la nouvelle page pointe sur la nouvelle photo', () => {
+    const img = (n: number) => ({ mime: 'image/jpeg' as const, data: new Uint8Array([n]).buffer });
+    const t = { largeurMm: 210, hauteurMm: 297 };
+    let d = nouveauDocPhotos('F', 'p3p6', [img(1), img(2)], [t, t]);
+    d = deplacerPage(d, 0, 1);
+    d = ajouterPagesPhotos(d, [img(3)], [t]);
+    expect(d.pages.map(p => p.origine)).toEqual([1, 0, 2]);
   });
 });

@@ -138,6 +138,11 @@ export type Page = {
   hauteurMm: number;
   fond: Fond;
   objets: Objet[];
+  /**
+   * Rang de la page dans la source (page du PDF, photo). Absent = même rang que sa position.
+   * Posé dès qu'on réordonne ou ajoute des pages, pour que chaque page garde son fond.
+   */
+  origine?: number;
 };
 
 export type ImageSource = { mime: 'image/jpeg' | 'image/png'; data: ArrayBuffer };

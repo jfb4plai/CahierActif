@@ -594,7 +594,7 @@ export function PageVue(p: Props) {
       aria-label={`Page ${p.pageIndex + 1}`}
       onPointerCancel={e => terminer(e.pointerId)}
     >
-      {visible && p.pdf && <PdfCanvas pdf={p.pdf} pageIndex={p.pageIndex} pxMm={p.pxMm} />}
+      {visible && p.pdf && <PdfCanvas pdf={p.pdf} pageIndex={page.origine ?? p.pageIndex} pxMm={p.pxMm} />}
       {visible && p.photoUrl && (
         <img src={p.photoUrl} alt={`Photo de la page ${p.pageIndex + 1}`} draggable={false}
           style={{ position: 'absolute', left: 0, top: 0, width: w, height: h, userSelect: 'none', pointerEvents: 'none' }} />

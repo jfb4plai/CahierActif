@@ -8,7 +8,7 @@ import { annuler, creer, peutAnnuler, peutRetablir, pousser, retablir, type Hist
 import { COULEURS_SURLIGNEUR, SURLIGNEUR_EPAISSEUR_MM } from '../lib/couleurs';
 import { TAILLE_TEXTE_DEFAUT_PT } from '../model/texte';
 import { PhotoIllisibleError, preparerPhotos } from '../lib/photo';
-import { ajouterPageVierge, ajouterPagesPhotos, changerFond, degrouperObjets, epaissirObjets, grouperObjets, recolorerObjets, redimensionnerTextes, supprimerObjets } from '../model/ops';
+import { ajouterPageVierge, ajouterPagesPhotos, changerFond, deplacerPage, degrouperObjets, epaissirObjets, grouperObjets, recolorerObjets, redimensionnerTextes, supprimerObjets } from '../model/ops';
 import type { OutilId } from '../model/outils';
 import type { CahierDoc, Fond, TypeForme } from '../model/types';
 import { aDesPagesTournees } from '../pdf/info';
@@ -18,6 +18,8 @@ import type { StorageAdapter } from '../storage/adapter';
 import { BarreOutils, COULEURS, EPAISSEURS, type PropsOutils } from './BarreOutils';
 import { BandeauReglages } from './BandeauReglages';
 import { ColonneOutils, LARGEUR_COLONNE_PX } from './ColonneOutils';
+import { GestionPages } from './GestionPages';
+import { extraireDocument } from '../pdf/extraire';
 import { FONDS } from '../model/fonds';
 import { PageVue } from './PageVue';
 
@@ -43,6 +45,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     setPhotoUrls(urls);
     return () => urls.forEach(u => URL.revokeObjectURL(u));
   }, [imagesPhotos]);
+  const [pagesOuvert, setPagesOuvert] = useState(false);
   const photosInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const [outil, setOutil] = useState<OutilId>('stylo');
@@ -190,6 +193,24 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     validerAutres(null);
   };
 
+  // Copie les pages choisies dans un nouveau document de la bibliothèque (même dossier) ; l'original ne bouge pas.
+  const extrairePages = async (indices: number[]) => {
+    validerSaisie();
+    const d = dernier.current;
+    const numeros = indices.map(i => i + 1);
+    const titre = `${d.titre} (${numeros.length === 1 ? 'page' : 'pages'} ${numeros.join(', ')})`;
+    try {
+      const nouveau = await extraireDocument(d, indices, titre);
+      await stockage.enregistrer(nouveau);
+      const dossierId = (await stockage.lister()).find(m => m.id === d.id)?.dossierId;
+      if (dossierId) await stockage.deplacer(nouveau.id, dossierId);
+      setPagesOuvert(false);
+      setMessage({ type: 'info', texte: `Nouveau document « ${titre} » créé : le retrouver dans « Mes documents ».` });
+    } catch {
+      setMessage({ type: 'erreur', texte: 'L’extraction a échoué. Votre document est intact : réessayez.' });
+    }
+  };
+
   const ajouterPhotos = async (fichiers: File[]) => {
     if (fichiers.length === 0) return;
     validerSaisie();
@@ -283,7 +304,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             pdf={pdf}
             niveau={reglages.niveau}
             formeChoisie={formeChoisie}
-            photoUrl={photoUrls[i]}
+            photoUrl={photoUrls[doc.pages[i].origine ?? i]}
             modeSurligneur={modeSurligneur}
             taillePtTexte={taillePtTexte}
             selectionId={outilSelection && selection?.page === i && selection.ids.length === 1 ? selection.ids[0] : null}
@@ -324,6 +345,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             </select>
           </label>
         )}
+        <button type="button" className="plai-btn min-h-[44px]" onClick={() => { validerSaisie(); setPagesOuvert(true); }}>Gérer les pages</button>
         {doc.source.type === 'photos' && (
           <>
             <button type="button" className="plai-btn min-h-[44px]" onClick={() => cameraInput.current?.click()}>Photographier une page</button>
@@ -340,6 +362,10 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
         <div className={message.type === 'erreur' ? 'plai-error' : 'plai-banner'} role="alert">
           {message.texte} <button type="button" className="min-h-[44px] min-w-[44px] underline" onClick={() => setMessage(null)}>Fermer</button>
         </div>
+      )}
+      {pagesOuvert && (
+        <GestionPages doc={doc} pdf={pdf} photoUrls={photoUrls} onDeplacer={(i, delta) => commit(deplacerPage(dernier.current, i, delta))}
+          onExtraire={extrairePages} onFermer={() => setPagesOuvert(false)} />
       )}
       {avecColonne ? (
         <div className={`flex ${reglages.colonne === 'droite' ? 'flex-row-reverse' : ''}`}>

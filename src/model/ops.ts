@@ -26,12 +26,28 @@ export function nouveauDocPhotos(titre: string, niveau: Niveau, images: ImageSou
 export function ajouterPagesPhotos(doc: CahierDoc, images: ImageSource[], tailles: TaillePage[]): CahierDoc {
   if (doc.source.type !== 'photos') throw new RangeError('ce document ne vient pas de photos');
   if (images.length !== tailles.length) throw new RangeError('une taille de page par photo');
+  const debut = doc.source.images.length;
   return {
     ...doc,
     source: { type: 'photos', images: [...doc.source.images, ...images] },
-    pages: [...doc.pages, ...tailles.map(pageVide)],
+    pages: [...doc.pages, ...tailles.map((t, k) => ({ ...pageVide(t), origine: debut + k }))],
     modifie: Date.now(),
   };
+}
+
+/** Rang de la page `i` dans la source (PDF ou photos). */
+export function origineDe(doc: CahierDoc, i: number): number {
+  return doc.pages[i].origine ?? i;
+}
+
+/** Déplace la page `i` d'un cran (delta = -1 vers le début, +1 vers la fin) ; au bord : document inchangé. */
+export function deplacerPage(doc: CahierDoc, i: number, delta: -1 | 1): CahierDoc {
+  const j = i + delta;
+  if (i < 0 || i >= doc.pages.length || j < 0 || j >= doc.pages.length) return doc;
+  // Chaque page note d'où vient son fond avant que l'ordre change.
+  const pages = doc.pages.map((p, k) => (p.origine === undefined ? { ...p, origine: k } : p));
+  [pages[i], pages[j]] = [pages[j], pages[i]];
+  return { ...doc, pages, modifie: Date.now() };
 }
 
 function majPage(doc: CahierDoc, i: number, f: (p: Page) => Page): CahierDoc {

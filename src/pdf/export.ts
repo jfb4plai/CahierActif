@@ -75,12 +75,20 @@ function dessinerObjet(p: PDFPage, o: Objet, font: PDFFont, page: Page) {
 
 // Source PDF : copie des octets (le document en mémoire reste intact). Sinon : pages créées, photo en fond.
 async function preparer(doc: CahierDoc): Promise<PDFDocument> {
-  if (doc.source.type === 'pdf') return PDFDocument.load(doc.source.data.slice(0));
+  if (doc.source.type === 'pdf') {
+    const src = await PDFDocument.load(doc.source.data.slice(0));
+    const origines = doc.pages.map((p, i) => p.origine ?? i);
+    if (origines.length === src.getPageCount() && origines.every((o, i) => o === i)) return src;
+    // Pages réordonnées : le PDF de sortie reprend les pages de la source dans le nouvel ordre.
+    const out = await PDFDocument.create();
+    for (const pg of await out.copyPages(src, origines)) out.addPage(pg);
+    return out;
+  }
   const out = await PDFDocument.create();
   for (let i = 0; i < doc.pages.length; i++) {
     const page = doc.pages[i];
     const p = out.addPage([page.largeurMm * K, page.hauteurMm * K]);
-    const img = doc.source.type === 'photos' ? doc.source.images[i] : undefined;
+    const img = doc.source.type === 'photos' ? doc.source.images[page.origine ?? i] : undefined;
     if (img) {
       const emb = img.mime === 'image/png' ? await out.embedPng(img.data) : await out.embedJpg(img.data);
       p.drawImage(emb, { x: 0, y: 0, width: p.getWidth(), height: p.getHeight() });
