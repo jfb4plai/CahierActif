@@ -8,7 +8,7 @@ import { annuler, creer, peutAnnuler, peutRetablir, pousser, retablir, type Hist
 import { COULEURS_SURLIGNEUR, SURLIGNEUR_EPAISSEUR_MM } from '../lib/couleurs';
 import { TAILLE_TEXTE_DEFAUT_PT } from '../model/texte';
 import { PhotoIllisibleError, preparerPhotos } from '../lib/photo';
-import { ajouterPageVierge, ajouterPagesPhotos, changerFond, deplacerPage, degrouperObjets, epaissirObjets, grouperObjets, recolorerObjets, redimensionnerTextes, supprimerObjets } from '../model/ops';
+import { ajouterPageVierge, ajouterPagesPhotos, changerFond, deplacerPage, remplacerPhoto, degrouperObjets, epaissirObjets, grouperObjets, recolorerObjets, redimensionnerTextes, supprimerObjets } from '../model/ops';
 import type { OutilId } from '../model/outils';
 import type { CahierDoc, Fond, TypeForme } from '../model/types';
 import { aDesPagesTournees } from '../pdf/info';
@@ -365,7 +365,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
       )}
       {pagesOuvert && (
         <GestionPages doc={doc} pdf={pdf} photoUrls={photoUrls} onDeplacer={(i, delta) => commit(deplacerPage(dernier.current, i, delta))}
-          onExtraire={extrairePages} onFermer={() => setPagesOuvert(false)} />
+          onExtraire={extrairePages} onRedresser={(i, image, taille) => commit(remplacerPhoto(dernier.current, i, image, taille))} onFermer={() => setPagesOuvert(false)} />
       )}
       {avecColonne ? (
         <div className={`flex ${reglages.colonne === 'droite' ? 'flex-row-reverse' : ''}`}>

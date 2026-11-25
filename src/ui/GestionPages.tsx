@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { PDFDocumentProxy } from '../pdf/pdfjs';
-import type { CahierDoc } from '../model/types';
+import type { CahierDoc, ImageSource, TaillePage } from '../model/types';
 import { PdfCanvas } from './PdfCanvas';
+import { RedresserPhoto } from './RedresserPhoto';
 
 type Props = {
   doc: CahierDoc;
@@ -11,14 +12,23 @@ type Props = {
   onDeplacer: (i: number, delta: -1 | 1) => void;
   /** Positions (ordre affiché) des pages à copier dans un nouveau document. */
   onExtraire: (indices: number[]) => Promise<void>;
+  /** Photo recadrée ou redressée pour la page `i` (documents de photos). */
+  onRedresser: (i: number, image: ImageSource, taille: TaillePage) => void;
   onFermer: () => void;
 };
 
 const COTE_MINIATURE_PX = 150; // grand côté de la miniature
 
-export function GestionPages({ doc, pdf, photoUrls, onDeplacer, onExtraire, onFermer }: Props) {
+export function GestionPages({ doc, pdf, photoUrls, onDeplacer, onExtraire, onRedresser, onFermer }: Props) {
   const [choisies, setChoisies] = useState<Set<number>>(new Set());
   const [enCours, setEnCours] = useState(false);
+  const [redresse, setRedresse] = useState<number | null>(null);
+
+  const ouvrirRedressement = (i: number) => {
+    const n = doc.pages[i].objets.length;
+    if (n > 0 && !window.confirm(`La page ${i + 1} a ${n} annotation${n > 1 ? 's' : ''}. Recadrer ou redresser la photo les supprimera. Continuer ?`)) return;
+    setRedresse(i);
+  };
 
   const basculer = (i: number) =>
     setChoisies(s => {
@@ -85,6 +95,9 @@ export function GestionPages({ doc, pdf, photoUrls, onDeplacer, onExtraire, onFe
                   <input type="checkbox" className="h-6 w-6" checked={choisies.has(i)} onChange={() => basculer(i)} />
                   Choisir la page {i + 1}
                 </label>
+                {doc.source.type === 'photos' && (
+                  <button type="button" className="plai-btn min-h-[44px] !text-base" onClick={() => ouvrirRedressement(i)}>Recadrer ou redresser</button>
+                )}
                 <div className="flex gap-2">
                   <button type="button" className="plai-btn min-h-[44px] !text-base" disabled={i === 0} aria-label={`Monter la page ${i + 1}`} onClick={() => deplacer(i, -1)}>↑ Monter</button>
                   <button type="button" className="plai-btn min-h-[44px] !text-base" disabled={i === doc.pages.length - 1} aria-label={`Descendre la page ${i + 1}`} onClick={() => deplacer(i, 1)}>↓ Descendre</button>
@@ -94,6 +107,14 @@ export function GestionPages({ doc, pdf, photoUrls, onDeplacer, onExtraire, onFe
           })}
         </ul>
       </div>
+      {redresse !== null && doc.source.type === 'photos' && (
+        <RedresserPhoto
+          image={doc.source.images[doc.pages[redresse].origine ?? redresse]}
+          numeroPage={redresse + 1}
+          onAnnuler={() => setRedresse(null)}
+          onAppliquer={(image, taille) => { onRedresser(redresse, image, taille); setRedresse(null); }}
+        />
+      )}
     </div>
   );
 }

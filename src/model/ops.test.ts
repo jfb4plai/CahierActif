@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { CahierDoc, Trait, Texte } from './types';
 import {
-  nouveauDocVierge, nouveauDocPdf, ajouterObjet, modifierObjet, supprimerObjet, deplacerObjet, deplacerObjets, supprimerObjets, membresDuGroupe, grouperObjets, degrouperObjets, recolorerObjets, epaissirObjets, redimensionnerTextes, nouveauDocPhotos, ajouterPagesPhotos, deplacerPage, origineDe,
+  nouveauDocVierge, nouveauDocPdf, ajouterObjet, modifierObjet, supprimerObjet, deplacerObjet, deplacerObjets, supprimerObjets, membresDuGroupe, grouperObjets, degrouperObjets, recolorerObjets, epaissirObjets, redimensionnerTextes, nouveauDocPhotos, ajouterPagesPhotos, deplacerPage, origineDe, remplacerPhoto,
   remplacerObjet, changerFond, ajouterPageVierge,
 } from './ops';
 
@@ -225,5 +225,23 @@ describe('ordre des pages', () => {
     d = deplacerPage(d, 0, 1);
     d = ajouterPagesPhotos(d, [img(3)], [t]);
     expect(d.pages.map(p => p.origine)).toEqual([1, 0, 2]);
+  });
+});
+
+describe('remplacerPhoto', () => {
+  const img = (n: number) => ({ mime: 'image/jpeg' as const, data: new Uint8Array([n]).buffer });
+  const t = { largeurMm: 210, hauteurMm: 297 };
+  it('remplace la photo de la page (même après un changement d’ordre), change sa taille, vide ses annotations', () => {
+    let d = nouveauDocPhotos('F', 'p3p6', [img(1), img(2)], [t, t]);
+    d = ajouterObjet(d, 0, trait('a'));
+    d = ajouterObjet(d, 1, trait('b'));
+    d = deplacerPage(d, 0, 1); // pages : photo 2 puis photo 1
+    const n = remplacerPhoto(d, 1, img(9), { largeurMm: 297, hauteurMm: 150 }); // page 2 = photo d'origine 0
+    expect(n.source.type === 'photos' && n.source.images.map(i => new Uint8Array(i.data)[0])).toEqual([9, 2]);
+    expect(n.pages[1]).toMatchObject({ largeurMm: 297, hauteurMm: 150, objets: [] });
+    expect(n.pages[0].objets).toHaveLength(1); // l'autre page est intacte
+  });
+  it('refusé hors document de photos', () => {
+    expect(() => remplacerPhoto(nouveauDocVierge('V', 'p3p6'), 0, img(1), t)).toThrow(RangeError);
   });
 });

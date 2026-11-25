@@ -40,6 +40,19 @@ export function origineDe(doc: CahierDoc, i: number): number {
   return doc.pages[i].origine ?? i;
 }
 
+/**
+ * Remplace la photo d'une page (recadrée ou redressée) : la page prend la taille de la nouvelle photo.
+ * Ses annotations sont supprimées, car la photo n'est plus au même endroit.
+ */
+export function remplacerPhoto(doc: CahierDoc, i: number, image: ImageSource, taille: TaillePage): CahierDoc {
+  if (doc.source.type !== 'photos') throw new RangeError('ce document ne vient pas de photos');
+  const images = doc.source.images.slice();
+  images[origineDe(doc, i)] = image;
+  const pages = doc.pages.slice();
+  pages[i] = { ...pages[i], largeurMm: taille.largeurMm, hauteurMm: taille.hauteurMm, objets: [] };
+  return { ...doc, source: { type: 'photos', images }, pages, modifie: Date.now() };
+}
+
 /** Déplace la page `i` d'un cran (delta = -1 vers le début, +1 vers la fin) ; au bord : document inchangé. */
 export function deplacerPage(doc: CahierDoc, i: number, delta: -1 | 1): CahierDoc {
   const j = i + delta;
