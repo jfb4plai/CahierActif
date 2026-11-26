@@ -1,5 +1,8 @@
 import { useContext, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { depuisCahier } from '../fichier/cahier';
+import { EXTENSION_COURS, typeDeFichier } from '../fichier/cours';
+import { importerCours, preparerEnvoi } from '../lib/coursEnvoi';
+import { nomFichier, partagerOuTelecharger } from '../lib/partage';
 import { amorcerDossiers, NOM_MAX, verifierNomDossier } from '../lib/dossiers';
 import { couleurCours, PALETTE_COURS, premiereCouleurLibre, SANS_COULEUR } from '../lib/couleursCours';
 import { amorcerExemple } from '../lib/exemple';
@@ -33,6 +36,8 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
   const [renommage, setRenommage] = useState<{ id: string; valeur: string; erreur: string | null } | null>(null);
   const pdfInput = useRef<HTMLInputElement>(null);
   const cahierInput = useRef<HTMLInputElement>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [envoiEnCours, setEnvoiEnCours] = useState(false);
   const photosInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
 
@@ -130,12 +135,42 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
     }
   };
 
+  // Un fichier .cahier est un document ; un fichier .cahiers est un cours entier (nom, couleur et tous ses documents).
   const importerCahier = async (f: File) => {
     setErreur(null);
+    setInfo(null);
     try {
-      await creerEtOuvrir(await depuisCahier(await f.arrayBuffer()));
+      const data = await f.arrayBuffer();
+      if ((await typeDeFichier(data)) === 'cours') {
+        const r = await importerCours(stockage, data, dossiers);
+        await rafraichir();
+        setFiltre({ type: 'dossier', id: r.dossier.id });
+        setInfo('Cours « ' + r.dossier.nom + ' » reçu : ' + r.nombre + (r.nombre > 1 ? ' documents rangés' : ' document rangé') + (r.cree ? ' dans un nouveau cours.' : ' dans le cours qui porte déjà ce nom.'));
+        return;
+      }
+      await creerEtOuvrir(await depuisCahier(data));
     } catch (e) {
       setErreur((e as Error).message);
+    }
+  };
+
+  // Tous les documents du cours dans un seul fichier, à ouvrir sur l'autre appareil avec « Reprendre un fichier ».
+  const envoyerCours = async (cours: Dossier) => {
+    setErreur(null);
+    setInfo(null);
+    setEnvoiEnCours(true);
+    try {
+      const envoi = await preparerEnvoi(stockage, cours);
+      if (!envoi) {
+        setErreur('Le cours « ' + cours.nom + ' » ne contient aucun document à envoyer.');
+        return;
+      }
+      await partagerOuTelecharger(envoi.fichier, nomFichier(cours.nom) + EXTENSION_COURS);
+      setInfo('Le cours « ' + cours.nom + ' » est prêt : ' + envoi.nombre + (envoi.nombre > 1 ? ' documents' : ' document') + ' dans un seul fichier.');
+    } catch {
+      setErreur('Le cours n’a pas pu être préparé (mémoire insuffisante ?). Essayer avec moins de documents.');
+    } finally {
+      setEnvoiEnCours(false);
     }
   };
 
@@ -233,17 +268,23 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
             </button>
             <button type="button" className="carte-action neutre" onClick={() => cahierInput.current?.click()}>
               <IconeDossier />
-              <span className="titre">Reprendre un fichier .cahier</span>
-              <span className="texte">Un travail commencé sur un autre appareil.</span>
+              <span className="titre">Reprendre un fichier</span>
+              <span className="texte">Un document (.cahier) ou un cours entier (.cahiers) venu d’un autre appareil.</span>
               <span className="appel">Choisir un fichier →</span>
             </button>
           </div>
           <input ref={pdfInput} type="file" accept="application/pdf" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void ouvrirPdf(f); }} />
           <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void importerPhotos(f); }} />
           <input ref={photosInput} type="file" accept="image/*" multiple hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void importerPhotos(f); }} />
-          <input ref={cahierInput} type="file" accept=".cahier,application/zip" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importerCahier(f); }} />
+          <input ref={cahierInput} type="file" accept=".cahier,.cahiers,application/zip" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importerCahier(f); }} />
 
           {erreur && <div className="plai-error mt-4" role="alert">{erreur}</div>}
+          {info && (
+            <div className="plai-banner mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl" role="status">
+              <span>{info}</span>
+              <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => setInfo(null)}>Fermer</button>
+            </div>
+          )}
 
     </>
   );
@@ -343,8 +384,14 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
         {dossierActif && !formulaire && (
           <div className="mx-auto mt-2 flex max-w-4xl flex-wrap items-center gap-2">
             <span className="text-base text-[var(--text2)]">Dossier « {dossierActif.nom} » :</span>
+            <button type="button" className="plai-btn-secondaire min-h-[44px]" disabled={envoiEnCours} onClick={() => void envoyerCours(dossierActif)}>
+              {envoiEnCours ? 'Préparation…' : 'Envoyer ce cours'}
+            </button>
             <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => ouvrirFormulaire({ mode: 'renommer', id: dossierActif.id })}>Renommer</button>
             <button type="button" className="plai-btn-secondaire plai-btn-danger min-h-[44px]" onClick={() => supprimerDossier(dossierActif)}>Supprimer ce dossier</button>
+            <p className="w-full text-base text-[var(--text2)]">
+              « Envoyer ce cours » met tous ses documents dans un seul fichier (.cahiers). Sur l’autre appareil : « Reprendre un fichier ».
+            </p>
           </div>
         )}
         {formulaire && (
