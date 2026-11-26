@@ -252,7 +252,7 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
           ) : (
             <ul className="space-y-2">
               {visibles.map(m => (
-                <li key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[14px] border border-[var(--border)] bg-[var(--carte-douce)] p-2">
+                <li key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[14px] sm:flex-nowrap border border-[var(--border)] bg-[var(--carte-douce)] p-2">
                   {renommage?.id === m.id ? (
                     <form className="flex min-w-[12rem] flex-1 flex-wrap items-center gap-2" onSubmit={e => { e.preventDefault(); void validerRenommage(); }}>
                       <label className="flex min-w-[12rem] flex-1 flex-col text-base font-semibold">
@@ -269,24 +269,27 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
                       <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => setRenommage(null)}>Annuler</button>
                     </form>
                   ) : (
-                    <button type="button" className="flex min-w-[10rem] flex-1 items-center gap-3 text-left text-lg font-semibold leading-snug" onClick={() => ouvrirExistant(m.id)}>
+                    <button type="button" className="flex min-w-[10rem] flex-1 items-center gap-3 text-left text-lg font-semibold leading-snug sm:min-w-0" onClick={() => ouvrirExistant(m.id)}>
                       {m.miniature
                         ? <img src={m.miniature} alt="" className="h-[64px] w-auto shrink-0 rounded border border-[var(--border)] bg-white" />
                         : <span aria-hidden className="flex h-[64px] w-[46px] shrink-0 items-center justify-center rounded border border-[var(--border)] bg-white text-[var(--text3)]"><IconePage /></span>}
                       <span className="min-w-0">
                         <span className="line-clamp-2 break-words" title={m.titre}>{m.titre}</span>
-                        <span className="block text-base font-normal text-[var(--text3)]">Modifié le {new Date(m.modifie).toLocaleString('fr-BE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className="block whitespace-nowrap text-base font-normal text-[var(--text3)]"
+                          title={`Modifié le ${new Date(m.modifie).toLocaleString('fr-BE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`}>
+                          {new Date(m.modifie).toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        </span>
                       </span>
                     </button>
                   )}
                   {renommage?.id !== m.id && (
-                    <div className="flex flex-wrap items-end gap-2">
-                      <button type="button" className="plai-btn min-h-[44px] !px-4" aria-label={`Ouvrir ${m.titre}`} onClick={() => ouvrirExistant(m.id)}>Ouvrir</button>
-                      <button type="button" className="plai-btn-secondaire min-h-[44px] !px-4" onClick={() => setRenommage({ id: m.id, valeur: m.titre, erreur: null })}>Renommer</button>
+                    <div className="flex flex-wrap items-end gap-2 sm:shrink-0 sm:flex-nowrap">
+                      <button type="button" className="plai-btn min-h-[44px] !px-3" aria-label={`Ouvrir ${m.titre}`} onClick={() => ouvrirExistant(m.id)}>Ouvrir</button>
+                      <button type="button" className="plai-btn-secondaire min-h-[44px] !px-3" onClick={() => setRenommage({ id: m.id, valeur: m.titre, erreur: null })}>Renommer</button>
                       <label className="flex flex-col text-base leading-tight">
                         Ranger dans
                         <select
-                          className="plai-input mt-0.5 min-h-[44px] w-[10rem]"
+                          className="plai-input mt-0.5 min-h-[44px] w-[8.5rem]"
                           value={rangeDansUnDossier(m) ? m.dossierId : ''}
                           onChange={e => void ranger(m, e.target.value)}
                         >
@@ -294,7 +297,7 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
                           {dossiers.map(d => <option key={d.id} value={d.id}>{d.nom}</option>)}
                         </select>
                       </label>
-                      <button type="button" className="plai-btn-secondaire plai-btn-danger min-h-[44px] !px-4" onClick={() => supprimer(m)}>Supprimer</button>
+                      <button type="button" className="plai-btn-secondaire plai-btn-danger min-h-[44px] !px-3" onClick={() => supprimer(m)}>Supprimer</button>
                     </div>
                   )}
                 </li>
