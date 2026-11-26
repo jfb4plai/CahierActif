@@ -28,10 +28,13 @@
   nav.plan a:hover { background: #dfdcd0; }
   main { max-width: 860px; margin: 0 auto; padding: 8px 16px 48px; }
   h2 { font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif; font-weight: 400; font-size: 1.7rem; line-height: 1.25; margin: 40px 0 8px; color: var(--teal); }
+  h2[id] { scroll-margin-top: 150px; } /* le plan collant ne cache pas le titre quand on arrive par un lien */
   h3 { font-size: 1.2rem; margin: 28px 0 6px; }
+  h4 { font-size: 1.2rem; margin: 14px 0 6px; }
   p { margin: 8px 0; }
   .carte { background: var(--carte); border: 1px solid var(--border); border-radius: 14px; padding: 4px 18px 14px; margin: 14px 0; }
   .carte h3 { margin-top: 14px; }
+  h3 + .carte, h3 + .carte { margin-top: 8px; }
   ol, ul { padding-left: 1.4em; margin: 8px 0; }
   li { margin: 6px 0; }
   li > ul { margin: 4px 0; }
@@ -67,6 +70,7 @@
 
 <nav class="plan" aria-label="Plan de la page">
   <ul>
+    <li><a href="#installation">Installer l'application</a></li>
     <li><a href="#eleve">Pour l'élève</a></li>
     <li><a href="#enseignant">Pour l'enseignant</a></li>
     <li><a href="#limites">Ce que l'outil ne fait pas</a></li>
@@ -78,6 +82,85 @@
 <p>CahierActif est une application qui s'ouvre dans le navigateur d'une tablette ou d'un ordinateur. Elle aide l'élève qui écrit ou trace difficilement à travailler sur une fiche numérique : écrire, dessiner, poser une opération, tracer avec une règle. Elle compense le geste. Elle ne vérifie rien et ne propose aucune réponse.</p>
 
 <div class="note"><strong>Gratuit, sans compte.</strong> Les documents restent sur l'appareil. Le code de l'application ne contient aucun envoi de document ou de donnée vers un serveur (recherche faite dans le code le 26/11/2026).</div>
+
+<!-- ===================== INSTALLATION ===================== -->
+<h2 id="installation">Installer l'application</h2>
+<p>CahierActif fonctionne dans le navigateur, sans rien installer. L'installer ajoute une icône sur l'appareil, ouvre l'application dans sa propre fenêtre et, sur iPad, évite que les documents soient effacés. Adresse à ouvrir : <strong>cahieractif.jfb4plai.com</strong></p>
+
+<div class="note"><strong>Avant de commencer.</strong> Ouvrir l'adresse une première fois avec une connexion internet. Les libellés des menus changent d'une version à l'autre du navigateur : ceux ci-dessous sont indicatifs. Ces étapes décrivent le fonctionnement habituel des navigateurs. Elles n'ont pas été essayées sur chaque appareil.</div>
+
+<h3>Sur ordinateur</h3>
+
+<section class="carte" aria-labelledby="i1">
+  <h4 id="i1">Windows (Chrome ou Edge)</h4>
+  <ol>
+    <li>Ouvrir l'adresse dans Chrome ou dans Edge.</li>
+    <li>Chercher l'icône « Installer » (un écran avec une flèche) à droite de la barre d'adresse. Sinon, ouvrir le menu du navigateur :
+      <ul>
+        <li>Chrome : « Enregistrer et partager », puis « Installer CahierActif ».</li>
+        <li>Edge : « Applications », puis « Installer ce site en tant qu'application ».</li>
+      </ul>
+    </li>
+    <li>Confirmer avec <span class="bouton">Installer</span>.</li>
+  </ol>
+  <p>L'application s'ouvre alors dans sa propre fenêtre. Son icône se trouve dans le menu Démarrer ; elle peut être épinglée à la barre des tâches.</p>
+  <p>Firefox peut ne pas proposer l'installation : utiliser Chrome ou Edge.</p>
+</section>
+
+<section class="carte" aria-labelledby="i2">
+  <h4 id="i2">Chromebook (Chrome)</h4>
+  <ol>
+    <li>Ouvrir l'adresse dans Chrome.</li>
+    <li>Toucher l'icône « Installer » à droite de la barre d'adresse, ou ouvrir le menu du navigateur puis « Installer CahierActif ».</li>
+    <li>Confirmer avec <span class="bouton">Installer</span>.</li>
+  </ol>
+  <p>L'icône se trouve dans le lanceur d'applications.</p>
+  <div class="attention">Sur un Chromebook géré par l'établissement, l'administrateur peut avoir bloqué l'installation. Dans ce cas, s'adresser à la personne qui gère le parc informatique, ou utiliser l'application directement dans le navigateur.</div>
+</section>
+
+<section class="carte" aria-labelledby="i3">
+  <h4 id="i3">Mac (Apple)</h4>
+  <ul>
+    <li><strong>Chrome ou Edge</strong> : les mêmes étapes que sur Windows. L'icône se trouve ensuite dans le dossier Applications.</li>
+    <li><strong>Safari</strong> (macOS Sonoma ou plus récent) : ouvrir l'adresse, puis le menu « Fichier » et « Ajouter au Dock ».</li>
+  </ul>
+</section>
+
+<h3>Sur tablette</h3>
+
+<section class="carte" aria-labelledby="i4">
+  <h4 id="i4">Tablette Android (Chrome)</h4>
+  <ol>
+    <li>Ouvrir l'adresse dans Chrome.</li>
+    <li>Ouvrir le menu du navigateur (les trois points).</li>
+    <li>Toucher « Installer l'application » ou « Ajouter à l'écran d'accueil ».</li>
+    <li>Confirmer avec <span class="bouton">Installer</span> ou <span class="bouton">Ajouter</span>.</li>
+  </ol>
+  <p>L'icône apparaît sur l'écran d'accueil. Avec un autre navigateur, chercher la même option dans son menu.</p>
+</section>
+
+<section class="carte" aria-labelledby="i5">
+  <h4 id="i5">iPad (Apple)</h4>
+  <ol>
+    <li>Ouvrir l'adresse dans <strong>Safari</strong>.</li>
+    <li>Toucher <span class="bouton">Partager</span> (un carré avec une flèche vers le haut).</li>
+    <li>Faire défiler la liste, puis toucher « Sur l'écran d'accueil ».</li>
+    <li>Toucher <span class="bouton">Ajouter</span>.</li>
+    <li>Ouvrir ensuite l'application par son icône, pas par Safari.</li>
+  </ol>
+  <div class="attention"><strong>Sur iPad, l'installation compte.</strong> Sans elle, l'iPad peut effacer les documents après quelques jours sans utilisation. C'est le message que l'application affiche sur iPad tant qu'elle n'est pas installée.</div>
+</section>
+
+<section class="carte" aria-labelledby="i6">
+  <h4 id="i6">Après l'installation</h4>
+  <ul>
+    <li>Ouvrir l'application par son icône.</li>
+    <li>Au premier lancement, choisir les réglages (voir « Pour l'enseignant »).</li>
+    <li>Une nouvelle version peut être proposée : un bandeau indique « Une nouvelle version de CahierActif est prête ». Toucher <span class="bouton">Mettre à jour</span>. Le travail est enregistré automatiquement.</li>
+    <li>L'application est prévue pour s'ouvrir sans connexion une fois installée. Cela n'a pas été vérifié sur une vraie tablette : essayer une fois en mode avion avant de compter dessus.</li>
+  </ul>
+  <p>L'icône est une tablette avec une page de cahier et un crayon orange.</p>
+</section>
 
 <!-- ===================== ÉLÈVE ===================== -->
 <h2 id="eleve">Pour l'élève</h2>
@@ -187,7 +270,7 @@
   <h3 id="p1">Préparer une fiche</h3>
   <ul>
     <li>Envoyer la fiche en PDF à l'élève (Teams, Smartschool, mail). L'élève l'ouvre avec <span class="bouton">Ouvrir un PDF</span>.</li>
-    <li>Un document de plus de 50 pages ne pose pas de problème de principe : les pages ne se chargent qu'à l'écran. Je ne l'ai pas mesuré sur tablette.</li>
+    <li>Un document de plus de 50 pages ne pose pas de problème de principe : les pages ne se chargent qu'à l'écran. Cela n'a pas été mesuré sur tablette.</li>
     <li>Un PDF protégé par mot de passe ou abîmé affiche un message clair au lieu de s'ouvrir.</li>
     <li>Une feuille papier peut être photographiée : une photo devient une page.</li>
   </ul>
@@ -211,16 +294,6 @@
   </table>
   </div>
   <div class="attention">Les réglages de lissage et d'aimantation sont proposés sans validation sur le terrain. Les essayer avec l'élève, puis garder ce qui l'aide.</div>
-</section>
-
-<section class="carte" aria-labelledby="p3">
-  <h3 id="p3">Installer l'application sur une tablette</h3>
-  <p>Ouvrir l'adresse de l'application dans le navigateur, puis l'installer.</p>
-  <ul>
-    <li><strong>iPad (Safari)</strong> : toucher Partager, puis « Sur l'écran d'accueil ». Sans cela, l'iPad peut effacer les documents après quelques jours sans utilisation (c'est le message affiché par l'application).</li>
-    <li><strong>Android (Chrome)</strong> : ouvrir le menu du navigateur, puis « Installer l'application » ou « Ajouter à l'écran d'accueil ». Le libellé exact dépend de la version.</li>
-  </ul>
-  <p>L'icône est une tablette avec une page de cahier et un crayon orange. L'application est prévue pour s'ouvrir hors ligne une fois installée (non vérifié sur une vraie tablette).</p>
 </section>
 
 <section class="carte" aria-labelledby="p4">
