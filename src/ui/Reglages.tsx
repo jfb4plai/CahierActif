@@ -89,7 +89,10 @@ export function Reglages({ initial, onValider }: Props) {
           </label>
         ))}
       </fieldset>
-      <button type="button" className="plai-btn min-h-[44px]" onClick={() => onValider({ niveau, modeEntree: mode, colonne, lissage, aimantation })}>Valider</button>
+      {/* Collé en bas de l'écran : sinon « Valider » se trouve tout en bas d'une longue page, hors de vue. */}
+      <div className="sticky bottom-0 z-20 -mx-4 border-t border-[var(--border)] bg-[var(--bg)] px-4 py-3">
+        <button type="button" className="plai-btn min-h-[48px]" onClick={() => onValider({ niveau, modeEntree: mode, colonne, lissage, aimantation })}>Valider</button>
+      </div>
     </section>
   );
 }

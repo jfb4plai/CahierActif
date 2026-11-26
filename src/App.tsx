@@ -15,6 +15,10 @@ export default function App() {
   const [reglages, setReglages] = useState<R | null>(() => lireReglages());
   const [ecran, setEcran] = useState<Ecran>(reglages ? { nom: 'bibliotheque' } : { nom: 'reglages' });
 
+  // Chaque écran s'ouvre en haut : sans cela, la position de l'écran précédent est gardée et le titre se retrouve coupé.
+  const cleEcran = ecran.nom === 'document' ? `document-${ecran.doc.id}` : ecran.nom;
+  useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }, [cleEcran]);
+
   // Demande au navigateur de ne pas effacer les données (accordé si l'app est installée).
   useEffect(() => { void navigator.storage?.persist?.(); }, []);
 
