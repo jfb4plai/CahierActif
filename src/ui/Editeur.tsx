@@ -40,9 +40,9 @@ function reducteur(h: Historique<CahierDoc>, a: Action): Historique<CahierDoc> {
   return a.type === 'annuler' ? annuler(h) : retablir(h);
 }
 
-type Props = { initial: CahierDoc; reglages: Reglages; stockage: StorageAdapter; onFermer: () => void };
+type Props = { initial: CahierDoc; reglages: Reglages; stockage: StorageAdapter; onFermer: () => void; onReglages: () => void };
 
-export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
+export function Editeur({ initial, reglages, stockage, onFermer, onReglages }: Props) {
   const [h, dispatch] = useReducer(reducteur, initial, creer);
   const doc = h.present;
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
@@ -323,6 +323,11 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     if (verrou.actif && !window.confirm('Quitter ce document ? Votre travail est enregistré.')) return;
     onFermer();
   };
+  // Réglages : le travail est enregistré en continu ; le code d'adulte (mode verrouillé) est demandé par l'application.
+  const ouvrirReglages = () => {
+    validerSaisie();
+    onReglages();
+  };
   // Mode verrouillé : le navigateur demande aussi confirmation si on ferme l'onglet. Une app web ne peut pas l'empêcher
   // vraiment ; la sauvegarde continue évite toute perte.
   useEffect(() => {
@@ -456,6 +461,8 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             title="Pour rendre le travail ou l’imprimer. Les annotations ne se modifient plus ensuite."><IconeUi nom="telecharger" />Exporter en PDF</button>
           <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={exporterCahier} aria-describedby="aide-export-cahier"
             title="Pour continuer plus tard ou sur un autre appareil. Seul CahierActif le rouvre."><IconeUi nom="fichier" />Enregistrer un fichier .cahier</button>
+          <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={ouvrirReglages}
+            title="Niveau, mode d’entrée, côté de la colonne d’outils. Le travail est enregistré."><IconeUi nom="reglages" />Réglages</button>
           <button
             type="button"
             className="plai-btn-secondaire min-h-[44px]"

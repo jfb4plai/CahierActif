@@ -62,7 +62,7 @@ export default function App() {
         {ecran.nom === 'reglages' || !reglages ? (
           <Reglages initial={reglages} onValider={valider} verrouActif={verrou !== null} onVerrou={changerVerrou} />
         ) : ecran.nom === 'document' ? (
-          <Editeur key={ecran.doc.id} initial={ecran.doc} reglages={reglages} stockage={stockage} onFermer={() => setEcran({ nom: 'bibliotheque' })} />
+          <Editeur key={ecran.doc.id} initial={ecran.doc} reglages={reglages} stockage={stockage} onFermer={() => setEcran({ nom: 'bibliotheque' })} onReglages={() => void ouvrirReglages()} />
         ) : (
           <Bibliotheque stockage={stockage} reglages={reglages} onOuvrir={doc => setEcran({ nom: 'document', doc })} />
         )}
