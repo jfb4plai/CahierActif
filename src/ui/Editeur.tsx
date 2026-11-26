@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useReducer, useRef, useState } from 'react';
 import { ETAT_INITIAL, type EtatStylet } from '../input/pointerPolicy';
 import { nomFichier, partagerOuTelecharger } from '../lib/partage';
 import { pxParMm, zoomAjuste, zoomPourOperation } from '../lib/units';
@@ -22,6 +22,7 @@ import { RAYON_LISSAGE } from '../model/lissage';
 import { borneY, HAUTEUR_LIGNE_CACHE_MM, LIGNES_CACHE_DEFAUT, yInitial, type CacheLigne } from '../model/cacheligne';
 import { centrerLoupe, FACTEUR_LOUPE_DEFAUT, type Loupe } from '../model/loupe';
 import { BandeauReglages, BarreBas } from './BandeauReglages';
+import { VerrouContexte } from './DialogueCode';
 import { LARGEUR_COLONNE_PX } from './ColonneOutils';
 import { ColonneRepliable, LARGEUR_BANDE_PX } from './ColonneRepliable';
 import { usePeek } from './usePeek';
@@ -188,7 +189,8 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   // Sauvegarde automatique, 800 ms après la dernière modification.
   useEffect(() => {
     if (doc === dernierEnregistre.current) return;
-    const t = setTimeout(enregistrer, 800);
+    // Une page vierge est légère : on enregistre plus vite, ce qui réduit la fenêtre de perte à la fermeture. PDF et photos : 800 ms.
+    const t = setTimeout(enregistrer, initial.source.type === 'vierge' ? 250 : 800);
     return () => clearTimeout(t);
   }, [doc, enregistrer]);
 
@@ -314,10 +316,21 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     }
   };
 
+  const verrou = useContext(VerrouContexte);
   const fermer = () => {
     validerSaisie();
+    // Mode verrouillé : une confirmation évite de quitter le document d'un geste maladroit. Le travail est déjà enregistré.
+    if (verrou.actif && !window.confirm('Quitter ce document ? Votre travail est enregistré.')) return;
     onFermer();
   };
+  // Mode verrouillé : le navigateur demande aussi confirmation si on ferme l'onglet. Une app web ne peut pas l'empêcher
+  // vraiment ; la sauvegarde continue évite toute perte.
+  useEffect(() => {
+    if (!verrou.actif) return;
+    const avertir = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', avertir);
+    return () => window.removeEventListener('beforeunload', avertir);
+  }, [verrou.actif]);
 
   const exporter = async () => {
     validerSaisie();

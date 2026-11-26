@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { depuisCahier } from '../fichier/cahier';
 import { amorcerDossiers, NOM_MAX, verifierNomDossier } from '../lib/dossiers';
 import type { Reglages } from '../lib/reglages';
@@ -9,6 +9,7 @@ import { nouvelId } from '../model/types';
 import type { CahierDoc, Dossier } from '../model/types';
 import { taillesPagesPdf, PdfIllisibleError } from '../pdf/info';
 import type { MetaDoc, StorageAdapter } from '../storage/adapter';
+import { VerrouContexte } from './DialogueCode';
 import { IconeCamera, IconeDossier, IconePage, IconePdf, IconePhotos } from './icones';
 
 type Props = { stockage: StorageAdapter; reglages: Reglages; onOuvrir: (d: CahierDoc) => void };
@@ -18,6 +19,7 @@ type Filtre = { type: 'tous' } | { type: 'aucun' } | { type: 'dossier'; id: stri
 type FormulaireDossier = { mode: 'creer' } | { mode: 'renommer'; id: string };
 
 export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
+  const verrou = useContext(VerrouContexte);
   const [docs, setDocs] = useState<MetaDoc[]>([]);
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
   const [filtre, setFiltre] = useState<Filtre>({ type: 'tous' });
@@ -74,6 +76,7 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
   };
 
   const supprimerDossier = async (d: Dossier) => {
+    if (!(await verrou.demander())) return;
     const n = docs.filter(m => m.dossierId === d.id).length;
     const suite = n === 0 ? '' : n === 1
       ? ' Son document ne sera pas supprimé : il ira dans « Sans dossier ».'
@@ -165,6 +168,7 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
   };
 
   const supprimer = async (m: MetaDoc) => {
+    if (!(await verrou.demander())) return;
     if (!window.confirm(`Supprimer définitivement « ${m.titre} » de cet appareil ?`)) return;
     setErreur(null);
     try {

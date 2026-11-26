@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { codeValide, creerVerrou, type Verrou } from '../lib/verrou';
 import type { PositionColonne, Reglages as R } from '../lib/reglages';
 import { LISSAGES, type Lissage } from '../model/lissage';
 import type { ModeEntree, Niveau } from '../model/types';
@@ -25,9 +26,18 @@ const LISSAGES_TEXTES: Record<Lissage, { libelle: string; aide: string }> = {
   fort: { libelle: 'Fort', aide: 'Adoucit beaucoup : les traits deviennent plus réguliers, mais les petits détails des lettres s’arrondissent.' },
 };
 
-type Props = { initial: R | null; onValider: (r: R) => void };
+type Props = { initial: R | null; onValider: (r: R) => void; verrouActif: boolean; onVerrou: (v: Verrou | null) => void };
 
-export function Reglages({ initial, onValider }: Props) {
+export function Reglages({ initial, onValider, verrouActif, onVerrou }: Props) {
+  const [code, setCode] = useState('');
+  const [codeBis, setCodeBis] = useState('');
+  const [erreurCode, setErreurCode] = useState<string | null>(null);
+  const activerVerrou = async () => {
+    if (!codeValide(code)) { setErreurCode('Le code a 4 chiffres.'); return; }
+    if (code !== codeBis) { setErreurCode('Les deux codes ne sont pas pareils.'); return; }
+    onVerrou(await creerVerrou(code));
+    setCode(''); setCodeBis(''); setErreurCode(null);
+  };
   const [niveau, setNiveau] = useState<Niveau>(initial?.niveau ?? 'p3p6');
   const [mode, setMode] = useState<ModeEntree>(initial?.modeEntree ?? 'stylet');
   const [colonne, setColonne] = useState<PositionColonne>(initial?.colonne ?? 'gauche');
@@ -88,6 +98,29 @@ export function Reglages({ initial, onValider }: Props) {
             <span><strong>{o.libelle}</strong><span className="block text-[var(--text2)]">{o.aide}</span></span>
           </label>
         ))}
+      </fieldset>
+      <fieldset className="plai-card mb-4 p-4">
+        <legend className="font-semibold">Mode verrouillé (pour un adulte)</legend>
+        <p className="mb-2 text-[var(--text2)]">Avec un code à 4 chiffres, l’élève ne peut plus ouvrir ces réglages ni supprimer un document ou un dossier, et une confirmation est demandée avant de quitter un document. Ce code évite les erreurs et les jeux ; il ne protège pas contre quelqu’un qui efface les données du site.</p>
+        {verrouActif ? (
+          <>
+            <p className="mb-2 font-medium" role="status">Le mode verrouillé est actif.</p>
+            <button type="button" className="plai-btn-secondaire min-h-[48px]" onClick={() => onVerrou(null)}>Désactiver le mode verrouillé</button>
+          </>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <label className="flex flex-col text-base font-medium">Code à 4 chiffres
+              <input className="plai-input mt-1 min-h-[48px] max-w-[12rem]" type="password" inputMode="numeric" autoComplete="off" maxLength={4} value={code}
+                placeholder="Exemple : 4821" onChange={e => { setCode(e.target.value.replace(/\D/g, '')); setErreurCode(null); }} />
+            </label>
+            <label className="flex flex-col text-base font-medium">Même code, une seconde fois
+              <input className="plai-input mt-1 min-h-[48px] max-w-[12rem]" type="password" inputMode="numeric" autoComplete="off" maxLength={4} value={codeBis}
+                onChange={e => { setCodeBis(e.target.value.replace(/\D/g, '')); setErreurCode(null); }} />
+            </label>
+            {erreurCode && <p role="alert" className="text-base text-[#b91c1c]">{erreurCode}</p>}
+            <button type="button" className="plai-btn-secondaire min-h-[48px] self-start" onClick={() => void activerVerrou()}>Activer le mode verrouillé</button>
+          </div>
+        )}
       </fieldset>
       {/* Collé en bas de l'écran : sinon « Valider » se trouve tout en bas d'une longue page, hors de vue. */}
       <div className="sticky bottom-0 z-20 -mx-4 border-t border-[var(--border)] bg-[var(--bg)] px-4 py-3">
