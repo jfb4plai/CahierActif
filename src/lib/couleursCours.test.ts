@@ -28,7 +28,16 @@ describe('couleurs des cours', () => {
   it('propose une couleur encore libre', () => {
     const six = [0, 1, 2, 3, 4, 5].map(i => d(`defaut-${i}`));
     expect(premiereCouleurLibre(six)).toBe('jaune'); // seule la couleur de l’Exemple reste libre
-    expect(premiereCouleurLibre([...six, d('defaut-exemple')])).toBe(SANS_COULEUR);
+    // Avec l'Exemple, la première couleur libre est la première des cinq ajoutées.
+    expect(premiereCouleurLibre([...six, d('defaut-exemple')])).toBe('rouge');
+  });
+  it('douze couleurs, toutes différentes (identifiant, nom, fond et liseré)', () => {
+    expect(PALETTE_COURS).toHaveLength(12);
+    for (const cle of ['id', 'nom', 'fond', 'bord'] as const) expect(new Set(PALETTE_COURS.map(c => c[cle])).size).toBe(12);
+  });
+  it('quand les douze sont prises : plus de couleur libre à proposer', () => {
+    const tous = PALETTE_COURS.map(c => d(`cours-${c.id}`, c.id));
+    expect(premiereCouleurLibre(tous)).toBe(SANS_COULEUR);
   });
   it('contraste : texte noir sur chaque fond au moins 12 : 1', () => {
     const lum = (hex: string) => {

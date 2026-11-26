@@ -14,6 +14,11 @@ export const PALETTE_COURS: CouleurCours[] = [
   { id: 'orange', nom: 'Orange', fond: '#ffedd5', bord: '#ea580c' },
   { id: 'rose', nom: 'Rose', fond: '#fce7f3', bord: '#db2777' },
   { id: 'violet', nom: 'Violet', fond: '#ede9fe', bord: '#7c3aed' },
+  { id: 'rouge', nom: 'Rouge', fond: '#fee2e2', bord: '#dc2626' },
+  { id: 'citron', nom: 'Vert citron', fond: '#ecfccb', bord: '#65a30d' },
+  { id: 'menthe', nom: 'Menthe', fond: '#ccfbf1', bord: '#0d9488' },
+  { id: 'indigo', nom: 'Indigo', fond: '#e0e7ff', bord: '#4f46e5' },
+  { id: 'ardoise', nom: 'Gris ardoise', fond: '#e2e8f0', bord: '#475569' },
 ];
 
 /** Valeur de `couleur` quand l'élève choisit « Aucune » : elle l'emporte sur la couleur par défaut. */
