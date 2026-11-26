@@ -176,6 +176,20 @@ export function PageVue(p: Props) {
   };
   const priseRef = useRef<PriseInstrument | null>(null);
   const [instrumentEnCours, setInstrumentEnCours] = useState<Instrument | null>(null);
+  // Deux doigts sur un instrument : le premier le déplace, le second le fait pivoter (selon l'angle entre les deux doigts).
+  const doigtsRef = useRef(new Map<number, Point>());
+  const rotationRef = useRef<{ second: number; angleDoigts: number; angleInstrument: number; id: IdInstrument } | null>(null);
+  const versMm = (ev: PointerEvent): Point => {
+    const r = scene.current?.container().getBoundingClientRect();
+    return r ? { x: (ev.clientX - r.left) / p.pxMm, y: (ev.clientY - r.top) / p.pxMm } : { x: 0, y: 0 };
+  };
+  const angleEntreDoigts = (): number | null => {
+    const r = rotationRef.current;
+    const premier = pointeurActif.current;
+    if (!r || premier === null) return null;
+    const a = doigtsRef.current.get(premier), b = doigtsRef.current.get(r.second);
+    return a && b ? Math.atan2(b.y - a.y, b.x - a.x) : null;
+  };
   // Trait fait avec un instrument (bord, compas) : exact, jamais lissé (le lissage rétrécirait un arc).
   const [traitExact, setTraitExact] = useState(false);
   const [longueur, setLongueur] = useState<{ x: number; y: number; texte: string } | null>(null);
@@ -343,6 +357,8 @@ export function PageVue(p: Props) {
       if (!i) return false;
       priseRef.current = { mode: 'deplacer', id: i.id, decalage: { x: q.x - i.x, y: q.y - i.y } };
       pointeurActif.current = e.evt.pointerId;
+      doigtsRef.current.clear();
+      if (e.evt.pointerType === 'touch') doigtsRef.current.set(e.evt.pointerId, q);
       p.onActive();
       return true;
     }
@@ -382,6 +398,18 @@ export function PageVue(p: Props) {
   };
 
   const down = (e: Konva.KonvaEventObject<PointerEvent>) => {
+    // Second doigt posé pendant qu'un doigt déplace une règle, une équerre ou un rapporteur : on pivote, on ne trace pas.
+    const prise = priseRef.current;
+    if (prise?.mode === 'deplacer' && prise.id !== 'compas' && e.evt.pointerType === 'touch' && !rotationRef.current
+      && pointeurActif.current !== null && e.evt.pointerId !== pointeurActif.current && doigtsRef.current.has(pointeurActif.current)) {
+      const base = instrumentsAffiches.find(i => i.id === prise.id);
+      if (base) {
+        doigtsRef.current.set(e.evt.pointerId, versMm(e.evt));
+        rotationRef.current = { second: e.evt.pointerId, angleDoigts: 0, angleInstrument: base.angle, id: prise.id };
+        rotationRef.current.angleDoigts = angleEntreDoigts() ?? 0;
+        return;
+      }
+    }
     if (dialogue || pointeurActif.current !== null) return;
     // Politique stylet/doigt d'abord : un pointeur rejeté (paume, doigt après stylet) ne fait que défiler,
     // il ne ferme pas la saisie ouverte et ne place pas de point.
@@ -471,6 +499,16 @@ export function PageVue(p: Props) {
   };
 
   const move = (e: Konva.KonvaEventObject<PointerEvent>) => {
+    if (doigtsRef.current.has(e.evt.pointerId)) doigtsRef.current.set(e.evt.pointerId, versMm(e.evt));
+    const rot = rotationRef.current;
+    if (rot && (e.evt.pointerId === rot.second || e.evt.pointerId === pointeurActif.current)) {
+      const maintenant = angleEntreDoigts();
+      const base = instrumentsAffiches.find(i => i.id === rot.id);
+      if (maintenant !== null && base) {
+        setInstrumentEnCours({ ...base, angle: (((rot.angleInstrument + (ecartAngle(rot.angleDoigts, maintenant) * 180) / Math.PI) % 360) + 360) % 360 });
+      }
+      return;
+    }
     if (pointeurActif.current === null || e.evt.pointerId !== pointeurActif.current) return;
     const q = posMm(e);
     if (priseRef.current) { suivreInstrument(q); return; }
@@ -505,9 +543,22 @@ export function PageVue(p: Props) {
 
   // Fin normale ou annulée (pointercancel) : le trait commencé est conservé.
   const terminer = (pointerId: number) => {
+    const rot = rotationRef.current;
+    if (rot && pointerId === rot.second) {
+      // Second doigt levé : l'angle est validé ; le premier doigt continue de déplacer, depuis sa position actuelle.
+      rotationRef.current = null;
+      doigtsRef.current.delete(pointerId);
+      const base = instrumentsAffiches.find(i => i.id === rot.id);
+      const premier = pointeurActif.current !== null ? doigtsRef.current.get(pointeurActif.current) : undefined;
+      if (base && instrumentEnCours) p.onInstrument(rot.id, { angle: instrumentEnCours.angle });
+      if (base && premier && priseRef.current) priseRef.current = { ...priseRef.current, decalage: { x: premier.x - base.x, y: premier.y - base.y } };
+      return;
+    }
     if (pointeurActif.current === null || pointerId !== pointeurActif.current) return;
+    if (rot) { rotationRef.current = null; doigtsRef.current.clear(); } // premier doigt levé en premier : fin du geste
     pointeurActif.current = null;
     const prise = priseRef.current;
+    doigtsRef.current.clear();
     if (prise) {
       priseRef.current = null;
       setLongueur(null);
