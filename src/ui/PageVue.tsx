@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Circle, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva';
+import { Circle, Group, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import { decider, type EtatStylet } from '../input/pointerPolicy';
 import { SURLIGNEUR_OPACITE } from '../lib/couleurs';
@@ -8,6 +8,7 @@ import { motifFond, type Motif } from '../model/fonds';
 import { creerDroite } from '../model/droites';
 import { formeContient, formeDepuisGlisse } from '../model/formes';
 import { aimanter, SEUIL_AIMANT_PX } from '../model/aimantation';
+import { angleVersPoignee, areteProche, longueurCm, projeter, type IdInstrument, type Instrument } from '../model/instruments';
 import { lisserTrait } from '../model/lissage';
 import { effacerPartiel, objetTouche } from '../model/gomme';
 import { ajouterObjet, deplacerObjets, membresDuGroupe, modifierObjet, remplacerObjet, supprimerObjet } from '../model/ops';
@@ -28,6 +29,7 @@ import { EditionMaths } from './maths/EditionMaths';
 import { FormeMaths } from './maths/Formes';
 import { DroiteVue } from './DroiteVue';
 import { FormeVue } from './FormeVue';
+import { InstrumentVue } from './InstrumentVue';
 import { PdfCanvas } from './PdfCanvas';
 
 type Props = {
@@ -49,6 +51,9 @@ type Props = {
   modeSurligneur: 'libre' | 'lineaire';
   /** Largeur (mm) de l'opération en cours de saisie, ou null à la fin : l'éditeur agrandit alors la page (voir Editeur). */
   onOperationOuverte?: (largeurMm: number | null) => void;
+  /** Instruments posés sur cette page (règle, équerre) et leur mise à jour (déplacement, rotation). */
+  instruments: Instrument[];
+  onInstrument: (id: IdInstrument, patch: Partial<Instrument>) => void;
   /** Accroche les droites, formes, textes et opérations aux lignes du fond de page (réglage). */
   aimantation: boolean;
   /** Rayon du lissage du trait à main levée (0 = aucun), voir model/lissage.ts. */
@@ -160,7 +165,28 @@ export function PageVue(p: Props) {
   const [maths, setMaths] = useState<EnEditionMaths | null>(null);
   const mathsRef = useRef<EnEditionMaths | null>(null); // même rôle que editionRef
   const [dialogue, setDialogue] = useState<{ type: 'operation' | 'repere'; x: number; y: number } | null>(null);
+  // Instruments : déplacement et rotation suivent le pointeur sans repasser par l'éditeur à chaque mouvement ; validés au relâchement.
+  type PriseInstrument = { mode: 'deplacer' | 'pivoter' | 'tracer'; id: IdInstrument; decalage: Point; arete?: { a: Point; b: Point } };
+  const priseRef = useRef<PriseInstrument | null>(null);
+  const [instrumentEnCours, setInstrumentEnCours] = useState<Instrument | null>(null);
+  const [longueur, setLongueur] = useState<{ x: number; y: number; texte: string } | null>(null);
+  const instrumentsAffiches = p.instruments.filter(i => i.page === p.pageIndex).map(i => (instrumentEnCours && instrumentEnCours.id === i.id ? instrumentEnCours : i));
   const racine = useRef<HTMLDivElement>(null);
+  // Un instrument qui vient d'être posé doit se voir : si son pivot est hors de l'écran, on amène la page jusqu'à lui.
+  const idsInstruments = instrumentsAffiches.map(i => i.id).join();
+  useEffect(() => {
+    if (!idsInstruments) return;
+    const t = window.setTimeout(() => {
+      const cadre = scene.current?.container().getBoundingClientRect();
+      const dernier = p.instruments.filter(i => i.page === p.pageIndex).at(-1);
+      if (!cadre || !dernier) return;
+      const ecranY = cadre.top + dernier.y * p.pxMm;
+      const haut = (document.querySelector('[aria-label="Réglages de l’outil"]')?.getBoundingClientRect().bottom ?? 64) + 16;
+      if (ecranY < haut || ecranY > window.innerHeight - 120) window.scrollBy({ top: ecranY - (haut + (window.innerHeight - haut) / 3), behavior: 'auto' });
+    }, 60);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsInstruments]);
   // Saisie d'une opération : l'éditeur agrandit la page, puis cet effet amène l'opération dans la zone libre de l'écran
   // (sous le bandeau collant, au-dessus du pavé numérique) : une opération posée en bas de page serait sinon cachée par le pavé.
   const operationEnSaisie = maths?.objet.type === 'operation' ? maths.objet.id : null;
@@ -260,12 +286,72 @@ export function PageVue(p: Props) {
     window.addEventListener('pointercancel', fin);
   };
 
+  // Instruments. La poignée pivote ; le corps se déplace (doigt, stylet ou souris) ; un trait de stylo ou de surligneur commencé
+  // à moins d'~14 px d'un bord suit ce bord (droit, longueur affichée). Pas pendant une saisie ouverte : celle-ci se ferme d'abord.
+  const priseInstrument = (e: Konva.KonvaEventObject<PointerEvent>, tracer: boolean): boolean => {
+    if (instrumentsAffiches.length === 0 || editionRef.current || mathsRef.current) return false;
+    const nom = e.target.name();
+    const q = posMm(e);
+    const idDe = () => e.target.getParent()?.getParent()?.getAttr('instrumentId') as IdInstrument | undefined;
+    const cible = () => instrumentsAffiches.find(i => i.id === idDe()) ?? null;
+    const bande = Math.max(2.5, 14 / p.pxMm);
+    if (nom === 'instrument-poignee') {
+      const i = cible();
+      if (!i) return false;
+      priseRef.current = { mode: 'pivoter', id: i.id, decalage: { x: 0, y: 0 } };
+      pointeurActif.current = e.evt.pointerId;
+      p.onActive();
+      return true;
+    }
+    if (tracer && (p.outil === 'stylo' || p.outil === 'surligneur')) {
+      const arete = areteProche(instrumentsAffiches, q, bande);
+      if (arete) {
+        const origine = projeter(arete.a, arete.b, q).p;
+        priseRef.current = { mode: 'tracer', id: arete.instrument.id, decalage: { x: 0, y: 0 }, arete: { a: arete.a, b: arete.b } };
+        pointeurActif.current = e.evt.pointerId;
+        p.onActive();
+        traitRef.current = [origine];
+        setEnCours(traitRef.current);
+        return true;
+      }
+    }
+    if (nom === 'instrument-corps') {
+      const i = cible();
+      if (!i) return false;
+      priseRef.current = { mode: 'deplacer', id: i.id, decalage: { x: q.x - i.x, y: q.y - i.y } };
+      pointeurActif.current = e.evt.pointerId;
+      p.onActive();
+      return true;
+    }
+    return false;
+  };
+
+  const suivreInstrument = (q: Point) => {
+    const prise = priseRef.current;
+    if (!prise) return;
+    if (prise.mode === 'tracer' && prise.arete) {
+      const debut = traitRef.current?.[0];
+      if (!debut) return;
+      const fin = projeter(prise.arete.a, prise.arete.b, q).p;
+      traitRef.current = [debut, fin];
+      setEnCours(traitRef.current);
+      setLongueur({ x: fin.x + 2, y: fin.y - 6, texte: longueurCm(Math.hypot(fin.x - debut.x, fin.y - debut.y)) });
+      return;
+    }
+    const base = instrumentsAffiches.find(i => i.id === prise.id);
+    if (!base) return;
+    setInstrumentEnCours(prise.mode === 'deplacer'
+      ? { ...base, x: q.x - prise.decalage.x, y: q.y - prise.decalage.y }
+      : { ...base, angle: angleVersPoignee(base, q) });
+  };
+
   const down = (e: Konva.KonvaEventObject<PointerEvent>) => {
     if (dialogue || pointeurActif.current !== null) return;
     // Politique stylet/doigt d'abord : un pointeur rejeté (paume, doigt après stylet) ne fait que défiler,
     // il ne ferme pas la saisie ouverte et ne place pas de point.
     const { tracer, etat } = decider(p.mode, p.etatStylet, e.evt.pointerType);
     if (etat !== p.etatStylet) p.setEtatStylet(etat);
+    if (priseInstrument(e, tracer)) return;
     if (!tracer) {
       if (p.outil !== 'main') defiler(e.evt); // outil Main : le défilement natif s'en charge
       return;
@@ -351,6 +437,7 @@ export function PageVue(p: Props) {
   const move = (e: Konva.KonvaEventObject<PointerEvent>) => {
     if (pointeurActif.current === null || e.evt.pointerId !== pointeurActif.current) return;
     const q = posMm(e);
+    if (priseRef.current) { suivreInstrument(q); return; }
     const saisi = objetSaisiRef.current;
     if (droiteRef.current) {
       const dr = droiteRef.current;
@@ -384,6 +471,17 @@ export function PageVue(p: Props) {
   const terminer = (pointerId: number) => {
     if (pointeurActif.current === null || pointerId !== pointeurActif.current) return;
     pointeurActif.current = null;
+    const prise = priseRef.current;
+    if (prise) {
+      priseRef.current = null;
+      setLongueur(null);
+      if (prise.mode !== 'tracer') {
+        if (instrumentEnCours) p.onInstrument(prise.id, { x: instrumentEnCours.x, y: instrumentEnCours.y, angle: instrumentEnCours.angle });
+        setInstrumentEnCours(null);
+        return;
+      }
+      // Trait le long d'un bord : suit le chemin habituel de validation d'un trait (juste dessous).
+    }
     const dr = droiteRef.current;
     if (dr) {
       const d = dr.b ? creerDroite(dr.a, dr.b, p.couleur, p.epaisseur) : null;
@@ -662,7 +760,13 @@ export function PageVue(p: Props) {
           <CoucheFond motif={fond} />
           <CoucheObjets objets={objetsAffiches} idMasque={edition?.texte.id ?? null}
             idEdition={maths?.objet.id ?? null} formesEditables={surFormes} largeurPage={page.largeurMm} hauteurPage={page.hauteurMm} onDeplace={finDeplacement} onTransforme={finTransformation} />
+          <Layer>
+            {instrumentsAffiches.map(i => (
+              <Group key={i.id} instrumentId={i.id}><InstrumentVue i={i} pxMm={p.pxMm} /></Group>
+            ))}
+          </Layer>
           <Layer listening={false}>
+            {longueur && <Text x={longueur.x} y={longueur.y} text={longueur.texte} fontSize={5} fontStyle="bold" fill="#1e3a8a" />}
             {enCours && (
               <Line points={lisserTrait(enCours, p.lissage).flatMap(q => [q.x, q.y])} stroke={p.couleur} strokeWidth={p.epaisseur}
                 lineCap={p.outil === 'surligneur' ? 'butt' : 'round'} lineJoin="round" opacity={p.outil === 'surligneur' ? SURLIGNEUR_OPACITE : 1} />

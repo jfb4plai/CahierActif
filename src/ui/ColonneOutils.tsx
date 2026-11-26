@@ -61,6 +61,21 @@ export function ColonneOutils(p: Props) {
           </div>
         </section>
       ))}
+      {p.geometrie && (
+        <section aria-labelledby="groupe-geometrie">
+          <h2 id="groupe-geometrie" className="mb-1 text-base font-semibold text-[var(--text2)]">Géométrie</h2>
+          <div className="flex flex-col gap-1.5">
+            {([['regle', 'Règle'], ['equerre', 'Équerre']] as const).map(([id, libelle]) => (
+              <button key={id} type="button" className={(p.geometrie![id] ? OUTIL_ACTIF : OUTIL_GRIS) + ' w-full justify-start gap-2.5 !px-3'}
+                aria-pressed={p.geometrie![id]} onClick={() => p.geometrie!.basculer(id)}
+                title={id === 'regle' ? 'Poser ou retirer la règle. Le stylo commencé près d’un bord trace une ligne droite.' : 'Poser ou retirer l’équerre. Le stylo commencé près d’un bord trace une ligne droite.'}>
+                <IconeUi nom={id} taille={22} />
+                {libelle}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
     </aside>
   );
 }

@@ -4,6 +4,7 @@ import { FONDS } from '../model/fonds';
 import { FORMES } from '../model/formes';
 import { TAILLES_TEXTE_PT } from '../model/texte';
 import { PaletteCouleurs } from './PaletteCouleurs';
+import type { IdInstrument } from '../model/instruments';
 import { outilsPour, type OutilId } from '../model/outils';
 import { OUTIL_ACTIF, OUTIL_GRIS } from './ColonneOutils';
 import { IconeOutil, IconeUi } from './iconesOutils';
@@ -67,6 +68,8 @@ export type PropsOutils = {
   onRetablir: () => void;
   zoom: number;
   setZoom: (z: number) => void;
+  /** Instruments de géométrie (règle, équerre), colonne d'outils seulement : posés ou retirés d'un bouton. */
+  geometrie?: { regle: boolean; equerre: boolean; basculer: (id: IdInstrument) => void };
 };
 
 export function BarreOutils(p: PropsOutils) {

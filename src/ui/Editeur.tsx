@@ -17,6 +17,7 @@ import { ouvrirPdf, type PDFDocumentProxy } from '../pdf/pdfjs';
 import type { StorageAdapter } from '../storage/adapter';
 import { BarreOutils, COULEURS, EPAISSEURS, type PropsOutils } from './BarreOutils';
 import { creerMiniature } from '../lib/miniature';
+import { creerInstrument, type IdInstrument, type Instrument } from '../model/instruments';
 import { RAYON_LISSAGE } from '../model/lissage';
 import { BandeauReglages, BarreBas } from './BandeauReglages';
 import { LARGEUR_COLONNE_PX } from './ColonneOutils';
@@ -95,6 +96,14 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     }
   }, [avecColonne]);
   const [pageActive, setPageActive] = useState(0);
+  // Règle et équerre : posées sur la page active, retirées d'un second appui. Elles ne sont pas enregistrées dans le document.
+  const [instruments, setInstruments] = useState<Instrument[]>([]);
+  const basculerInstrument = useCallback((id: IdInstrument) => {
+    setInstruments(l => (l.some(i => i.id === id) ? l.filter(i => i.id !== id) : [...l, creerInstrument(id, pageActive, dernier.current.pages[pageActive]?.largeurMm ?? 210)]));
+  }, [pageActive]);
+  const majInstrument = useCallback((id: IdInstrument, patch: Partial<Instrument>) => {
+    setInstruments(l => l.map(i => (i.id === id ? { ...i, ...patch } : i)));
+  }, []);
   const [etatStylet, setEtatStylet] = useState<EtatStylet>(ETAT_INITIAL);
   const [message, setMessage] = useState<{ type: 'erreur' | 'info'; texte: string } | null>(null);
 
@@ -325,6 +334,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     peutAnnuler: peutAnnuler(h), peutRetablir: peutRetablir(h),
     onAnnuler: () => dispatch({ type: 'annuler' }), onRetablir: () => dispatch({ type: 'retablir' }),
     zoom, setZoom,
+    geometrie: avecColonne ? { regle: instruments.some(i => i.id === 'regle'), equerre: instruments.some(i => i.id === 'equerre'), basculer: basculerInstrument } : undefined,
   };
   const pages = (
       <div className={`mx-3 mb-6 mt-3 overflow-auto rounded-2xl bg-[var(--surface2)] py-2 ${avecColonne ? 'min-w-0 flex-1' : ''}`}>
@@ -347,6 +357,8 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             modeSurligneur={modeSurligneur}
             lissage={RAYON_LISSAGE[reglages.lissage]}
             onOperationOuverte={operationOuverte}
+            instruments={instruments}
+            onInstrument={majInstrument}
             aimantation={reglages.aimantation}
             taillePtTexte={taillePtTexte}
             selectionId={outilSelection && selection?.page === i && selection.ids.length === 1 ? selection.ids[0] : null}

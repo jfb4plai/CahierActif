@@ -30,9 +30,11 @@ export function IconeOutil({ id, taille = 22 }: { id: OutilId; taille?: number }
   return <Svg taille={taille}>{CHEMINS[id]}</Svg>;
 }
 
-export type NomIconeUi = 'annuler' | 'retablir' | 'retour' | 'telecharger' | 'fichier' | 'bas' | 'haut' | 'pages' | 'moins' | 'plus';
+export type NomIconeUi = 'regle' | 'equerre' | 'annuler' | 'retablir' | 'retour' | 'telecharger' | 'fichier' | 'bas' | 'haut' | 'pages' | 'moins' | 'plus';
 
 const CHEMINS_UI: Record<NomIconeUi, ReactNode> = {
+  regle: <><rect x="3" y="8" width="18" height="8" rx="1.5" /><path d="M7 8v3M11 8v4M15 8v3M19 8v4" /></>,
+  equerre: <><path d="M5 4v16h16z" /><path d="M5 14h4v4" /></>,
   annuler: <><path d="M9 14L4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></>,
   retablir: <><path d="M15 14l5-5-5-5" /><path d="M20 9H10a6 6 0 0 0 0 12h3" /></>,
   retour: <><path d="M15 5l-7 7 7 7" /></>,
