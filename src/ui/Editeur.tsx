@@ -16,7 +16,7 @@ import { exporterPdf } from '../pdf/export';
 import { ouvrirPdf, type PDFDocumentProxy } from '../pdf/pdfjs';
 import type { StorageAdapter } from '../storage/adapter';
 import { BarreOutils, COULEURS, EPAISSEURS, type PropsOutils } from './BarreOutils';
-import { BandeauReglages } from './BandeauReglages';
+import { BandeauReglages, ZoomFlottant } from './BandeauReglages';
 import { LARGEUR_COLONNE_PX } from './ColonneOutils';
 import { ColonneRepliable, LARGEUR_BANDE_PX } from './ColonneRepliable';
 import { usePeek } from './usePeek';
@@ -414,6 +414,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             <BandeauReglages {...proprietes} />
             {pages}
           </div>
+          <ZoomFlottant zoom={zoom} setZoom={setZoom} cote={reglages.colonne === 'droite' ? 'gauche' : 'droite'} />
         </div>
       ) : (
         <>

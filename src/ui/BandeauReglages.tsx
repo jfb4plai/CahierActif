@@ -9,19 +9,75 @@ import { PaletteCouleurs } from './PaletteCouleurs';
 
 const PUCE = '!w-auto';
 
+const rien = () => {};
+
 /**
- * Bandeau fixe au-dessus de la page : réglages de l'outil choisi (forme, couleur, épaisseur, objet choisi) et zoom.
- * Les réglages passent à la ligne plutôt que de défiler : tout reste visible. La hauteur ne change qu'au choix de l'outil.
+ * Réglages fictifs des variantes les plus hautes du bandeau. Ils ne servent qu'à réserver la hauteur : voir BandeauReglages.
+ * Ajouter ici toute variante qui deviendrait plus haute que celles-ci.
+ */
+function variantesHautes(p: PropsOutils): PropsOutils[] {
+  const choix = { nombre: 2, multiple: false, onMultiple: rien, peutGrouper: true, peutDegrouper: true, onModifier: rien, onGrouper: rien, onDegrouper: rien, onSupprimer: rien };
+  const base: PropsOutils = { ...p, surligneur: undefined, tailleTexte: undefined, selection: undefined, palette: 'encre', montrerEpaisseur: true };
+  return [
+    { ...base, outil: 'formes' },
+    { ...base, outil: 'droite' },
+    {
+      ...base, outil: 'surligneur', palette: 'surligneur',
+      surligneur: { mode: 'libre', setMode: rien, afficherMode: true, epaisseur: SURLIGNEUR_EPAISSEUR_MIN_MM, setEpaisseur: rien, couleur: COULEURS_SURLIGNEUR[0].hex },
+    },
+    {
+      // Sélectionner, un texte groupé choisi : le plus de boutons, plus la taille (un texte n'a pas d'épaisseur).
+      ...base, outil: 'selectionner', montrerEpaisseur: false, tailleTexte: { valeur: 14, onChoisir: rien },
+      selection: { ...choix, modifiable: true },
+    },
+    {
+      // Sélectionner, un trait ou une forme groupé choisi : l'épaisseur remplace la taille.
+      ...base, outil: 'selectionner', selection: { ...choix, modifiable: false },
+    },
+  ];
+}
+
+/**
+ * Bandeau fixe au-dessus de la page : réglages de l'outil choisi (forme, couleur, épaisseur, objet choisi).
+ * Sa hauteur ne change jamais : ni au choix d'un outil, ni au choix d'un objet. Sinon la page glisse sous la main.
+ * Pour cela, les variantes les plus hautes sont dessinées invisibles dans la même case de grille : la case prend la hauteur
+ * de la plus haute, quelle que soit la largeur de l'écran. Les réglages passent à la ligne plutôt que de défiler.
  */
 export function BandeauReglages(p: PropsOutils) {
+  return (
+    <div className="carte-flottante sticky top-[64px] z-40 mx-3 mt-3 grid px-3" role="group" aria-label="Réglages de l’outil">
+      <div className="col-start-1 row-start-1 min-w-0"><ContenuBandeau {...p} /></div>
+      {variantesHautes(p).map((v, i) => (
+        <div key={i} aria-hidden className="pointer-events-none invisible col-start-1 row-start-1 min-w-0"><ContenuBandeau {...v} fantome /></div>
+      ))}
+    </div>
+  );
+}
+
+/** Zoom, hors du bandeau : il lui prenait de la largeur et se superposait à la palette de couleurs. */
+export function ZoomFlottant({ zoom, setZoom, cote }: { zoom: number; setZoom: (z: number) => void; cote: 'gauche' | 'droite' }) {
+  return (
+    <div className={`carte-flottante fixed bottom-4 z-40 flex items-center gap-2 p-2 ${cote === 'droite' ? 'right-4' : 'left-4'}`} role="group" aria-label="Zoom">
+      <button type="button" className={`${OUTIL_GRIS} shrink-0 !h-[48px] !w-[48px] !rounded-full justify-center !px-0`} aria-label="Dézoomer"
+        onClick={() => setZoom(Math.max(0.5, +(zoom - 0.25).toFixed(2)))}><IconeUi nom="moins" taille={22} /></button>
+      <span className="min-w-[3.5rem] text-center text-lg" aria-live="polite">{Math.round(zoom * 100)} %</span>
+      <button type="button" className={`${OUTIL_GRIS} shrink-0 !h-[48px] !w-[48px] !rounded-full justify-center !px-0`} aria-label="Zoomer"
+        onClick={() => setZoom(Math.min(3, +(zoom + 0.25).toFixed(2)))}><IconeUi nom="plus" taille={22} /></button>
+    </div>
+  );
+}
+
+function ContenuBandeau(p: PropsOutils & { fantome?: boolean }) {
   const aide = OUTILS.find(o => o.id === p.outil)?.aide;
   const aDesReglages = p.outil === 'formes' || !!p.selection || !!p.palette || p.montrerEpaisseur || !!p.surligneur || !!p.tailleTexte;
+  // Copie invisible : pas d'identifiant (il serait en double avec la vraie) et pas d'annonce vocale.
+  const idEpaisseur = p.fantome ? undefined : 'epaisseur-surligneur';
 
   return (
-    <div className="carte-flottante sticky top-[64px] z-40 mx-3 mt-3 flex min-h-[84px] items-center gap-3 px-3" role="group" aria-label="Réglages de l’outil">
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-6 gap-y-2 py-2">
+    <>
+      <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2 py-2">
         {p.outil === 'droite' && (
-          <p className="max-w-[18rem] text-base text-[var(--text2)]">Toucher le premier point, puis le deuxième : la droite passe par les deux. Les points se déplacent ensuite avec Sélectionner.</p>
+          <p className="text-base text-[var(--text2)]">Toucher le premier point, puis le deuxième : la droite passe par les deux. Les points se déplacent ensuite avec Sélectionner.</p>
         )}
         {p.outil === 'formes' && (
           <div role="group" aria-label="Forme à tracer" className={CONTENEUR_SEGMENTS}>
@@ -70,8 +126,8 @@ export function BandeauReglages(p: PropsOutils) {
               </div>
             )}
             <div className="flex items-center gap-2">
-              <label htmlFor="epaisseur-surligneur" className="text-base">Épaisseur</label>
-              <input id="epaisseur-surligneur" type="range" className="h-11 w-36 cursor-pointer accent-[#1d4ed8]"
+              <label htmlFor={idEpaisseur} className="text-base">Épaisseur</label>
+              <input id={idEpaisseur} type="range" className="h-11 w-36 cursor-pointer accent-[#1d4ed8]"
                 min={SURLIGNEUR_EPAISSEUR_MIN_MM} max={SURLIGNEUR_EPAISSEUR_MAX_MM} step={SURLIGNEUR_EPAISSEUR_PAS_MM}
                 value={p.surligneur.epaisseur} onChange={e => p.surligneur?.setEpaisseur(Number(e.target.value))}
                 aria-valuetext={`${String(p.surligneur.epaisseur).replace('.', ',')} millimètres`} />
@@ -109,13 +165,6 @@ export function BandeauReglages(p: PropsOutils) {
         )}
         {!aDesReglages && aide && <p className="text-base text-[var(--text2)]">{aide}</p>}
       </div>
-      <div className="flex shrink-0 items-center gap-2" role="group" aria-label="Zoom">
-        <button type="button" className={`${OUTIL_GRIS} shrink-0 !h-[48px] !w-[48px] !rounded-full justify-center !px-0`} aria-label="Dézoomer"
-          onClick={() => p.setZoom(Math.max(0.5, +(p.zoom - 0.25).toFixed(2)))}><IconeUi nom="moins" taille={22} /></button>
-        <span className="min-w-[3.5rem] text-center text-lg" aria-live="polite">{Math.round(p.zoom * 100)} %</span>
-        <button type="button" className={`${OUTIL_GRIS} shrink-0 !h-[48px] !w-[48px] !rounded-full justify-center !px-0`} aria-label="Zoomer"
-          onClick={() => p.setZoom(Math.min(3, +(p.zoom + 0.25).toFixed(2)))}><IconeUi nom="plus" taille={22} /></button>
-      </div>
-    </div>
+    </>
   );
 }
