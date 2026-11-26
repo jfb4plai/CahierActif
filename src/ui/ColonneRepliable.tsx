@@ -15,7 +15,7 @@ type Props = PropsOutils & {
 
 /**
  * Colonne d'outils pliable. Dépliée : la colonne entière (bouton « Replier la colonne »).
- * Repliée : une bande étroite (flèche, outil actif, annuler/rétablir). Toucher la flèche la déplie pour de bon ;
+ * Repliée : une bande étroite (flèche, outil actif ; annuler et rétablir sont dans le bandeau du haut). Toucher la flèche la déplie pour de bon ;
  * à la souris, survoler la bande l'affiche par-dessus la page (« Garder déplié » la fixe).
  */
 export function ColonneRepliable(p: Props) {
@@ -41,8 +41,6 @@ export function ColonneRepliable(p: Props) {
         >
           {actif}
         </span>
-        <button type="button" className="plai-btn-secondaire min-h-[44px] w-full !px-0" aria-label="Annuler" disabled={!p.peutAnnuler} onClick={p.onAnnuler}>↶</button>
-        <button type="button" className="plai-btn-secondaire min-h-[44px] w-full !px-0" aria-label="Rétablir" disabled={!p.peutRetablir} onClick={p.onRetablir}>↷</button>
       </div>
       {peek && (
         <div className={`absolute top-0 ${p.position === 'gauche' ? 'left-0' : 'right-0'}`}>

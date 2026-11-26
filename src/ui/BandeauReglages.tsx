@@ -26,9 +26,21 @@ function variantePleine(p: PropsOutils): PropsOutils {
  */
 export function BandeauReglages(p: PropsOutils) {
   return (
-    <div className="carte-flottante sticky top-[64px] z-40 mx-3 mt-3 grid px-3" role="group" aria-label="Réglages de l’outil">
-      <div className="col-start-1 row-start-1 min-w-0"><Coeur {...p} /></div>
-      <div aria-hidden className="pointer-events-none invisible col-start-1 row-start-1 min-w-0"><Coeur {...variantePleine(p)} /></div>
+    <div className="carte-flottante sticky top-[64px] z-40 mx-3 mt-3 flex items-center gap-4 px-3" role="group" aria-label="Réglages de l’outil">
+      <div className="grid min-w-0 flex-1">
+        <div className="col-start-1 row-start-1 min-w-0"><Coeur {...p} /></div>
+        <div aria-hidden className="pointer-events-none invisible col-start-1 row-start-1 min-w-0"><Coeur {...variantePleine(p)} /></div>
+      </div>
+      {/* Annuler et Rétablir : toujours visibles ici, à la place des deux boutons de la colonne d'outils. */}
+      <div role="group" aria-label="Annuler ou rétablir" className="flex shrink-0 items-center gap-1.5">
+        {/* Sous 1100 px, icône seule (le texte reste pour les lecteurs d'écran) : sinon l'épaisseur passe sur une 2e ligne. */}
+        <button type="button" className={`${OUTIL_GRIS} ${PUCE} gap-2 !px-3 !min-h-[44px]`} title="Annuler : défaire le dernier geste" disabled={!p.peutAnnuler} onClick={p.onAnnuler}>
+          <IconeUi nom="annuler" taille={22} /><span className="sr-only min-[1100px]:not-sr-only">Annuler</span>
+        </button>
+        <button type="button" className={`${OUTIL_GRIS} ${PUCE} gap-2 !px-3 !min-h-[44px]`} title="Rétablir : refaire le geste annulé" disabled={!p.peutRetablir} onClick={p.onRetablir}>
+          <IconeUi nom="retablir" taille={22} /><span className="sr-only min-[1100px]:not-sr-only">Rétablir</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -47,6 +59,14 @@ function Coeur(p: PropsOutils) {
               {e.libelle}
             </button>
           ))}
+        </div>
+      )}
+      {p.niveau !== 'p1p2' && (p.outil === 'gomme-objet' || p.outil === 'gomme-partielle') && (
+        <div role="group" aria-label="Façon d’effacer" className={CONTENEUR_SEGMENTS}>
+          <button type="button" className={p.outil === 'gomme-objet' ? SEGMENT_ACTIF : SEGMENT} aria-pressed={p.outil === 'gomme-objet'}
+            title="Toucher un trait ou un texte pour l’effacer en entier" onClick={() => p.setOutil('gomme-objet')}>Trait entier</button>
+          <button type="button" className={p.outil === 'gomme-partielle' ? SEGMENT_ACTIF : SEGMENT} aria-pressed={p.outil === 'gomme-partielle'}
+            title="Effacer seulement une partie d’un trait" onClick={() => p.setOutil('gomme-partielle')}>Partie du trait</button>
         </div>
       )}
       {!p.palette && !p.montrerEpaisseur && !aDesOptions && aide && <p className="text-base text-[var(--text2)]">{aide}</p>}

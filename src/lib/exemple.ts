@@ -59,7 +59,7 @@ function page1(): Page {
     etiquette(15, 150, 180, 'Commande : Droite. Toucher deux points : la droite passe par les deux et va jusqu’aux bords.'),
     (creerDroite({ x: 30, y: 164 }, { x: 150, y: 166 }, ROUGE, 0.4) as Objet),
 
-    etiquette(15, 178, 180, 'Commandes pour corriger : Gomme (efface un trait entier), Gomme fine (efface une partie d’un trait), Annuler (défait le dernier geste), Rétablir.'),
+    etiquette(15, 178, 180, 'Commandes pour corriger : Gomme (Trait entier, ou Partie du trait), Annuler (défait le dernier geste), Rétablir.'),
     etiquette(15, 192, 180, 'Commande : Sélectionner. Toucher un objet pour le choisir, le glisser pour le déplacer, Modifier pour changer son contenu, Supprimer pour l’enlever. Commande : Main. Faire défiler la page sans écrire.'),
     etiquette(15, 210, 180, 'Page suivante : maths et géométrie. Pour effacer cet exemple : Retour à mes documents, puis Supprimer.'),
   ];

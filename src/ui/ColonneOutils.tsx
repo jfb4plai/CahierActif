@@ -33,14 +33,14 @@ export const SEGMENT_ACTIF = SEG + ' bg-white font-bold text-[#1d4ed8] shadow ri
 export const CONTENEUR_SEGMENTS = 'inline-flex flex-wrap items-center gap-1 rounded-2xl bg-[#e8e6de] p-1';
 export const OPTION_CHOISIE = BASE + ' bg-white font-bold text-[#1d4ed8] shadow ring-2 ring-[#1d4ed8]';
 
-/** Colonne des outils, rangés par groupes ; Annuler et Rétablir sont avec les gommes (groupe Corriger). */
+/** Colonne des outils, rangés par groupes. Annuler et Rétablir sont dans le bandeau du haut (voir BandeauReglages). */
 export function ColonneOutils(p: Props) {
   return (
     <aside
       role="toolbar"
       aria-label="Outils"
       aria-orientation="vertical"
-      className={`carte-flottante flex shrink-0 flex-col gap-3 overflow-y-auto p-2 ${p.flottante ? 'shadow-2xl ring-1 ring-[var(--border2)]' : 'sticky top-[64px] z-40 m-3 self-start'}`}
+      className={`carte-flottante flex shrink-0 flex-col gap-2 overflow-y-auto p-2 ${p.flottante ? 'shadow-2xl ring-1 ring-[var(--border2)]' : 'sticky top-[64px] z-40 m-3 self-start'}`}
       style={{ width: LARGEUR_COLONNE_PX, maxHeight: 'calc(100vh - 76px)' }}
     >
       {p.bouton && (
@@ -52,19 +52,17 @@ export function ColonneOutils(p: Props) {
         <section key={g.id} aria-labelledby={`groupe-${g.id}`}>
           <h2 id={`groupe-${g.id}`} className="mb-1 text-base font-semibold text-[var(--text2)]">{g.titre}</h2>
           <div className="flex flex-col gap-1.5">
-            {g.outils.map(o => (
-              <button key={o.id} type="button" className={(p.outil === o.id ? OUTIL_ACTIF : OUTIL_GRIS) + ' w-full justify-start gap-2.5 !px-3'} title={o.aide}
-                aria-pressed={p.outil === o.id} onClick={() => p.setOutil(o.id)}>
-                <IconeOutil id={o.id} />
-                {o.libelle}
-              </button>
-            ))}
-            {g.id === 'corriger' && (
-              <>
-                <button type="button" className={OUTIL_GRIS + ' w-full justify-start gap-2.5 !px-3'} disabled={!p.peutAnnuler} onClick={p.onAnnuler}><IconeUi nom="annuler" taille={22} />Annuler</button>
-                <button type="button" className={OUTIL_GRIS + ' w-full justify-start gap-2.5 !px-3'} disabled={!p.peutRetablir} onClick={p.onRetablir}><IconeUi nom="retablir" taille={22} />Rétablir</button>
-              </>
-            )}
+            {/* « Gomme fine » n'a pas de bouton : c'est un choix de la gomme, dans le bandeau du haut. */}
+            {g.outils.filter(o => o.id !== 'gomme-partielle').map(o => {
+              const actif = o.id === 'gomme-objet' ? p.outil === 'gomme-objet' || p.outil === 'gomme-partielle' : p.outil === o.id;
+              return (
+                <button key={o.id} type="button" className={(actif ? OUTIL_ACTIF : OUTIL_GRIS) + ' w-full justify-start gap-2.5 !px-3 !min-h-[44px]'} title={o.aide}
+                  aria-pressed={actif} onClick={() => p.setOutil(o.id === 'gomme-objet' && p.outil === 'gomme-partielle' ? 'gomme-partielle' : o.id)}>
+                  <IconeOutil id={o.id} />
+                  {o.libelle}
+                </button>
+              );
+            })}
           </div>
         </section>
       ))}
@@ -73,14 +71,14 @@ export function ColonneOutils(p: Props) {
           <h2 id="groupe-geometrie" className="mb-1 text-base font-semibold text-[var(--text2)]">Géométrie</h2>
           <div className="flex flex-col gap-1.5">
             {([['regle', 'Règle'], ['equerre', 'Équerre'], ['rapporteur', 'Rapporteur'], ['compas', 'Compas']] as const).map(([id, libelle]) => (
-              <button key={id} type="button" className={(p.geometrie![id] ? OUTIL_ACTIF : OUTIL_GRIS) + ' w-full justify-start gap-2.5 !px-3'}
+              <button key={id} type="button" className={(p.geometrie![id] ? OUTIL_ACTIF : OUTIL_GRIS) + ' w-full justify-start gap-2.5 !px-3 !min-h-[44px]'}
                 aria-pressed={p.geometrie![id]} onClick={() => p.geometrie!.basculer(id)}
                 title={AIDE_GEOMETRIE[id]}>
                 <IconeUi nom={id} taille={22} />
                 {libelle}
               </button>
             ))}
-            <button type="button" className={(p.geometrie.loupe ? OUTIL_ACTIF : OUTIL_GRIS) + ' w-full justify-start gap-2.5 !px-3'}
+            <button type="button" className={(p.geometrie.loupe ? OUTIL_ACTIF : OUTIL_GRIS) + ' w-full justify-start gap-2.5 !px-3 !min-h-[44px]'}
               aria-pressed={p.geometrie.loupe} onClick={p.geometrie.basculerLoupe}
               title="Poser ou retirer la loupe. Elle agrandit ce qu'elle recouvre ; la glisser pour la déplacer.">
               <IconeUi nom="loupe" taille={22} />
@@ -93,7 +91,7 @@ export function ColonneOutils(p: Props) {
         <section aria-labelledby="groupe-lecture">
           <h2 id="groupe-lecture" className="mb-1 text-base font-semibold text-[var(--text2)]">Lecture</h2>
           <div className="flex flex-col gap-1.5">
-            <button type="button" className={(p.geometrie.cacheLigne ? OUTIL_ACTIF : OUTIL_GRIS) + ' w-full justify-start gap-2.5 !px-3'}
+            <button type="button" className={(p.geometrie.cacheLigne ? OUTIL_ACTIF : OUTIL_GRIS) + ' w-full justify-start gap-2.5 !px-3 !min-h-[44px]'}
               aria-pressed={p.geometrie.cacheLigne} onClick={p.geometrie.basculerCache}
               title="Poser ou retirer le cache-ligne : la page est cachée sauf 1 à 3 lignes. Glisser la partie sombre pour descendre d'une ligne à l'autre.">
               <IconeUi nom="cache" taille={22} />
