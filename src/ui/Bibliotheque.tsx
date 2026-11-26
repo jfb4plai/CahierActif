@@ -188,6 +188,122 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
   });
   const titre = filtre.type === 'dossier' ? (dossierActif?.nom ?? 'Mes documents') : filtre.type === 'aucun' ? 'Sans dossier' : 'Mes documents';
 
+  // Un cours ouvert montre d'abord ses documents (c'est ce qu'on cherche), puis les boutons pour en ajouter.
+  const titreListe = filtre.type === 'tous' ? 'Mes documents' : `Documents (${visibles.length})`;
+  const blocCartes = (
+    <>
+          <p className="chapo mt-2">
+            Ouvrir la fiche reçue de l’enseignant (Teams, Smartschool, mail), photographier une feuille papier ou écrire sur une page vierge.
+            {dossierActif ? ' Le document créé ici est rangé dans « ' + dossierActif.nom + ' ».' : ''}
+          </p>
+
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <button type="button" className="carte-action orange" onClick={() => pdfInput.current?.click()}>
+              <IconePdf />
+              <span className="titre">Ouvrir un PDF</span>
+              <span className="texte">La fiche reçue de l’enseignant.</span>
+              <span className="appel">Choisir un PDF →</span>
+            </button>
+            <button type="button" className="carte-action indigo" onClick={() => cameraInput.current?.click()}>
+              <IconeCamera />
+              <span className="titre">Photographier une feuille</span>
+              <span className="texte">Une feuille papier devient une page à annoter.</span>
+              <span className="appel">Ouvrir l’appareil photo →</span>
+            </button>
+            <button type="button" className="carte-action indigo" onClick={() => photosInput.current?.click()}>
+              <IconePhotos />
+              <span className="titre">Choisir des photos</span>
+              <span className="texte">Plusieurs feuilles d’un coup : une page par photo.</span>
+              <span className="appel">Choisir des photos →</span>
+            </button>
+            <button type="button" className="carte-action teal" onClick={nouvellePageVierge}>
+              <IconePage />
+              <span className="titre">Nouvelle page vierge</span>
+              <span className="texte">Écrire sur une page blanche, avec ou sans quadrillage.</span>
+              <span className="appel">Créer une page →</span>
+            </button>
+            <button type="button" className="carte-action neutre" onClick={() => cahierInput.current?.click()}>
+              <IconeDossier />
+              <span className="titre">Reprendre un fichier .cahier</span>
+              <span className="texte">Un travail commencé sur un autre appareil.</span>
+              <span className="appel">Choisir un fichier →</span>
+            </button>
+          </div>
+          <input ref={pdfInput} type="file" accept="application/pdf" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void ouvrirPdf(f); }} />
+          <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void importerPhotos(f); }} />
+          <input ref={photosInput} type="file" accept="image/*" multiple hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void importerPhotos(f); }} />
+          <input ref={cahierInput} type="file" accept=".cahier,application/zip" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importerCahier(f); }} />
+
+          {erreur && <div className="plai-error mt-4" role="alert">{erreur}</div>}
+
+    </>
+  );
+  const blocDocuments = (
+    <>
+          <h2 className="titre-section mb-3 mt-6">{titreListe}</h2>
+          {visibles.length === 0 ? (
+            <div className="plai-empty">
+              {docs.length === 0
+                ? 'Aucun document pour l’instant.'
+                : dossierActif
+                  ? 'Aucun document dans « ' + dossierActif.nom + ' ». Ouvrir un PDF ici le range dans ce dossier.'
+                  : 'Aucun document ici.'}
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {visibles.map(m => (
+                <li key={m.id} className="flex flex-wrap items-center gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--carte-douce)] p-3">
+                  {renommage?.id === m.id ? (
+                    <form className="flex min-w-[12rem] flex-1 flex-wrap items-center gap-2" onSubmit={e => { e.preventDefault(); void validerRenommage(); }}>
+                      <label className="flex min-w-[12rem] flex-1 flex-col text-base font-semibold">
+                        Nom du document
+                        <input
+                          className="plai-input min-h-[44px] font-normal" autoFocus maxLength={TITRE_MAX + 10} value={renommage.valeur}
+                          aria-invalid={!!renommage.erreur} aria-describedby={renommage.erreur ? 'erreur-renommage' : undefined}
+                          onChange={e => setRenommage({ ...renommage, valeur: e.target.value, erreur: null })}
+                          onKeyDown={e => { if (e.key === 'Escape') setRenommage(null); }}
+                        />
+                        {renommage.erreur && <span id="erreur-renommage" role="alert" className="text-base font-normal text-[#b91c1c]">{renommage.erreur}</span>}
+                      </label>
+                      <button type="submit" className="plai-btn min-h-[44px]">Enregistrer</button>
+                      <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => setRenommage(null)}>Annuler</button>
+                    </form>
+                  ) : (
+                    <button type="button" className="flex min-w-[12rem] flex-1 items-center gap-3 text-left text-lg font-semibold" onClick={() => ouvrirExistant(m.id)}>
+                      {m.miniature
+                        ? <img src={m.miniature} alt="" className="h-[84px] w-auto shrink-0 rounded border border-[var(--border)] bg-white" />
+                        : <span aria-hidden className="flex h-[84px] w-[60px] shrink-0 items-center justify-center rounded border border-[var(--border)] bg-white text-[var(--text3)]"><IconePage /></span>}
+                      <span className="min-w-0">
+                        {m.titre}
+                        <span className="block text-base font-normal text-[var(--text3)]">Modifié le {new Date(m.modifie).toLocaleString('fr-BE')}</span>
+                      </span>
+                    </button>
+                  )}
+                  {renommage?.id !== m.id && (
+                    <button type="button" className="plai-btn min-h-[44px]" aria-label={`Ouvrir ${m.titre}`} onClick={() => ouvrirExistant(m.id)}>Ouvrir</button>
+                  )}
+                  {renommage?.id !== m.id && (
+                    <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => setRenommage({ id: m.id, valeur: m.titre, erreur: null })}>Renommer</button>
+                  )}
+                  <label className="flex items-center gap-2 text-base">
+                    Ranger dans
+                    <select
+                      className="plai-input min-h-[44px]"
+                      value={rangeDansUnDossier(m) ? m.dossierId : ''}
+                      onChange={e => void ranger(m, e.target.value)}
+                    >
+                      <option value="">Sans dossier</option>
+                      {dossiers.map(d => <option key={d.id} value={d.id}>{d.nom}</option>)}
+                    </select>
+                  </label>
+                  <button type="button" className="plai-btn-secondaire plai-btn-danger min-h-[44px]" onClick={() => supprimer(m)}>Supprimer</button>
+                </li>
+              ))}
+            </ul>
+          )}
+    </>
+  );
+
   return (
     <>
       <nav className="px-4 pb-1 pt-2" aria-label="Mes dossiers (cours)">
@@ -251,107 +367,17 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
               <>Annoter une fiche <span className="accent">comme sur un cahier</span></>
             ) : titre}
           </h1>
-          <p className="chapo mt-2">
-            Ouvrir la fiche reçue de l’enseignant (Teams, Smartschool, mail), photographier une feuille papier ou écrire sur une page vierge.
-            {dossierActif ? ' Le document créé ici est rangé dans « ' + dossierActif.nom + ' ».' : ''}
-          </p>
-
-          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <button type="button" className="carte-action orange" onClick={() => pdfInput.current?.click()}>
-              <IconePdf />
-              <span className="titre">Ouvrir un PDF</span>
-              <span className="texte">La fiche reçue de l’enseignant.</span>
-              <span className="appel">Choisir un PDF →</span>
-            </button>
-            <button type="button" className="carte-action indigo" onClick={() => cameraInput.current?.click()}>
-              <IconeCamera />
-              <span className="titre">Photographier une feuille</span>
-              <span className="texte">Une feuille papier devient une page à annoter.</span>
-              <span className="appel">Ouvrir l’appareil photo →</span>
-            </button>
-            <button type="button" className="carte-action indigo" onClick={() => photosInput.current?.click()}>
-              <IconePhotos />
-              <span className="titre">Choisir des photos</span>
-              <span className="texte">Plusieurs feuilles d’un coup : une page par photo.</span>
-              <span className="appel">Choisir des photos →</span>
-            </button>
-            <button type="button" className="carte-action teal" onClick={nouvellePageVierge}>
-              <IconePage />
-              <span className="titre">Nouvelle page vierge</span>
-              <span className="texte">Écrire sur une page blanche, avec ou sans quadrillage.</span>
-              <span className="appel">Créer une page →</span>
-            </button>
-            <button type="button" className="carte-action neutre" onClick={() => cahierInput.current?.click()}>
-              <IconeDossier />
-              <span className="titre">Reprendre un fichier .cahier</span>
-              <span className="texte">Un travail commencé sur un autre appareil.</span>
-              <span className="appel">Choisir un fichier →</span>
-            </button>
-          </div>
-          <input ref={pdfInput} type="file" accept="application/pdf" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void ouvrirPdf(f); }} />
-          <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void importerPhotos(f); }} />
-          <input ref={photosInput} type="file" accept="image/*" multiple hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void importerPhotos(f); }} />
-          <input ref={cahierInput} type="file" accept=".cahier,application/zip" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importerCahier(f); }} />
-
-          {erreur && <div className="plai-error mt-4" role="alert">{erreur}</div>}
-
-          <h2 className="titre-section mb-3 mt-8">{filtre.type === 'tous' ? 'Mes documents' : titre}</h2>
-          {visibles.length === 0 ? (
-            <div className="plai-empty">
-              {docs.length === 0
-                ? 'Aucun document pour l’instant.'
-                : dossierActif
-                  ? 'Aucun document dans « ' + dossierActif.nom + ' ». Ouvrir un PDF ici le range dans ce dossier.'
-                  : 'Aucun document ici.'}
-            </div>
+          {filtre.type === 'tous' ? (
+            <>
+              {blocCartes}
+              {blocDocuments}
+            </>
           ) : (
-            <ul className="space-y-2">
-              {visibles.map(m => (
-                <li key={m.id} className="flex flex-wrap items-center gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--carte-douce)] p-3">
-                  {renommage?.id === m.id ? (
-                    <form className="flex min-w-[12rem] flex-1 flex-wrap items-center gap-2" onSubmit={e => { e.preventDefault(); void validerRenommage(); }}>
-                      <label className="flex min-w-[12rem] flex-1 flex-col text-base font-semibold">
-                        Nom du document
-                        <input
-                          className="plai-input min-h-[44px] font-normal" autoFocus maxLength={TITRE_MAX + 10} value={renommage.valeur}
-                          aria-invalid={!!renommage.erreur} aria-describedby={renommage.erreur ? 'erreur-renommage' : undefined}
-                          onChange={e => setRenommage({ ...renommage, valeur: e.target.value, erreur: null })}
-                          onKeyDown={e => { if (e.key === 'Escape') setRenommage(null); }}
-                        />
-                        {renommage.erreur && <span id="erreur-renommage" role="alert" className="text-base font-normal text-[#b91c1c]">{renommage.erreur}</span>}
-                      </label>
-                      <button type="submit" className="plai-btn min-h-[44px]">Enregistrer</button>
-                      <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => setRenommage(null)}>Annuler</button>
-                    </form>
-                  ) : (
-                    <button type="button" className="flex min-w-[12rem] flex-1 items-center gap-3 text-left text-lg font-semibold" onClick={() => ouvrirExistant(m.id)}>
-                      {m.miniature
-                        ? <img src={m.miniature} alt="" className="h-[84px] w-auto shrink-0 rounded border border-[var(--border)] bg-white" />
-                        : <span aria-hidden className="flex h-[84px] w-[60px] shrink-0 items-center justify-center rounded border border-[var(--border)] bg-white text-[var(--text3)]"><IconePage /></span>}
-                      <span className="min-w-0">
-                        {m.titre}
-                        <span className="block text-base font-normal text-[var(--text3)]">Modifié le {new Date(m.modifie).toLocaleString('fr-BE')}</span>
-                      </span>
-                    </button>
-                  )}
-                  {renommage?.id !== m.id && (
-                    <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => setRenommage({ id: m.id, valeur: m.titre, erreur: null })}>Renommer</button>
-                  )}
-                  <label className="flex items-center gap-2 text-base">
-                    Ranger dans
-                    <select
-                      className="plai-input min-h-[44px]"
-                      value={rangeDansUnDossier(m) ? m.dossierId : ''}
-                      onChange={e => void ranger(m, e.target.value)}
-                    >
-                      <option value="">Sans dossier</option>
-                      {dossiers.map(d => <option key={d.id} value={d.id}>{d.nom}</option>)}
-                    </select>
-                  </label>
-                  <button type="button" className="plai-btn-secondaire plai-btn-danger min-h-[44px]" onClick={() => supprimer(m)}>Supprimer</button>
-                </li>
-              ))}
-            </ul>
+            <>
+              {blocDocuments}
+              <h2 className="titre-section mb-1 mt-8">{dossierActif ? `Ajouter un document dans « ${dossierActif.nom} »` : 'Ajouter un document'}</h2>
+              {blocCartes}
+            </>
           )}
         </div>
       </section>
