@@ -33,3 +33,15 @@ export function afficherClavier(visible: boolean) {
   if (visible) window.mathVirtualKeyboard.show();
   else window.mathVirtualKeyboard.hide();
 }
+
+/** Position du clavier : `haut` = bord haut du clavier (px depuis le haut de la fenêtre), null s'il est caché. */
+export type EtatClavier = { visible: boolean; haut: number | null };
+
+/** Suit l'apparition, la disparition et la taille du clavier ; renvoie la fonction qui arrête le suivi. */
+export function suivreClavier(rappel: (e: EtatClavier) => void): () => void {
+  const k = window.mathVirtualKeyboard;
+  const rapporter = () => rappel({ visible: k.visible, haut: k.visible ? k.boundingRect.top : null });
+  k.addEventListener('geometrychange', rapporter);
+  rapporter();
+  return () => k.removeEventListener('geometrychange', rapporter);
+}

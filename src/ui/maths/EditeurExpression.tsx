@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import type { EtatClavier } from '../../maths/mathlive';
 import { ptVersMm } from '../../lib/units';
 import type { Expression } from '../../model/types';
 
@@ -12,6 +14,7 @@ export function EditeurExpression({ o, pxMm, onChange, onFin }: Props) {
   const [complet, setComplet] = useState(false);
   const [pret, setPret] = useState(false);
   const [echec, setEchec] = useState(false);
+  const [clavier, setClavier] = useState<EtatClavier>({ visible: false, haut: null });
 
   // Dernier calcul de dimensions en cours : « Terminé » l'attend pour valider la taille réelle.
   const rendu = useRef<Promise<void>>(Promise.resolve());
@@ -22,6 +25,7 @@ export function EditeurExpression({ o, pxMm, onChange, onFin }: Props) {
     vivantRef.current = true;
     let champ: HTMLElement | null = null;
     let tour = 0;
+    let arreterSuivi: (() => void) | undefined;
     (async () => {
       try {
       const ml = await import('../../maths/mathlive');
@@ -51,6 +55,7 @@ export function EditeurExpression({ o, pxMm, onChange, onFin }: Props) {
       });
       mesurer(courant.current.latex); // nouvelle expression (10 × 8 mm provisoires) ou rouverte sans changement
       hote.current.appendChild(mf);
+      arreterSuivi = ml.suivreClavier(setClavier);
       setPret(true);
       setTimeout(() => { if (!vivant) return; mf.focus(); ml.afficherClavier(true); }, 0); // pas de clavier orphelin si déjà fermé
       } catch {
@@ -62,6 +67,7 @@ export function EditeurExpression({ o, pxMm, onChange, onFin }: Props) {
     return () => {
       vivant = false;
       vivantRef.current = false;
+      arreterSuivi?.();
       void import('../../maths/mathlive').then(ml => ml.afficherClavier(false), () => undefined);
       champ?.remove();
     };
@@ -82,6 +88,16 @@ export function EditeurExpression({ o, pxMm, onChange, onFin }: Props) {
     }
   };
 
+  // Ferme (ou rouvre) le clavier sans quitter l'expression : le champ reste là, on peut le rouvrir.
+  const montrerClavier = async (visible: boolean) => {
+    try {
+      const ml = await import('../../maths/mathlive');
+      ml.afficherClavier(visible);
+    } catch {
+      setEchec(true);
+    }
+  };
+
   return (
     <div style={{ position: 'absolute', left: o.x * pxMm, top: o.y * pxMm, zIndex: 10, minWidth: 60 * pxMm }}>
       <div ref={hote} style={{ fontSize: ptVersMm(o.taillePt) * pxMm, color: o.couleur, outline: '1px dashed #0f6e56', background: 'rgba(255,255,255,0.85)' }}>
@@ -96,7 +112,29 @@ export function EditeurExpression({ o, pxMm, onChange, onFin }: Props) {
           </div>
         </div>
       )}
+      {/* Cartouche collé au bord haut du clavier, à droite : toujours au même endroit, quelle que soit la hauteur du clavier. */}
+      {clavier.visible && clavier.haut !== null && createPortal(
+        <button
+          type="button"
+          aria-label="Fermer le clavier mathématique"
+          className="plai-btn min-h-[44px] !rounded-b-none !px-4 !text-base shadow-lg"
+          style={{ position: 'fixed', right: 16, top: Math.max(8, clavier.haut - 44), zIndex: 200 }}
+          onMouseDown={e => e.preventDefault()}
+          onClick={() => void montrerClavier(false)}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" aria-hidden>
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+          Fermer le clavier
+        </button>,
+        document.body,
+      )}
       <div className="mt-1 flex gap-2">
+        {!clavier.visible && pret && (
+          <button type="button" className="plai-btn min-h-[44px] !text-base" onMouseDown={e => e.preventDefault()} onClick={() => void montrerClavier(true)}>
+            Afficher le clavier
+          </button>
+        )}
         <button type="button" className="plai-btn min-h-[44px] !text-base" onMouseDown={e => e.preventDefault()} onClick={basculer}>
           {complet ? 'Clavier simple' : 'Clavier complet'}
         </button>
