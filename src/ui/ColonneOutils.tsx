@@ -80,6 +80,12 @@ export function ColonneOutils(p: Props) {
                 {libelle}
               </button>
             ))}
+            <button type="button" className={(p.geometrie.loupe ? OUTIL_ACTIF : OUTIL_GRIS) + ' w-full justify-start gap-2.5 !px-3'}
+              aria-pressed={p.geometrie.loupe} onClick={p.geometrie.basculerLoupe}
+              title="Poser ou retirer la loupe. Elle agrandit ce qu'elle recouvre ; la glisser pour la déplacer.">
+              <IconeUi nom="loupe" taille={22} />
+              Loupe
+            </button>
           </div>
         </section>
       )}

@@ -19,6 +19,7 @@ import { BarreOutils, COULEURS, EPAISSEURS, type PropsOutils } from './BarreOuti
 import { creerMiniature } from '../lib/miniature';
 import { creerInstrument, rayonValide, type IdInstrument, type Instrument } from '../model/instruments';
 import { RAYON_LISSAGE } from '../model/lissage';
+import { centrerLoupe, FACTEUR_LOUPE_DEFAUT, type Loupe } from '../model/loupe';
 import { BandeauReglages, BarreBas } from './BandeauReglages';
 import { LARGEUR_COLONNE_PX } from './ColonneOutils';
 import { ColonneRepliable, LARGEUR_BANDE_PX } from './ColonneRepliable';
@@ -101,6 +102,23 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   const basculerInstrument = useCallback((id: IdInstrument) => {
     setInstruments(l => (l.some(i => i.id === id) ? l.filter(i => i.id !== id) : [...l, creerInstrument(id, pageActive, dernier.current.pages[pageActive]?.largeurMm ?? 210)]));
   }, [pageActive]);
+  // Loupe : une seule, sur la page active, posée au milieu de ce qu'on voit de la page.
+  const [loupe, setLoupe] = useState<Loupe | null>(null);
+  const basculerLoupe = useCallback(() => {
+    setLoupe(l => {
+      if (l) return null;
+      const page = dernier.current.pages[pageActive];
+      const el = document.querySelector<HTMLElement>(`[data-page-index="${pageActive}"]`);
+      if (!page || !el) return null;
+      const r = el.getBoundingClientRect();
+      const haut = (document.querySelector('[aria-label="Réglages de l’outil"]')?.getBoundingClientRect().bottom ?? 64) + 8;
+      const c = centrerLoupe({ left: r.left, top: r.top, width: r.width, height: r.height },
+        { gauche: 0, droite: window.innerWidth, haut, bas: window.innerHeight - 100 }, page.largeurMm, page.hauteurMm);
+      return { page: pageActive, ...c, facteur: FACTEUR_LOUPE_DEFAUT };
+    });
+  }, [pageActive]);
+  const changerFacteurLoupe = useCallback((facteur: number) => setLoupe(l => (l ? { ...l, facteur } : l)), []);
+  const deplacerLoupe = useCallback((c: { x: number; y: number }) => setLoupe(l => (l ? { ...l, ...c } : l)), []);
   const ajusterRayonCompas = useCallback((deltaMm: number) => {
     setInstruments(l => l.map(i => (i.id === 'compas' ? { ...i, rayon: rayonValide((i.rayon ?? 40) + deltaMm) } : i)));
   }, []);
@@ -343,6 +361,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
       basculer: basculerInstrument,
       rayonCompas: instruments.find(i => i.id === 'compas')?.rayon ?? null,
       ajusterRayon: ajusterRayonCompas,
+      loupe: loupe !== null, facteurLoupe: loupe?.facteur ?? null, changerFacteurLoupe, basculerLoupe,
     } : undefined,
   };
   const pages = (
@@ -367,6 +386,8 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             lissage={RAYON_LISSAGE[reglages.lissage]}
             onOperationOuverte={operationOuverte}
             instruments={instruments}
+            loupe={loupe && loupe.page === i ? loupe : undefined}
+            onLoupe={deplacerLoupe}
             onInstrument={majInstrument}
             aimantation={reglages.aimantation}
             taillePtTexte={taillePtTexte}

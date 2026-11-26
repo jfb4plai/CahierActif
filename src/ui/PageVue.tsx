@@ -30,6 +30,7 @@ import { FormeMaths } from './maths/Formes';
 import { DroiteVue } from './DroiteVue';
 import { FormeVue } from './FormeVue';
 import { InstrumentVue } from './InstrumentVue';
+import { LoupeVue } from './LoupeVue';
 import { PdfCanvas } from './PdfCanvas';
 
 type Props = {
@@ -51,6 +52,9 @@ type Props = {
   modeSurligneur: 'libre' | 'lineaire';
   /** Largeur (mm) de l'opération en cours de saisie, ou null à la fin : l'éditeur agrandit alors la page (voir Editeur). */
   onOperationOuverte?: (largeurMm: number | null) => void;
+  /** Loupe posée sur cette page (undefined = aucune) et sa nouvelle position après un déplacement. */
+  loupe?: { x: number; y: number; facteur: number };
+  onLoupe: (centre: { x: number; y: number }) => void;
   /** Instruments posés sur cette page (règle, équerre) et leur mise à jour (déplacement, rotation). */
   instruments: Instrument[];
   onInstrument: (id: IdInstrument, patch: Partial<Instrument>) => void;
@@ -892,6 +896,7 @@ export function PageVue(p: Props) {
           </Layer>
         </Stage>
       )}
+      {p.loupe && <LoupeVue racine={racine} pxMm={p.pxMm} x={p.loupe.x} y={p.loupe.y} facteur={p.loupe.facteur} onFin={p.onLoupe} />}
       {edition && <EditeurTexte texte={edition.texte} pxMm={p.pxMm} onChange={v => { valeurTexte.current = v; }} onFin={finTexte} onDeplacer={deplacerEdition} />}
       {maths && <EditionMaths o={maths.objet} pxMm={p.pxMm} onChange={majMaths} onFin={finMaths} />}
       {dialogue?.type === 'operation' && (

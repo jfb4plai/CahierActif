@@ -75,6 +75,11 @@ export type PropsOutils = {
     /** Écartement du compas en mm (null = compas non posé) et son réglage par pas signés en mm. */
     rayonCompas: number | null;
     ajusterRayon: (deltaMm: number) => void;
+    /** Loupe : posée ou non, son facteur d'agrandissement (null = pas posée) et son changement. */
+    loupe: boolean;
+    facteurLoupe: number | null;
+    changerFacteurLoupe: (f: number) => void;
+    basculerLoupe: () => void;
   };
 };
 
