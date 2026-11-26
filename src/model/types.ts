@@ -129,7 +129,7 @@ export type Objet = (Trait | Texte | ObjetMaths | Forme | Droite) & AvecGroupe;
 export type AvecGroupe = { groupe?: string };
 
 /** Dossier (cours) de la bibliothèque : classement local, hors du document. */
-export type Dossier = { id: string; nom: string; cree: number };
+export type Dossier = { id: string; nom: string; cree: number; couleur?: string };
 
 export type Fond = 'aucun' | 'quadrille5' | 'quadrille10' | 'seyes' | 'pointe';
 

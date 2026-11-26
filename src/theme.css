@@ -130,10 +130,12 @@ body { font-size: 16px; line-height: 1.55; }
 /* Pastilles de dossiers (cours) */
 .puce-cours {
   min-height: 44px; border-radius: 999px; border: 1.5px solid var(--border2);
-  background: #fff; color: var(--text); padding: 0 16px; font-size: 16px; font-weight: 500; cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  background: var(--cours-fond, #fff); color: var(--text); padding: 0 16px; font-size: 16px; font-weight: 500; cursor: pointer;
+  border-color: var(--cours-bord, var(--border2));
+  transition: background 0.15s, border-color 0.15s, filter 0.15s;
 }
-.puce-cours:hover { background: var(--teinte-teal-bg); border-color: var(--teal); }
+.puce-cours:hover { border-color: var(--teal); filter: brightness(0.96); }
+/* Cours choisi : plein vert, comme avant ; une pastille de sa couleur reste visible dans le cartouche (voir Bibliotheque). */
 .puce-cours[aria-pressed='true'] { background: var(--teal); border-color: var(--teal); color: #fff; font-weight: 700; }
 
 /* Éditeur : en-tête, colonne et bandeau en cartes blanches */

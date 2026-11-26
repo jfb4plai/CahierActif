@@ -1,6 +1,7 @@
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { depuisCahier } from '../fichier/cahier';
 import { amorcerDossiers, NOM_MAX, verifierNomDossier } from '../lib/dossiers';
+import { couleurCours, PALETTE_COURS, premiereCouleurLibre, SANS_COULEUR } from '../lib/couleursCours';
 import { amorcerExemple } from '../lib/exemple';
 import type { Reglages } from '../lib/reglages';
 import { TITRE_MAX, titreParDefaut, verifierTitre } from '../lib/titres';
@@ -26,6 +27,7 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
   const [filtre, setFiltre] = useState<Filtre>({ type: 'tous' });
   const [formulaire, setFormulaire] = useState<FormulaireDossier | null>(null);
   const [nomSaisi, setNomSaisi] = useState('');
+  const [couleurSaisie, setCouleurSaisie] = useState<string>(SANS_COULEUR);
   const [erreurNom, setErreurNom] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [renommage, setRenommage] = useState<{ id: string; valeur: string; erreur: string | null } | null>(null);
@@ -52,6 +54,8 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
   const ouvrirFormulaire = (f: FormulaireDossier) => {
     setFormulaire(f);
     setNomSaisi(f.mode === 'renommer' ? (dossiers.find(d => d.id === f.id)?.nom ?? '') : '');
+    // Renommer : la couleur actuelle ; créer : une couleur qu'aucun cours n'utilise encore, pour qu'il se distingue des autres.
+    setCouleurSaisie(f.mode === 'renommer' ? (couleurCours(dossiers.find(d => d.id === f.id))?.id ?? SANS_COULEUR) : premiereCouleurLibre(dossiers));
     setErreurNom(null);
   };
 
@@ -63,9 +67,9 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
     try {
       if (formulaire.mode === 'renommer') {
         const d = dossiers.find(x => x.id === formulaire.id);
-        if (d) await stockage.enregistrerDossier({ ...d, nom: r.nom });
+        if (d) await stockage.enregistrerDossier({ ...d, nom: r.nom, couleur: couleurSaisie });
       } else {
-        const d: Dossier = { id: nouvelId(), nom: r.nom, cree: Date.now() };
+        const d: Dossier = { id: nouvelId(), nom: r.nom, cree: Date.now(), couleur: couleurSaisie };
         await stockage.enregistrerDossier(d);
         setFiltre({ type: 'dossier', id: d.id });
       }
@@ -180,6 +184,11 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
     await rafraichir();
   };
 
+  // Liseré gauche d'une ligne de document : la couleur de son cours (rien pour un document sans cours).
+  const liseres = (m: MetaDoc): CSSProperties | undefined => {
+    const c = couleurCours(dossiers.find(d => d.id === m.dossierId));
+    return c ? { borderLeft: `8px solid ${c.bord}` } : undefined;
+  };
   const rangeDansUnDossier = (m: MetaDoc) => !!m.dossierId && dossiers.some(d => d.id === m.dossierId);
   const nbSans = docs.filter(m => !rangeDansUnDossier(m)).length;
   const visibles = docs.filter(m => {
@@ -252,7 +261,7 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
           ) : (
             <ul className="space-y-2">
               {visibles.map(m => (
-                <li key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[14px] sm:flex-nowrap border border-[var(--border)] bg-[var(--carte-douce)] p-2">
+                <li key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[14px] sm:flex-nowrap border border-[var(--border)] bg-[var(--carte-douce)] p-2" style={liseres(m)}>
                   {renommage?.id === m.id ? (
                     <form className="flex min-w-[12rem] flex-1 flex-wrap items-center gap-2" onSubmit={e => { e.preventDefault(); void validerRenommage(); }}>
                       <label className="flex min-w-[12rem] flex-1 flex-col text-base font-semibold">
@@ -317,8 +326,11 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
           </button>
           {dossiers.map(d => {
             const actif = filtre.type === 'dossier' && filtre.id === d.id;
+            const c = couleurCours(d);
+            const style = c ? ({ '--cours-fond': c.fond, '--cours-bord': c.bord } as CSSProperties) : undefined;
             return (
-              <button key={d.id} type="button" className="puce-cours" aria-pressed={actif} onClick={() => setFiltre({ type: 'dossier', id: d.id })}>
+              <button key={d.id} type="button" className="puce-cours" style={style} aria-pressed={actif} onClick={() => setFiltre({ type: 'dossier', id: d.id })}>
+                {actif && c && <span aria-hidden className="mr-2 inline-block h-3 w-3 rounded-full align-middle" style={{ background: c.fond, border: `2px solid ${c.bord}` }} />}
                 {d.nom} ({docs.filter(m => m.dossierId === d.id).length})
               </button>
             );
@@ -353,6 +365,24 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
             <p id="aide-nom-dossier" className="mt-1 text-base text-[var(--text2)]">
               Un dossier regroupe les documents d’un même cours. Son nom apparaît dans la liste des cours ; il pourra être changé plus tard.
             </p>
+            <fieldset className="mt-3">
+              <legend className="text-base font-semibold">Couleur du cours</legend>
+              <p className="text-base text-[var(--text2)]">Une couleur de plus pour reconnaître le cours. Son nom reste toujours écrit.</p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {[{ id: SANS_COULEUR, nom: 'Aucune', fond: '#ffffff', bord: '#9ca3af' }, ...PALETTE_COURS].map(c => (
+                  <label key={c.id} className="cursor-pointer">
+                    <input type="radio" name="couleur-cours" value={c.id} className="peer sr-only" checked={couleurSaisie === c.id} onChange={() => setCouleurSaisie(c.id)} />
+                    <span
+                      className="flex min-h-[44px] items-center gap-2 rounded-full border-2 px-3 text-base peer-checked:font-bold peer-checked:ring-2 peer-checked:ring-[#1a1814] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-[#1d4ed8]"
+                      style={{ background: c.fond, borderColor: c.bord }}
+                    >
+                      {couleurSaisie === c.id && <span aria-hidden>✓</span>}
+                      {c.nom}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             {erreurNom && <p className="plai-error mt-1" role="alert">{erreurNom}</p>}
             <div className="mt-2 flex gap-2">
               <button type="submit" className="plai-btn min-h-[44px]">{formulaire.mode === 'creer' ? 'Créer le dossier' : 'Enregistrer'}</button>
