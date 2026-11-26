@@ -7,6 +7,7 @@ import { ptVersMm, ratioPixelsMax } from '../lib/units';
 import { motifFond, type Motif } from '../model/fonds';
 import { creerDroite } from '../model/droites';
 import { formeContient, formeDepuisGlisse } from '../model/formes';
+import { aimanter, SEUIL_AIMANT_PX } from '../model/aimantation';
 import { lisserTrait } from '../model/lissage';
 import { effacerPartiel, objetTouche } from '../model/gomme';
 import { ajouterObjet, deplacerObjets, membresDuGroupe, modifierObjet, remplacerObjet, supprimerObjet } from '../model/ops';
@@ -48,6 +49,8 @@ type Props = {
   modeSurligneur: 'libre' | 'lineaire';
   /** Largeur (mm) de l'opération en cours de saisie, ou null à la fin : l'éditeur agrandit alors la page (voir Editeur). */
   onOperationOuverte?: (largeurMm: number | null) => void;
+  /** Accroche les droites, formes, textes et opérations aux lignes du fond de page (réglage). */
+  aimantation: boolean;
   /** Rayon du lissage du trait à main levée (0 = aucun), voir model/lissage.ts. */
   lissage: number;
   /** Taille (points) des nouveaux textes. */
@@ -212,6 +215,10 @@ export function PageVue(p: Props) {
     return { x: q.x, y: q.y, p: e.evt.pressure || undefined };
   };
 
+  // Aimantation : seulement si le réglage est actif ; le seuil est d'environ 12 px à l'écran quel que soit le zoom.
+  const aimante = (q: Point): Point =>
+    p.aimantation ? aimanter(q, page.fond, page.largeurMm, page.hauteurMm, SEUIL_AIMANT_PX / p.pxMm) : q;
+
   const gommer = (d: CahierDoc, q: Point): CahierDoc => {
     const objs = d.pages[p.pageIndex].objets;
     if (p.outil === 'gomme-objet') {
@@ -288,7 +295,7 @@ export function PageVue(p: Props) {
       if (cible) { p.onSelection([cible.id]); return; } // le glissé qui suit la déplace (Konva)
       p.onSelection([]);
       pointeurActif.current = e.evt.pointerId;
-      traceFormeRef.current = { debut: q, fin: q };
+      traceFormeRef.current = { debut: aimante(q), fin: aimante(q) };
       return;
     }
     if (p.outil === 'droite') {
@@ -296,7 +303,7 @@ export function PageVue(p: Props) {
       pointeurActif.current = e.evt.pointerId;
       const dr = droiteRef.current;
       // Premier toucher : point A. Toucher suivant : point B, qui suit le doigt jusqu'au relâchement (ajustable).
-      droiteRef.current = dr?.seconde ? { ...dr, b: q } : { a: q, b: null, seconde: false };
+      droiteRef.current = dr?.seconde ? { ...dr, b: aimante(q) } : { a: aimante(q), b: null, seconde: false };
       setDroiteEnCours(droiteRef.current);
       return;
     }
@@ -326,7 +333,7 @@ export function PageVue(p: Props) {
         pointeurActif.current = e.evt.pointerId;
         objetSaisiRef.current = { objet: existant, ids: [existant.id], depart: q, bouge: false, selection: false, dejaSelectionne: false };
       } else {
-        creer(typeOutil, q);
+        creer(typeOutil, aimante(q));
       }
       return;
     }
@@ -348,10 +355,10 @@ export function PageVue(p: Props) {
     if (droiteRef.current) {
       const dr = droiteRef.current;
       // Glissé depuis le premier point : le second suit le doigt (même geste que les formes).
-      if (dr.seconde || Math.hypot(q.x - dr.a.x, q.y - dr.a.y) >= SEUIL_GLISSER) droiteRef.current = { ...dr, b: q };
+      if (dr.seconde || Math.hypot(q.x - dr.a.x, q.y - dr.a.y) >= SEUIL_GLISSER) droiteRef.current = { ...dr, b: aimante(q) };
       setDroiteEnCours(droiteRef.current);
     } else if (traceFormeRef.current) {
-      traceFormeRef.current = { ...traceFormeRef.current, fin: q };
+      traceFormeRef.current = { ...traceFormeRef.current, fin: aimante(q) };
       setTraceForme(traceFormeRef.current);
     } else if (saisi) {
       const dx = q.x - saisi.depart.x;

@@ -32,6 +32,7 @@ export function Reglages({ initial, onValider }: Props) {
   const [mode, setMode] = useState<ModeEntree>(initial?.modeEntree ?? 'stylet');
   const [colonne, setColonne] = useState<PositionColonne>(initial?.colonne ?? 'gauche');
   const [lissage, setLissage] = useState<Lissage>(initial?.lissage ?? 'aucun');
+  const [aimantation, setAimantation] = useState(initial?.aimantation ?? false);
 
   return (
     <section className="plai-section mx-auto max-w-2xl p-4">
@@ -78,7 +79,17 @@ export function Reglages({ initial, onValider }: Props) {
           </label>
         ))}
       </fieldset>
-      <button type="button" className="plai-btn min-h-[44px]" onClick={() => onValider({ niveau, modeEntree: mode, colonne, lissage })}>Valider</button>
+      <fieldset className="plai-card mb-4 p-4">
+        <legend className="font-semibold">Aimantation à la grille de la page</legend>
+        <p className="mb-2 text-[var(--text2)]">Quand la page a un fond (quadrillé, Seyes ou pointé), les droites, les formes, les textes et les opérations se posent sur la ligne ou le point le plus proche. Sans fond, rien ne change. Le trait à main levée n’est pas concerné.</p>
+        {[{ v: false, libelle: 'Désactivée', aide: 'Les objets se posent exactement où le doigt ou le stylet touche.' }, { v: true, libelle: 'Activée', aide: 'Les objets s’accrochent aux lignes proches du doigt ou du stylet.' }].map(o => (
+          <label key={String(o.v)} className="mb-2 flex items-start gap-3">
+            <input type="radio" name="aimantation" className="mt-2 h-5 w-5" checked={aimantation === o.v} onChange={() => setAimantation(o.v)} />
+            <span><strong>{o.libelle}</strong><span className="block text-[var(--text2)]">{o.aide}</span></span>
+          </label>
+        ))}
+      </fieldset>
+      <button type="button" className="plai-btn min-h-[44px]" onClick={() => onValider({ niveau, modeEntree: mode, colonne, lissage, aimantation })}>Valider</button>
     </section>
   );
 }

@@ -19,8 +19,8 @@ describe('reglages', () => {
   });
   it('aller-retour', () => {
     const s = memoire();
-    ecrireReglages({ niveau: 'secondaire', modeEntree: 'stylet', colonne: 'droite', lissage: 'fort' }, s);
-    expect(lireReglages(s)).toEqual({ niveau: 'secondaire', modeEntree: 'stylet', colonne: 'droite', lissage: 'fort' });
+    ecrireReglages({ niveau: 'secondaire', modeEntree: 'stylet', colonne: 'droite', lissage: 'fort', aimantation: true }, s);
+    expect(lireReglages(s)).toEqual({ niveau: 'secondaire', modeEntree: 'stylet', colonne: 'droite', lissage: 'fort', aimantation: true });
   });
   it('valeur corrompue → null', () => {
     const s = memoire();
@@ -31,12 +31,12 @@ describe('reglages', () => {
   });
   it('stockage indisponible → null sans exception', () => {
     expect(lireReglages(null)).toBeNull();
-    expect(() => ecrireReglages({ niveau: 'p1p2', modeEntree: 'souris', colonne: 'gauche', lissage: 'aucun' }, null)).not.toThrow();
+    expect(() => ecrireReglages({ niveau: 'p1p2', modeEntree: 'souris', colonne: 'gauche', lissage: 'aucun', aimantation: false }, null)).not.toThrow();
   });
   it('réglages d’avant la colonne : colonne à gauche par défaut', () => {
     const s = memoire();
     s.setItem('cahieractif.reglages', '{"niveau":"p3p6","modeEntree":"souris"}');
-    expect(lireReglages(s)).toEqual({ niveau: 'p3p6', modeEntree: 'souris', colonne: 'gauche', lissage: 'aucun' });
+    expect(lireReglages(s)).toEqual({ niveau: 'p3p6', modeEntree: 'souris', colonne: 'gauche', lissage: 'aucun', aimantation: false });
     s.setItem('cahieractif.reglages', '{"niveau":"p3p6","modeEntree":"souris","colonne":"haut"}');
     expect(lireReglages(s)?.colonne).toBe('gauche');
   });

@@ -335,6 +335,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             modeSurligneur={modeSurligneur}
             lissage={RAYON_LISSAGE[reglages.lissage]}
             onOperationOuverte={operationOuverte}
+            aimantation={reglages.aimantation}
             taillePtTexte={taillePtTexte}
             selectionId={outilSelection && selection?.page === i && selection.ids.length === 1 ? selection.ids[0] : null}
             selectionIds={outilSelection && selection?.page === i ? selection.ids : []}
