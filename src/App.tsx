@@ -8,6 +8,7 @@ import { BanniereMiseAJour } from './ui/BanniereMiseAJour';
 import { Bibliotheque } from './ui/Bibliotheque';
 import { DialogueCode, VerrouContexte } from './ui/DialogueCode';
 import { Editeur } from './ui/Editeur';
+import { IconeUi } from './ui/iconesOutils';
 import { Reglages } from './ui/Reglages';
 
 type Ecran = { nom: 'bibliotheque' } | { nom: 'reglages' } | { nom: 'document'; doc: CahierDoc };
@@ -49,7 +50,7 @@ export default function App() {
           <span className="marque">Cahier<span>Actif</span></span>
         </button>
         <div className="plai-nav-actions">
-          <a className="plai-nav-link inline-flex min-h-[44px] items-center" href="/mode-emploi.html" target="_blank" rel="noopener">Mode d’emploi<span className="sr-only"> (s’ouvre dans un nouvel onglet)</span></a>
+          <a className="plai-nav-link inline-flex min-h-[44px] items-center" href="/mode-emploi.html" target="_blank" rel="noopener" title="Le mode d’emploi s’ouvre dans un nouvel onglet : fermer cet onglet pour revenir ici."><span>Mode d’emploi</span><span className="ml-1 hidden items-center gap-1 text-sm md:inline-flex" aria-hidden="true"><IconeUi nom="externe" taille={16} />nouvel onglet</span><span className="sr-only"> (s’ouvre dans un nouvel onglet)</span></a>
           {reglages && ecran.nom !== 'document' && (
             <button type="button" className="plai-nav-link min-h-[44px]" onClick={() => void ouvrirReglages()}>Réglages</button>
           )}

@@ -30,7 +30,7 @@ export function IconeOutil({ id, taille = 22 }: { id: OutilId; taille?: number }
   return <Svg taille={taille}>{CHEMINS[id]}</Svg>;
 }
 
-export type NomIconeUi = 'cache' | 'loupe' | 'rapporteur' | 'compas' | 'regle' | 'equerre' | 'annuler' | 'retablir' | 'retour' | 'telecharger' | 'fichier' | 'bas' | 'haut' | 'pages' | 'moins' | 'plus' | 'reglages';
+export type NomIconeUi = 'cache' | 'loupe' | 'rapporteur' | 'compas' | 'regle' | 'equerre' | 'annuler' | 'retablir' | 'retour' | 'telecharger' | 'fichier' | 'bas' | 'haut' | 'pages' | 'moins' | 'plus' | 'reglages' | 'externe';
 
 const CHEMINS_UI: Record<NomIconeUi, ReactNode> = {
   cache: <><rect x="3" y="4" width="18" height="4" rx="1" /><rect x="3" y="16" width="18" height="4" rx="1" /><path d="M6 12h12" /></>,
@@ -49,6 +49,7 @@ const CHEMINS_UI: Record<NomIconeUi, ReactNode> = {
   pages: <><rect x="4" y="3" width="12" height="16" rx="1.5" /><path d="M8 21h11a1 1 0 0 0 1-1V8" /></>,
   moins: <><path d="M6 12h12" /></>,
   plus: <><path d="M12 6v12M6 12h12" /></>,
+  externe: <><path d="M14 4h6v6" /><path d="M20 4l-9 9" /><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></>,
   reglages: <><path d="M4 7h9M17 7h3M4 17h3M11 17h9" /><circle cx="15" cy="7" r="2" /><circle cx="9" cy="17" r="2" /></>,
 };
 
