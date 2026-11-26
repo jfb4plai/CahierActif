@@ -1,8 +1,9 @@
+import { LISSAGES, type Lissage } from '../model/lissage';
 import type { ModeEntree, Niveau } from '../model/types';
 
 /** Côté de la colonne d'outils (P3 et plus) : à droite pour écrire de la main gauche. */
 export type PositionColonne = 'gauche' | 'droite';
-export type Reglages = { niveau: Niveau; modeEntree: ModeEntree; colonne: PositionColonne };
+export type Reglages = { niveau: Niveau; modeEntree: ModeEntree; colonne: PositionColonne; lissage: Lissage };
 
 const CLE = 'cahieractif.reglages';
 const NIVEAUX: Niveau[] = ['p1p2', 'p3p6', 'secondaire'];
@@ -23,7 +24,9 @@ export function lireReglages(s: Storage | null = stockageLocal()): Reglages | nu
     const r = JSON.parse(brut);
     if (!NIVEAUX.includes(r?.niveau) || !MODES.includes(r?.modeEntree)) return null;
     // Réglages enregistrés avant l'existence de la colonne : à gauche par défaut.
-    return { niveau: r.niveau, modeEntree: r.modeEntree, colonne: r.colonne === 'droite' ? 'droite' : 'gauche' };
+    return { niveau: r.niveau, modeEntree: r.modeEntree, colonne: r.colonne === 'droite' ? 'droite' : 'gauche',
+      // Réglages enregistrés avant le lissage : aucun lissage, comme avant.
+      lissage: LISSAGES.includes(r.lissage) ? r.lissage : 'aucun' };
   } catch {
     return null;
   }

@@ -16,6 +16,7 @@ import { exporterPdf } from '../pdf/export';
 import { ouvrirPdf, type PDFDocumentProxy } from '../pdf/pdfjs';
 import type { StorageAdapter } from '../storage/adapter';
 import { BarreOutils, COULEURS, EPAISSEURS, type PropsOutils } from './BarreOutils';
+import { RAYON_LISSAGE } from '../model/lissage';
 import { BandeauReglages, BarreBas } from './BandeauReglages';
 import { LARGEUR_COLONNE_PX } from './ColonneOutils';
 import { ColonneRepliable, LARGEUR_BANDE_PX } from './ColonneRepliable';
@@ -314,6 +315,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             formeChoisie={formeChoisie}
             photoUrl={photoUrls[doc.pages[i].origine ?? i]}
             modeSurligneur={modeSurligneur}
+            lissage={RAYON_LISSAGE[reglages.lissage]}
             taillePtTexte={taillePtTexte}
             selectionId={outilSelection && selection?.page === i && selection.ids.length === 1 ? selection.ids[0] : null}
             selectionIds={outilSelection && selection?.page === i ? selection.ids : []}

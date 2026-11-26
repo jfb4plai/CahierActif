@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { PositionColonne, Reglages as R } from '../lib/reglages';
+import { LISSAGES, type Lissage } from '../model/lissage';
 import type { ModeEntree, Niveau } from '../model/types';
 
 const NIVEAUX: { id: Niveau; libelle: string; aide: string }[] = [
@@ -18,12 +19,19 @@ const COLONNES: { id: PositionColonne; libelle: string; aide: string }[] = [
   { id: 'droite', libelle: 'À droite', aide: 'Pour écrire de la main gauche : la main qui écrit ne cache pas les outils.' },
 ];
 
+const LISSAGES_TEXTES: Record<Lissage, { libelle: string; aide: string }> = {
+  aucun: { libelle: 'Aucun', aide: 'Le trait suit exactement la main, tremblements compris.' },
+  leger: { libelle: 'Léger', aide: 'Adoucit les petits tremblements. Les lettres gardent leur forme.' },
+  fort: { libelle: 'Fort', aide: 'Adoucit beaucoup : les traits deviennent plus réguliers, mais les petits détails des lettres s’arrondissent.' },
+};
+
 type Props = { initial: R | null; onValider: (r: R) => void };
 
 export function Reglages({ initial, onValider }: Props) {
   const [niveau, setNiveau] = useState<Niveau>(initial?.niveau ?? 'p3p6');
   const [mode, setMode] = useState<ModeEntree>(initial?.modeEntree ?? 'stylet');
   const [colonne, setColonne] = useState<PositionColonne>(initial?.colonne ?? 'gauche');
+  const [lissage, setLissage] = useState<Lissage>(initial?.lissage ?? 'aucun');
 
   return (
     <section className="plai-section mx-auto max-w-2xl p-4">
@@ -60,7 +68,17 @@ export function Reglages({ initial, onValider }: Props) {
           ))}
         </fieldset>
       )}
-      <button type="button" className="plai-btn min-h-[44px]" onClick={() => onValider({ niveau, modeEntree: mode, colonne })}>Valider</button>
+      <fieldset className="plai-card mb-4 p-4">
+        <legend className="font-semibold">Lissage du trait à main levée</legend>
+        <p className="mb-2 text-[var(--text2)]">Adoucit les tremblements du stylo et du surligneur libre. Le début et la fin du trait restent là où ils ont été posés. Les formes, les droites et les opérations ne sont pas concernées.</p>
+        {LISSAGES.map(l => (
+          <label key={l} className="mb-2 flex items-start gap-3">
+            <input type="radio" name="lissage" className="mt-2 h-5 w-5" checked={lissage === l} onChange={() => setLissage(l)} />
+            <span><strong>{LISSAGES_TEXTES[l].libelle}</strong><span className="block text-[var(--text2)]">{LISSAGES_TEXTES[l].aide}</span></span>
+          </label>
+        ))}
+      </fieldset>
+      <button type="button" className="plai-btn min-h-[44px]" onClick={() => onValider({ niveau, modeEntree: mode, colonne, lissage })}>Valider</button>
     </section>
   );
 }

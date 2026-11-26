@@ -7,6 +7,7 @@ import { ptVersMm, ratioPixelsMax } from '../lib/units';
 import { motifFond, type Motif } from '../model/fonds';
 import { creerDroite } from '../model/droites';
 import { formeContient, formeDepuisGlisse } from '../model/formes';
+import { lisserTrait } from '../model/lissage';
 import { effacerPartiel, objetTouche } from '../model/gomme';
 import { ajouterObjet, deplacerObjets, membresDuGroupe, modifierObjet, remplacerObjet, supprimerObjet } from '../model/ops';
 import { boiteDe, objetSous } from '../model/selection';
@@ -45,6 +46,8 @@ type Props = {
   photoUrl?: string;
   /** Surligneur : « libre » suit le doigt, « lineaire » trace une droite du début à la fin du glissé. */
   modeSurligneur: 'libre' | 'lineaire';
+  /** Rayon du lissage du trait à main levée (0 = aucun), voir model/lissage.ts. */
+  lissage: number;
   /** Taille (points) des nouveaux textes. */
   taillePtTexte: number;
   /** Objet sélectionné sur cette page (outils Sélectionner et Formes) : cadre, ou poignées pour une forme. */
@@ -380,7 +383,7 @@ export function PageVue(p: Props) {
     setBrouillon(null);
     if (trait && trait.length > 0) {
       p.onCommit(ajouterObjet(p.doc, p.pageIndex, {
-        id: nouvelId(), type: 'trait', points: trait, couleur: p.couleur, epaisseur: p.epaisseur,
+        id: nouvelId(), type: 'trait', points: lisserTrait(trait, p.lissage), couleur: p.couleur, epaisseur: p.epaisseur,
         ...(p.outil === 'surligneur' ? { surligneur: true } : {}),
       }));
     } else if (gomme && gomme !== p.doc) {
@@ -617,7 +620,7 @@ export function PageVue(p: Props) {
             idEdition={maths?.objet.id ?? null} formesEditables={surFormes} largeurPage={page.largeurMm} hauteurPage={page.hauteurMm} onDeplace={finDeplacement} onTransforme={finTransformation} />
           <Layer listening={false}>
             {enCours && (
-              <Line points={enCours.flatMap(q => [q.x, q.y])} stroke={p.couleur} strokeWidth={p.epaisseur}
+              <Line points={lisserTrait(enCours, p.lissage).flatMap(q => [q.x, q.y])} stroke={p.couleur} strokeWidth={p.epaisseur}
                 lineCap={p.outil === 'surligneur' ? 'butt' : 'round'} lineJoin="round" opacity={p.outil === 'surligneur' ? SURLIGNEUR_OPACITE : 1} />
             )}
             {apercuForme && <FormeVue o={apercuForme} draggable={false} listening={false} />}

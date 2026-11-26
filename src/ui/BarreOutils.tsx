@@ -5,6 +5,8 @@ import { FORMES } from '../model/formes';
 import { TAILLES_TEXTE_PT } from '../model/texte';
 import { PaletteCouleurs } from './PaletteCouleurs';
 import { outilsPour, type OutilId } from '../model/outils';
+import { OUTIL_ACTIF, OUTIL_GRIS } from './ColonneOutils';
+import { IconeOutil, IconeUi } from './iconesOutils';
 
 export const COULEURS = [
   { hex: '#1a1814', nom: 'Noir' },
@@ -69,13 +71,16 @@ export type PropsOutils = {
 
 export function BarreOutils(p: PropsOutils) {
   const grand = p.niveau === 'p1p2';
+  // Même langage que la colonne d'outils : l'outil ou le choix actif est plein bleu, tous les autres sont gris.
+  // (Avant : tous verts, l'actif seulement cerclé de vert, donc presque invisible.)
   const bouton = (actif: boolean) =>
-    `plai-btn ${grand ? 'min-h-[64px] min-w-[64px] text-lg' : 'min-h-[44px] min-w-[44px]'} ${actif ? 'ring-4 ring-[#0f6e56]' : ''}`;
+    `${actif ? OUTIL_ACTIF : OUTIL_GRIS} justify-center ${grand ? '!min-h-[64px] !min-w-[64px]' : '!min-h-[44px] !min-w-[44px]'}`;
 
   return (
     <div className="carte-flottante sticky top-[64px] z-50 mx-3 mt-3 flex flex-wrap items-center gap-2 p-2" role="toolbar" aria-label="Outils">
       {outilsPour(p.niveau).map(o => (
-        <button key={o.id} type="button" className={bouton(p.outil === o.id)} title={o.aide} aria-pressed={p.outil === o.id} onClick={() => p.setOutil(o.id)}>
+        <button key={o.id} type="button" className={`${bouton(p.outil === o.id)} ${grand ? 'flex-col gap-1 !py-2' : 'gap-2'}`} title={o.aide} aria-pressed={p.outil === o.id} onClick={() => p.setOutil(o.id)}>
+          <IconeOutil id={o.id} taille={grand ? 30 : 22} />
           {o.libelle}
         </button>
       ))}
@@ -131,8 +136,8 @@ export function BarreOutils(p: PropsOutils) {
         </>
       )}
       <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />
-      <button type="button" className={bouton(false)} disabled={!p.peutAnnuler} onClick={p.onAnnuler}>Annuler</button>
-      <button type="button" className={bouton(false)} disabled={!p.peutRetablir} onClick={p.onRetablir}>Rétablir</button>
+      <button type="button" className={`${bouton(false)} gap-2`} disabled={!p.peutAnnuler} onClick={p.onAnnuler}><IconeUi nom="annuler" taille={22} />Annuler</button>
+      <button type="button" className={`${bouton(false)} gap-2`} disabled={!p.peutRetablir} onClick={p.onRetablir}><IconeUi nom="retablir" taille={22} />Rétablir</button>
       <span className="mx-2 h-8 w-px bg-[var(--border)]" aria-hidden />
       <button type="button" className={bouton(false)} aria-label="Dézoomer" onClick={() => p.setZoom(Math.max(0.5, +(p.zoom - 0.25).toFixed(2)))}>−</button>
       <span className="min-w-[3.5rem] text-center" aria-live="polite">{Math.round(p.zoom * 100)} %</span>

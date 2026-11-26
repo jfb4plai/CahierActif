@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { COULEURS_SURLIGNEUR, SURLIGNEUR_EPAISSEUR_MAX_MM, SURLIGNEUR_EPAISSEUR_MIN_MM, SURLIGNEUR_EPAISSEUR_PAS_MM, SURLIGNEUR_OPACITE } from '../lib/couleurs';
 import { FORMES } from '../model/formes';
 import { OUTILS } from '../model/outils';
@@ -60,9 +61,20 @@ export function aOptions(p: PropsOutils): boolean {
  * Elle flotte au-dessus de la page sans rien déplacer. Ne pas la mettre dans le bandeau : ce serait de la hauteur réservée en plus.
  */
 export function BarreBas(p: PropsOutils) {
+  // Repliée à la main pour dégager la page ; rouverte d'office quand on change d'outil (ses options sont alors nouvelles).
+  const [repliee, setRepliee] = useState(false);
+  useEffect(() => setRepliee(false), [p.outil]);
   return (
     <div className="pointer-events-none sticky bottom-3 z-40 mx-3 mb-3 flex items-end justify-between gap-3">
-      <div className="min-w-0 flex-1">{aOptions(p) && <FenetreOptions {...p} />}</div>
+      <div className="min-w-0 flex-1">
+        {aOptions(p) && (repliee
+          ? (
+            <button type="button" className={`${OUTIL_GRIS} pointer-events-auto gap-2 shadow-lg`} aria-expanded={false} onClick={() => setRepliee(false)}>
+              <IconeUi nom="haut" />Options de l’outil
+            </button>
+          )
+          : <FenetreOptions {...p} onReplier={() => setRepliee(true)} />)}
+      </div>
       <Zoom zoom={p.zoom} setZoom={p.setZoom} />
     </div>
   );
@@ -80,7 +92,7 @@ function Zoom({ zoom, setZoom }: { zoom: number; setZoom: (z: number) => void })
   );
 }
 
-function FenetreOptions(p: PropsOutils) {
+function FenetreOptions(p: PropsOutils & { onReplier: () => void }) {
   return (
     <div className="carte-flottante pointer-events-auto flex flex-wrap items-center gap-x-6 gap-y-2 p-3 shadow-2xl ring-1 ring-[var(--border2)]" role="group" aria-label="Options de l’outil">
       {p.outil === 'droite' && (
@@ -153,6 +165,9 @@ function FenetreOptions(p: PropsOutils) {
           </div>
         </div>
       )}
+      <button type="button" className={`${OUTIL_GRIS} ml-auto gap-2 ${PUCE}`} aria-expanded onClick={p.onReplier} title="Replier cette fenêtre pour voir toute la page">
+        <IconeUi nom="bas" />Replier
+      </button>
     </div>
   );
 }
