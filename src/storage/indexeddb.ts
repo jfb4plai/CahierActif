@@ -33,11 +33,25 @@ export function creerIndexedDBAdapter(nomBase = 'cahieractif'): StorageAdapter {
       const ancienne: MetaDoc | undefined = await tx.objectStore('meta').get(doc.id);
       const meta: MetaDoc = { id: doc.id, titre: doc.titre, modifie: doc.modifie };
       if (ancienne?.dossierId) meta.dossierId = ancienne.dossierId;
+      if (ancienne?.miniature) meta.miniature = ancienne.miniature;
       await Promise.all([tx.objectStore('docs').put(doc), tx.objectStore('meta').put(meta), tx.done]);
     },
     async supprimer(id) {
       const tx = (await db).transaction(['docs', 'meta'], 'readwrite');
       await Promise.all([tx.objectStore('docs').delete(id), tx.objectStore('meta').delete(id), tx.done]);
+    },
+    async renommer(id, titre) {
+      const tx = (await db).transaction(['docs', 'meta'], 'readwrite');
+      const doc: CahierDoc | undefined = await tx.objectStore('docs').get(id);
+      const meta: MetaDoc | undefined = await tx.objectStore('meta').get(id);
+      if (!doc || !meta) throw new Error('Document introuvable');
+      await Promise.all([tx.objectStore('docs').put({ ...doc, titre }), tx.objectStore('meta').put({ ...meta, titre }), tx.done]);
+    },
+    async enregistrerMiniature(id, miniature) {
+      const tx = (await db).transaction('meta', 'readwrite');
+      const m: MetaDoc | undefined = await tx.store.get(id);
+      if (m) await tx.store.put({ ...m, miniature });
+      await tx.done;
     },
     async deplacer(id, dossierId) {
       const tx = (await db).transaction('meta', 'readwrite');

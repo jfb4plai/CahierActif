@@ -16,6 +16,7 @@ import { exporterPdf } from '../pdf/export';
 import { ouvrirPdf, type PDFDocumentProxy } from '../pdf/pdfjs';
 import type { StorageAdapter } from '../storage/adapter';
 import { BarreOutils, COULEURS, EPAISSEURS, type PropsOutils } from './BarreOutils';
+import { creerMiniature } from '../lib/miniature';
 import { RAYON_LISSAGE } from '../model/lissage';
 import { BandeauReglages, BarreBas } from './BandeauReglages';
 import { LARGEUR_COLONNE_PX } from './ColonneOutils';
@@ -110,15 +111,26 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   dernier.current = doc;
   const validations = useRef(new Map<number, () => void>());
   const dernierEnregistre = useRef<CahierDoc | null>(initial);
+  // Miniature de la première page pour la liste des documents : calculée à l'ouverture (une fois le rendu fait), puis après chaque
+  // sauvegarde. Elle ne touche que la fiche légère du document, jamais le PDF.
+  const miniature = useCallback(() => {
+    const url = creerMiniature(document.querySelector<HTMLElement>('[data-page-index="0"]'));
+    if (url) stockage.enregistrerMiniature(dernier.current.id, url).catch(() => undefined);
+  }, [stockage]);
+  useEffect(() => {
+    const t = setTimeout(miniature, 2000);
+    return () => clearTimeout(t);
+  }, [miniature]);
+
   const enregistrer = useCallback(() => {
     const d = dernier.current;
     if (d === dernierEnregistre.current) return;
     dernierEnregistre.current = d;
-    stockage.enregistrer(d).catch(() => {
+    stockage.enregistrer(d).then(() => setTimeout(miniature, 100)).catch(() => {
       if (dernierEnregistre.current === d) dernierEnregistre.current = null; // réessayer au prochain déclencheur
       setMessage({ type: 'erreur', texte: 'Sauvegarde impossible (stockage plein ?). Exportez votre travail en fichier .cahier.' });
     });
-  }, [stockage]);
+  }, [stockage, miniature]);
 
   // Sauvegarde automatique, 800 ms après la dernière modification.
   useEffect(() => {

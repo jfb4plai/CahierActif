@@ -96,4 +96,24 @@ describe('IndexedDBAdapter', () => {
     await a.enregistrerDossier({ id: '2', nom: 'B renommé', cree: 20 });
     expect((await a.listerDossiers()).map(d => d.nom)).toEqual(['A', 'B renommé']);
   });
+
+  it('renomme sans changer la date ni les pages', async () => {
+    const a = creerIndexedDBAdapter(base());
+    const d = nouveauDocVierge('Page vierge', 'p3p6');
+    await a.enregistrer(d);
+    await a.renommer(d.id, 'Maths du jeudi');
+    expect((await a.charger(d.id))?.titre).toBe('Maths du jeudi');
+    expect((await a.charger(d.id))?.modifie).toBe(d.modifie);
+    expect(await a.lister()).toEqual([{ id: d.id, titre: 'Maths du jeudi', modifie: d.modifie }]);
+    await expect(a.renommer('inconnu', 'x')).rejects.toThrow();
+  });
+
+  it('garde la miniature quand le document est réenregistré', async () => {
+    const a = creerIndexedDBAdapter(base());
+    const d = nouveauDocVierge('Fiche', 'p3p6');
+    await a.enregistrer(d);
+    await a.enregistrerMiniature(d.id, 'data:image/jpeg;base64,AAAA');
+    await a.enregistrer({ ...d, modifie: d.modifie + 1 });
+    expect((await a.lister())[0].miniature).toBe('data:image/jpeg;base64,AAAA');
+  });
 });

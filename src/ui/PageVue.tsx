@@ -638,6 +638,7 @@ export function PageVue(p: Props) {
       className="relative mx-auto my-4 bg-white shadow"
       style={{ width: w, height: h, touchAction: p.outil === 'main' ? 'pan-x pan-y' : 'none' }}
       aria-label={`Page ${p.pageIndex + 1}`}
+      data-page-index={p.pageIndex}
       onPointerCancel={e => terminer(e.pointerId)}
     >
       {visible && p.pdf && <PdfCanvas pdf={p.pdf} pageIndex={page.origine ?? p.pageIndex} pxMm={p.pxMm} />}

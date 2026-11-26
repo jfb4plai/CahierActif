@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { depuisCahier } from '../fichier/cahier';
 import { amorcerDossiers, NOM_MAX, verifierNomDossier } from '../lib/dossiers';
 import type { Reglages } from '../lib/reglages';
+import { TITRE_MAX, titreParDefaut, verifierTitre } from '../lib/titres';
 import { PhotoIllisibleError, preparerPhotos } from '../lib/photo';
 import { nouveauDocPdf, nouveauDocPhotos, nouveauDocVierge } from '../model/ops';
 import { nouvelId } from '../model/types';
@@ -24,6 +25,7 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
   const [nomSaisi, setNomSaisi] = useState('');
   const [erreurNom, setErreurNom] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [renommage, setRenommage] = useState<{ id: string; valeur: string; erreur: string | null } | null>(null);
   const pdfInput = useRef<HTMLInputElement>(null);
   const cahierInput = useRef<HTMLInputElement>(null);
   const photosInput = useRef<HTMLInputElement>(null);
@@ -113,7 +115,7 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
     if (fichiers.length === 0) return;
     try {
       const { images, tailles } = await preparerPhotos(fichiers);
-      const titre = images.length === 1 ? 'Feuille photographiée' : `Feuilles photographiées (${images.length})`;
+      const titre = titreParDefaut(images.length === 1 ? 'Feuille photographiée' : `Feuilles photographiées (${images.length})`);
       await creerEtOuvrir(nouveauDocPhotos(titre, reglages.niveau, images, tailles));
     } catch (e) {
       setErreur(e instanceof PhotoIllisibleError ? e.message : 'Les photos n’ont pas pu être enregistrées (stockage plein ?). Libérer de la place et réessayer.');
@@ -132,7 +134,7 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
   const nouvellePageVierge = async () => {
     setErreur(null);
     try {
-      await creerEtOuvrir(nouveauDocVierge('Page vierge', reglages.niveau));
+      await creerEtOuvrir(nouveauDocVierge(titreParDefaut('Page vierge'), reglages.niveau));
     } catch {
       setErreur('Impossible de créer la page vierge (stockage plein ?). Libérez de la place et réessayez.');
     }
@@ -146,6 +148,19 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
       else setErreur('Document introuvable.');
     } catch {
       setErreur('Ce document ne peut pas être ouvert sur cet appareil. Réessayez.');
+    }
+  };
+
+  const validerRenommage = async () => {
+    if (!renommage) return;
+    const r = verifierTitre(renommage.valeur);
+    if ('erreur' in r) { setRenommage({ ...renommage, erreur: r.erreur }); return; }
+    try {
+      await stockage.renommer(renommage.id, r.titre);
+      setRenommage(null);
+      await rafraichir();
+    } catch {
+      setRenommage({ ...renommage, erreur: 'Le nom n’a pas pu être enregistré. Réessayer.' });
     }
   };
 
@@ -288,10 +303,35 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
             <ul className="space-y-2">
               {visibles.map(m => (
                 <li key={m.id} className="flex flex-wrap items-center gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--carte-douce)] p-3">
-                  <button type="button" className="min-w-[12rem] flex-1 text-left text-lg font-semibold" onClick={() => ouvrirExistant(m.id)}>
-                    {m.titre}
-                    <span className="block text-base font-normal text-[var(--text3)]">Modifié le {new Date(m.modifie).toLocaleString('fr-BE')}</span>
-                  </button>
+                  {renommage?.id === m.id ? (
+                    <form className="flex min-w-[12rem] flex-1 flex-wrap items-center gap-2" onSubmit={e => { e.preventDefault(); void validerRenommage(); }}>
+                      <label className="flex min-w-[12rem] flex-1 flex-col text-base font-semibold">
+                        Nom du document
+                        <input
+                          className="plai-input min-h-[44px] font-normal" autoFocus maxLength={TITRE_MAX + 10} value={renommage.valeur}
+                          aria-invalid={!!renommage.erreur} aria-describedby={renommage.erreur ? 'erreur-renommage' : undefined}
+                          onChange={e => setRenommage({ ...renommage, valeur: e.target.value, erreur: null })}
+                          onKeyDown={e => { if (e.key === 'Escape') setRenommage(null); }}
+                        />
+                        {renommage.erreur && <span id="erreur-renommage" role="alert" className="text-base font-normal text-[#b91c1c]">{renommage.erreur}</span>}
+                      </label>
+                      <button type="submit" className="plai-btn min-h-[44px]">Enregistrer</button>
+                      <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => setRenommage(null)}>Annuler</button>
+                    </form>
+                  ) : (
+                    <button type="button" className="flex min-w-[12rem] flex-1 items-center gap-3 text-left text-lg font-semibold" onClick={() => ouvrirExistant(m.id)}>
+                      {m.miniature
+                        ? <img src={m.miniature} alt="" className="h-[84px] w-auto shrink-0 rounded border border-[var(--border)] bg-white" />
+                        : <span aria-hidden className="flex h-[84px] w-[60px] shrink-0 items-center justify-center rounded border border-[var(--border)] bg-white text-[var(--text3)]"><IconePage /></span>}
+                      <span className="min-w-0">
+                        {m.titre}
+                        <span className="block text-base font-normal text-[var(--text3)]">Modifié le {new Date(m.modifie).toLocaleString('fr-BE')}</span>
+                      </span>
+                    </button>
+                  )}
+                  {renommage?.id !== m.id && (
+                    <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => setRenommage({ id: m.id, valeur: m.titre, erreur: null })}>Renommer</button>
+                  )}
                   <label className="flex items-center gap-2 text-base">
                     Ranger dans
                     <select
