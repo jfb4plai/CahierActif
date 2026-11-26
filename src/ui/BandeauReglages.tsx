@@ -9,55 +9,68 @@ import { PaletteCouleurs } from './PaletteCouleurs';
 
 const PUCE = '!w-auto';
 
-const rien = () => {};
-
-/**
- * Réglages fictifs des variantes les plus hautes du bandeau. Ils ne servent qu'à réserver la hauteur : voir BandeauReglages.
- * Ajouter ici toute variante qui deviendrait plus haute que celles-ci.
- */
-function variantesHautes(p: PropsOutils): PropsOutils[] {
-  const choix = { nombre: 2, multiple: false, onMultiple: rien, peutGrouper: true, peutDegrouper: true, onModifier: rien, onGrouper: rien, onDegrouper: rien, onSupprimer: rien };
-  const base: PropsOutils = { ...p, surligneur: undefined, tailleTexte: undefined, selection: undefined, palette: 'encre', montrerEpaisseur: true };
-  return [
-    { ...base, outil: 'formes' },
-    { ...base, outil: 'droite' },
-    {
-      ...base, outil: 'surligneur', palette: 'surligneur',
-      surligneur: { mode: 'libre', setMode: rien, afficherMode: true, epaisseur: SURLIGNEUR_EPAISSEUR_MIN_MM, setEpaisseur: rien, couleur: COULEURS_SURLIGNEUR[0].hex },
-    },
-    {
-      // Sélectionner, un texte groupé choisi : le plus de boutons, plus la taille (un texte n'a pas d'épaisseur).
-      ...base, outil: 'selectionner', montrerEpaisseur: false, tailleTexte: { valeur: 14, onChoisir: rien },
-      selection: { ...choix, modifiable: true },
-    },
-    {
-      // Sélectionner, un trait ou une forme groupé choisi : l'épaisseur remplace la taille.
-      ...base, outil: 'selectionner', selection: { ...choix, modifiable: false },
-    },
-  ];
+/** Le bandeau n'a que deux contenus possibles (couleur, épaisseur) : on réserve la hauteur du plus haut. */
+function variantePleine(p: PropsOutils): PropsOutils {
+  return { ...p, outil: 'stylo', palette: 'encre', montrerEpaisseur: true };
 }
 
 /**
- * Bandeau fixe au-dessus de la page : réglages de l'outil choisi (forme, couleur, épaisseur, objet choisi).
- * Sa hauteur ne change jamais : ni au choix d'un outil, ni au choix d'un objet. Sinon la page glisse sous la main.
- * Pour cela, les variantes les plus hautes sont dessinées invisibles dans la même case de grille : la case prend la hauteur
- * de la plus haute, quelle que soit la largeur de l'écran. Les réglages passent à la ligne plutôt que de défiler.
+ * Bandeau fixe au-dessus de la page : couleur et épaisseur du trait, ou l'aide de l'outil quand il n'a ni l'une ni l'autre.
+ * Sa hauteur ne change jamais (ni au choix d'un outil, ni au choix d'un objet) : sinon la page glisse sous la main.
+ * La variante pleine est dessinée invisible dans la même case de grille et fixe la hauteur, quelle que soit la largeur.
+ * Les options propres à un outil (forme, objet choisi, taille du texte…) sont dans la fenêtre d'options, hors de la page.
  */
 export function BandeauReglages(p: PropsOutils) {
   return (
     <div className="carte-flottante sticky top-[64px] z-40 mx-3 mt-3 grid px-3" role="group" aria-label="Réglages de l’outil">
-      <div className="col-start-1 row-start-1 min-w-0"><ContenuBandeau {...p} /></div>
-      {variantesHautes(p).map((v, i) => (
-        <div key={i} aria-hidden className="pointer-events-none invisible col-start-1 row-start-1 min-w-0"><ContenuBandeau {...v} fantome /></div>
-      ))}
+      <div className="col-start-1 row-start-1 min-w-0"><Coeur {...p} /></div>
+      <div aria-hidden className="pointer-events-none invisible col-start-1 row-start-1 min-w-0"><Coeur {...variantePleine(p)} /></div>
     </div>
   );
 }
 
-/** Zoom, hors du bandeau : il lui prenait de la largeur et se superposait à la palette de couleurs. */
-export function ZoomFlottant({ zoom, setZoom, cote }: { zoom: number; setZoom: (z: number) => void; cote: 'gauche' | 'droite' }) {
+function Coeur(p: PropsOutils) {
+  const aide = OUTILS.find(o => o.id === p.outil)?.aide;
+  const aDesOptions = aOptions(p);
   return (
-    <div className={`carte-flottante fixed bottom-4 z-40 flex items-center gap-2 p-2 ${cote === 'droite' ? 'right-4' : 'left-4'}`} role="group" aria-label="Zoom">
+    <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2 py-2">
+      {p.palette && <PaletteCouleurs couleurs={p.palette === 'surligneur' ? COULEURS_SURLIGNEUR : COULEURS} choisie={p.couleur} onChoisir={p.setCouleur} taille={48} />}
+      {p.montrerEpaisseur && (
+        <div role="group" aria-label="Épaisseur du trait" className={CONTENEUR_SEGMENTS}>
+          {EPAISSEURS.map(e => (
+            <button key={e.mm} type="button" className={p.epaisseur === e.mm ? SEGMENT_ACTIF : SEGMENT}
+              aria-pressed={p.epaisseur === e.mm} onClick={() => p.setEpaisseur(e.mm)}>
+              {e.libelle}
+            </button>
+          ))}
+        </div>
+      )}
+      {!p.palette && !p.montrerEpaisseur && !aDesOptions && aide && <p className="text-base text-[var(--text2)]">{aide}</p>}
+    </div>
+  );
+}
+
+/** Vrai quand l'outil a des options à montrer dans la fenêtre. */
+export function aOptions(p: PropsOutils): boolean {
+  return p.outil === 'formes' || p.outil === 'droite' || !!p.selection || !!p.surligneur || !!p.tailleTexte;
+}
+
+/**
+ * Barre du bas, collée au bord de l'écran : fenêtre d'options de l'outil (si besoin) et zoom.
+ * Elle flotte au-dessus de la page sans rien déplacer. Ne pas la mettre dans le bandeau : ce serait de la hauteur réservée en plus.
+ */
+export function BarreBas(p: PropsOutils) {
+  return (
+    <div className="pointer-events-none sticky bottom-3 z-40 mx-3 mb-3 flex items-end justify-between gap-3">
+      <div className="min-w-0 flex-1">{aOptions(p) && <FenetreOptions {...p} />}</div>
+      <Zoom zoom={p.zoom} setZoom={p.setZoom} />
+    </div>
+  );
+}
+
+function Zoom({ zoom, setZoom }: { zoom: number; setZoom: (z: number) => void }) {
+  return (
+    <div className="carte-flottante pointer-events-auto flex shrink-0 items-center gap-2 p-2" role="group" aria-label="Zoom">
       <button type="button" className={`${OUTIL_GRIS} shrink-0 !h-[48px] !w-[48px] !rounded-full justify-center !px-0`} aria-label="Dézoomer"
         onClick={() => setZoom(Math.max(0.5, +(zoom - 0.25).toFixed(2)))}><IconeUi nom="moins" taille={22} /></button>
       <span className="min-w-[3.5rem] text-center text-lg" aria-live="polite">{Math.round(zoom * 100)} %</span>
@@ -67,104 +80,79 @@ export function ZoomFlottant({ zoom, setZoom, cote }: { zoom: number; setZoom: (
   );
 }
 
-function ContenuBandeau(p: PropsOutils & { fantome?: boolean }) {
-  const aide = OUTILS.find(o => o.id === p.outil)?.aide;
-  const aDesReglages = p.outil === 'formes' || !!p.selection || !!p.palette || p.montrerEpaisseur || !!p.surligneur || !!p.tailleTexte;
-  // Copie invisible : pas d'identifiant (il serait en double avec la vraie) et pas d'annonce vocale.
-  const idEpaisseur = p.fantome ? undefined : 'epaisseur-surligneur';
-
+function FenetreOptions(p: PropsOutils) {
   return (
-    <>
-      <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2 py-2">
-        {p.outil === 'droite' && (
-          <p className="text-base text-[var(--text2)]">Toucher le premier point, puis le deuxième : la droite passe par les deux. Les points se déplacent ensuite avec Sélectionner.</p>
-        )}
-        {p.outil === 'formes' && (
-          <div role="group" aria-label="Forme à tracer" className={CONTENEUR_SEGMENTS}>
-            {FORMES.map(f => (
-              <button key={f.id} type="button" className={p.formeChoisie === f.id ? SEGMENT_ACTIF : SEGMENT}
-                aria-pressed={p.formeChoisie === f.id} title={`${f.libelle} : glisser sur la page`} onClick={() => p.setFormeChoisie(f.id)}>
-                {f.libelle}
-              </button>
-            ))}
-          </div>
-        )}
-        {p.selection && (
-          <div role="group" aria-label="Objets choisis" className="flex flex-wrap items-center gap-2">
-            <button type="button" className={`${p.selection.multiple ? OPTION_CHOISIE : OUTIL_GRIS} ${PUCE}`} aria-pressed={p.selection.multiple}
-              title="Quand c’est activé, toucher un objet l’ajoute à la sélection ou l’en retire" onClick={p.selection.onMultiple}>
-              Choisir plusieurs
+    <div className="carte-flottante pointer-events-auto flex flex-wrap items-center gap-x-6 gap-y-2 p-3 shadow-2xl ring-1 ring-[var(--border2)]" role="group" aria-label="Options de l’outil">
+      {p.outil === 'droite' && (
+        <p className="text-base text-[var(--text2)]">Toucher le premier point, puis le deuxième : la droite passe par les deux. Les points se déplacent ensuite avec Sélectionner.</p>
+      )}
+      {p.outil === 'formes' && (
+        <div role="group" aria-label="Forme à tracer" className={CONTENEUR_SEGMENTS}>
+          {FORMES.map(f => (
+            <button key={f.id} type="button" className={p.formeChoisie === f.id ? SEGMENT_ACTIF : SEGMENT}
+              aria-pressed={p.formeChoisie === f.id} title={`${f.libelle} : glisser sur la page`} onClick={() => p.setFormeChoisie(f.id)}>
+              {f.libelle}
             </button>
-            {p.selection.nombre === 0 ? (
-              <p className="text-base text-[var(--text2)]" aria-live="polite">
-                {p.selection.multiple ? 'Toucher les objets à choisir, l’un après l’autre.' : 'Toucher un objet de la page pour le choisir.'}
-              </p>
-            ) : (
-              <>
-                <span className="text-base text-[var(--text2)]" aria-live="polite">{p.selection.nombre === 1 ? '1 objet choisi' : `${p.selection.nombre} objets choisis`}</span>
-                {p.selection.modifiable && <button type="button" className={`${OUTIL_GRIS} ${PUCE}`} onClick={p.selection.onModifier}>Modifier</button>}
-                {p.selection.peutGrouper && <button type="button" className={`${OUTIL_GRIS} ${PUCE}`} onClick={p.selection.onGrouper}>Grouper</button>}
-                {p.selection.peutDegrouper && <button type="button" className={`${OUTIL_GRIS} ${PUCE}`} onClick={p.selection.onDegrouper}>Dégrouper</button>}
-                <button type="button" className={`${OUTIL_GRIS} ${PUCE}`} onClick={p.selection.onSupprimer}>Supprimer</button>
-              </>
-            )}
-          </div>
-        )}
-        {p.palette && (
-          <>
-            <PaletteCouleurs couleurs={p.palette === 'surligneur' ? COULEURS_SURLIGNEUR : COULEURS} choisie={p.couleur} onChoisir={p.setCouleur} taille={48} />
-          </>
-        )}
-        {p.surligneur && (
-          <div role="group" aria-label="Surligneur" className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            {p.surligneur.afficherMode && (
-              <div role="group" aria-label="Mode de tracé" className={CONTENEUR_SEGMENTS}>
-                <button type="button" className={p.surligneur.mode === 'libre' ? SEGMENT_ACTIF : SEGMENT} aria-pressed={p.surligneur.mode === 'libre'}
-                  title="Le trait suit le doigt" onClick={() => p.surligneur?.setMode('libre')}>Libre</button>
-                <button type="button" className={p.surligneur.mode === 'lineaire' ? SEGMENT_ACTIF : SEGMENT} aria-pressed={p.surligneur.mode === 'lineaire'}
-                  title="Glisser du début à la fin : le trait reste droit" onClick={() => p.surligneur?.setMode('lineaire')}>Linéaire</button>
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <label htmlFor={idEpaisseur} className="text-base">Épaisseur</label>
-              <input id={idEpaisseur} type="range" className="h-11 w-36 cursor-pointer accent-[#1d4ed8]"
-                min={SURLIGNEUR_EPAISSEUR_MIN_MM} max={SURLIGNEUR_EPAISSEUR_MAX_MM} step={SURLIGNEUR_EPAISSEUR_PAS_MM}
-                value={p.surligneur.epaisseur} onChange={e => p.surligneur?.setEpaisseur(Number(e.target.value))}
-                aria-valuetext={`${String(p.surligneur.epaisseur).replace('.', ',')} millimètres`} />
-              <span className="min-w-[4.5rem] text-base" aria-live="polite">{String(p.surligneur.epaisseur).replace('.', ',')} mm</span>
-              {/* Aperçu : un trait de la vraie épaisseur (1 mm ≈ 3,78 px à 100 %) */}
-              <span aria-hidden className="inline-block w-14 shrink-0 rounded-sm"
-                style={{ height: `${Math.max(2, p.surligneur.epaisseur * 3.78)}px`, background: p.surligneur.couleur, opacity: SURLIGNEUR_OPACITE }} />
+          ))}
+        </div>
+      )}
+      {p.selection && (
+        <div role="group" aria-label="Objets choisis" className="flex flex-wrap items-center gap-2">
+          <button type="button" className={`${p.selection.multiple ? OPTION_CHOISIE : OUTIL_GRIS} ${PUCE}`} aria-pressed={p.selection.multiple}
+            title="Quand c’est activé, toucher un objet l’ajoute à la sélection ou l’en retire" onClick={p.selection.onMultiple}>
+            Choisir plusieurs
+          </button>
+          {p.selection.nombre === 0 ? (
+            <p className="text-base text-[var(--text2)]" aria-live="polite">
+              {p.selection.multiple ? 'Toucher les objets à choisir, l’un après l’autre.' : 'Toucher un objet de la page pour le choisir.'}
+            </p>
+          ) : (
+            <>
+              <span className="text-base text-[var(--text2)]" aria-live="polite">{p.selection.nombre === 1 ? '1 objet choisi' : `${p.selection.nombre} objets choisis`}</span>
+              {p.selection.modifiable && <button type="button" className={`${OUTIL_GRIS} ${PUCE}`} onClick={p.selection.onModifier}>Modifier</button>}
+              {p.selection.peutGrouper && <button type="button" className={`${OUTIL_GRIS} ${PUCE}`} onClick={p.selection.onGrouper}>Grouper</button>}
+              {p.selection.peutDegrouper && <button type="button" className={`${OUTIL_GRIS} ${PUCE}`} onClick={p.selection.onDegrouper}>Dégrouper</button>}
+              <button type="button" className={`${OUTIL_GRIS} ${PUCE}`} onClick={p.selection.onSupprimer}>Supprimer</button>
+            </>
+          )}
+        </div>
+      )}
+      {p.surligneur && (
+        <div role="group" aria-label="Surligneur" className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {p.surligneur.afficherMode && (
+            <div role="group" aria-label="Mode de tracé" className={CONTENEUR_SEGMENTS}>
+              <button type="button" className={p.surligneur.mode === 'libre' ? SEGMENT_ACTIF : SEGMENT} aria-pressed={p.surligneur.mode === 'libre'}
+                title="Le trait suit le doigt" onClick={() => p.surligneur?.setMode('libre')}>Libre</button>
+              <button type="button" className={p.surligneur.mode === 'lineaire' ? SEGMENT_ACTIF : SEGMENT} aria-pressed={p.surligneur.mode === 'lineaire'}
+                title="Glisser du début à la fin : le trait reste droit" onClick={() => p.surligneur?.setMode('lineaire')}>Linéaire</button>
             </div>
+          )}
+          <div className="flex items-center gap-2">
+            <label htmlFor="epaisseur-surligneur" className="text-base">Épaisseur</label>
+            <input id="epaisseur-surligneur" type="range" className="h-11 w-36 cursor-pointer accent-[#1d4ed8]"
+              min={SURLIGNEUR_EPAISSEUR_MIN_MM} max={SURLIGNEUR_EPAISSEUR_MAX_MM} step={SURLIGNEUR_EPAISSEUR_PAS_MM}
+              value={p.surligneur.epaisseur} onChange={e => p.surligneur?.setEpaisseur(Number(e.target.value))}
+              aria-valuetext={`${String(p.surligneur.epaisseur).replace('.', ',')} millimètres`} />
+            <span className="min-w-[4.5rem] text-base" aria-live="polite">{String(p.surligneur.epaisseur).replace('.', ',')} mm</span>
+            {/* Aperçu : un trait de la vraie épaisseur (1 mm ≈ 3,78 px à 100 %) */}
+            <span aria-hidden className="inline-block w-14 shrink-0 rounded-sm"
+              style={{ height: `${Math.max(2, p.surligneur.epaisseur * 3.78)}px`, background: p.surligneur.couleur, opacity: SURLIGNEUR_OPACITE }} />
           </div>
-        )}
-        {p.tailleTexte && (
-          <div role="group" aria-label="Taille du texte" className="flex items-center gap-2">
-            <span className="text-base font-medium">Taille</span>
-            <div className={CONTENEUR_SEGMENTS}>
+        </div>
+      )}
+      {p.tailleTexte && (
+        <div role="group" aria-label="Taille du texte" className="flex items-center gap-2">
+          <span className="text-base font-medium">Taille</span>
+          <div className={CONTENEUR_SEGMENTS}>
             {TAILLES_TEXTE_PT.map(t => (
               <button key={t} type="button" className={(p.tailleTexte?.valeur === t ? SEGMENT_ACTIF : SEGMENT) + ' !min-w-[52px]'}
                 aria-pressed={p.tailleTexte?.valeur === t} title={`Taille ${t}`} onClick={() => p.tailleTexte?.onChoisir(t)}>
                 {t}
               </button>
             ))}
-            </div>
           </div>
-        )}
-        {p.montrerEpaisseur && (
-          <>
-            <div role="group" aria-label="Épaisseur du trait" className={CONTENEUR_SEGMENTS}>
-              {EPAISSEURS.map(e => (
-                <button key={e.mm} type="button" className={p.epaisseur === e.mm ? SEGMENT_ACTIF : SEGMENT}
-                  aria-pressed={p.epaisseur === e.mm} onClick={() => p.setEpaisseur(e.mm)}>
-                  {e.libelle}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-        {!aDesReglages && aide && <p className="text-base text-[var(--text2)]">{aide}</p>}
-      </div>
-    </>
+        </div>
+      )}
+    </div>
   );
 }
