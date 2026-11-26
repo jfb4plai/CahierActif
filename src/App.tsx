@@ -49,6 +49,7 @@ export default function App() {
           <span className="marque">Cahier<span>Actif</span></span>
         </button>
         <div className="plai-nav-actions">
+          <a className="plai-nav-link inline-flex min-h-[44px] items-center" href="/mode-emploi.html" target="_blank" rel="noopener">Mode d’emploi<span className="sr-only"> (s’ouvre dans un nouvel onglet)</span></a>
           {reglages && ecran.nom !== 'document' && (
             <button type="button" className="plai-nav-link min-h-[44px]" onClick={() => void ouvrirReglages()}>Réglages</button>
           )}

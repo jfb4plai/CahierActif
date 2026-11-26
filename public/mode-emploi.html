@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CahierActif : mode d'emploi</title>
+<meta name="description" content="Mode d'emploi de CahierActif : annoter une fiche PDF ou une photo comme sur un cahier. Pour l'élève et pour l'enseignant.">
+<style>
+  :root {
+    --teal: #0f6e56; --orange: #f97316; --bg: #faf9f7; --text: #1a1814; --text2: #55514a;
+    --border: #d9d6cc; --carte: #ffffff; --info: #e7f4ef; --attention: #fff4e5;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 18px/1.65 'DM Sans', Arial, Helvetica, sans-serif; }
+  a { color: var(--teal); }
+  a:focus-visible, summary:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 2px; }
+  .saut { position: absolute; left: -999px; top: 0; background: #fff; padding: 8px 12px; z-index: 10; }
+  .saut:focus { left: 8px; top: 8px; }
+  header.haut { background: var(--teal); color: #fff; padding: 20px 16px; }
+  header.haut .in { max-width: 860px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+  header.haut img { height: 40px; width: auto; background: #fff; padding: 4px 8px; border-radius: 8px; }
+  h1 { font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif; font-size: 2rem; line-height: 1.2; margin: 0; font-weight: 400; }
+  header.haut p { margin: 0; opacity: .95; }
+  nav.plan { background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
+  nav.plan ul { list-style: none; margin: 0 auto; padding: 8px 16px; max-width: 860px; display: flex; flex-wrap: wrap; gap: 8px; }
+  nav.plan a { display: inline-block; min-height: 44px; line-height: 44px; padding: 0 16px; border-radius: 999px; background: #eceae3; color: var(--text); text-decoration: none; font-weight: 600; }
+  nav.plan a:hover { background: #dfdcd0; }
+  main { max-width: 860px; margin: 0 auto; padding: 8px 16px 48px; }
+  h2 { font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif; font-weight: 400; font-size: 1.7rem; line-height: 1.25; margin: 40px 0 8px; color: var(--teal); }
+  h3 { font-size: 1.2rem; margin: 28px 0 6px; }
+  p { margin: 8px 0; }
+  .carte { background: var(--carte); border: 1px solid var(--border); border-radius: 14px; padding: 4px 18px 14px; margin: 14px 0; }
+  .carte h3 { margin-top: 14px; }
+  ol, ul { padding-left: 1.4em; margin: 8px 0; }
+  li { margin: 6px 0; }
+  li > ul { margin: 4px 0; }
+  .note { background: var(--info); border-left: 6px solid var(--teal); border-radius: 8px; padding: 10px 14px; margin: 14px 0; }
+  .attention { background: var(--attention); border-left: 6px solid var(--orange); border-radius: 8px; padding: 10px 14px; margin: 14px 0; }
+  .bouton { display: inline-block; background: #eceae3; border-radius: 8px; padding: 0 8px; font-weight: 700; white-space: nowrap; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; background: #fff; }
+  th, td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; vertical-align: top; }
+  th { background: #eceae3; }
+  .defilement { overflow-x: auto; }
+  footer { max-width: 860px; margin: 0 auto; padding: 16px; border-top: 1px solid var(--border); color: var(--text2); font-size: 16px; }
+  @media (max-width: 560px) { body { font-size: 17px; } h1 { font-size: 1.6rem; } h2 { font-size: 1.45rem; } }
+  @media print {
+    nav.plan { display: none; }
+    header.haut { background: #fff; color: #000; border-bottom: 2px solid #000; }
+    body { background: #fff; font-size: 14px; }
+    .carte, .note, .attention { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<a class="saut" href="#contenu">Aller au contenu</a>
+
+<header class="haut">
+  <div class="in">
+    <img src="plai-logo.jpg" alt="PLAI, Pôle Liégeois d'Accompagnement vers une École Inclusive">
+    <div>
+      <h1>CahierActif : mode d'emploi</h1>
+      <p>Annoter une fiche ou une photo comme sur un cahier.</p>
+    </div>
+  </div>
+</header>
+
+<nav class="plan" aria-label="Plan de la page">
+  <ul>
+    <li><a href="#eleve">Pour l'élève</a></li>
+    <li><a href="#enseignant">Pour l'enseignant</a></li>
+    <li><a href="#limites">Ce que l'outil ne fait pas</a></li>
+  </ul>
+</nav>
+
+<main id="contenu">
+
+<p>CahierActif est une application qui s'ouvre dans le navigateur d'une tablette ou d'un ordinateur. Elle aide l'élève qui écrit ou trace difficilement à travailler sur une fiche numérique : écrire, dessiner, poser une opération, tracer avec une règle. Elle compense le geste. Elle ne vérifie rien et ne propose aucune réponse.</p>
+
+<div class="note"><strong>Gratuit, sans compte.</strong> Les documents restent sur l'appareil. Le code de l'application ne contient aucun envoi de document ou de donnée vers un serveur (recherche faite dans le code le 26/11/2026).</div>
+
+<!-- ===================== ÉLÈVE ===================== -->
+<h2 id="eleve">Pour l'élève</h2>
+<p>Les consignes de cette partie sont courtes. Une ligne, une action.</p>
+
+<section class="carte" aria-labelledby="e1">
+  <h3 id="e1">1. Ouvrir une fiche</h3>
+  <p>Sur la première page, cinq grands boutons.</p>
+  <ul>
+    <li><span class="bouton">Ouvrir un PDF</span> : choisir la fiche reçue de l'enseignant (Teams, Smartschool, mail).</li>
+    <li><span class="bouton">Photographier une feuille</span> : prendre en photo une feuille papier.</li>
+    <li><span class="bouton">Choisir des photos</span> : choisir plusieurs photos d'un coup. Une photo = une page.</li>
+    <li><span class="bouton">Nouvelle page vierge</span> : écrire sur une page blanche.</li>
+    <li><span class="bouton">Reprendre un fichier .cahier</span> : continuer un travail commencé sur un autre appareil.</li>
+  </ul>
+  <p>Chaque document garde une petite image de sa première page, après sa première ouverture. Pour changer son nom : toucher <span class="bouton">Renommer</span>.</p>
+</section>
+
+<section class="carte" aria-labelledby="e2">
+  <h3 id="e2">2. Écrire et dessiner</h3>
+  <ol>
+    <li>Toucher <span class="bouton">Stylo</span>.</li>
+    <li>Choisir une couleur.</li>
+    <li>Choisir <span class="bouton">Fin</span>, <span class="bouton">Moyen</span> ou <span class="bouton">Épais</span>.</li>
+    <li>Écrire sur la page.</li>
+  </ol>
+  <p>Pour corriger :</p>
+  <ul>
+    <li>Toucher <span class="bouton">Annuler</span> pour défaire le dernier geste.</li>
+    <li>Toucher <span class="bouton">Gomme</span>, puis un trait pour l'effacer en entier.</li>
+    <li>Toucher <span class="bouton">Gomme fine</span> pour effacer une partie d'un trait.</li>
+  </ul>
+  <p>Pour écrire au clavier : toucher <span class="bouton">Texte</span>, puis la page.</p>
+  <p>Pour déplacer la page sans écrire : toucher <span class="bouton">Main</span>.</p>
+  <div class="note">Avec une tablette et un stylet, le doigt ne trace plus dès que le stylet a touché l'écran. Le doigt sert alors à faire défiler la page. La paume posée n'écrit pas.</div>
+</section>
+
+<section class="carte" aria-labelledby="e3">
+  <h3 id="e3">3. Poser une opération</h3>
+  <ol>
+    <li>Toucher <span class="bouton">Opération</span>.</li>
+    <li>Toucher la page à l'endroit voulu.</li>
+    <li>Choisir +, −, × ou ÷ (en P1-P2 : + et − seulement).</li>
+    <li>Choisir le nombre de colonnes et le nombre de nombres.</li>
+    <li>Toucher <span class="bouton">Poser l'opération</span>.</li>
+    <li>Écrire les chiffres avec le pavé numérique.</li>
+    <li>Toucher <span class="bouton">Terminé</span>.</li>
+  </ol>
+  <p>La page grossit pendant la saisie, puis revient à sa taille. Les colonnes unités, dizaines et centaines ont chacune leur couleur. L'application ne calcule rien.</p>
+</section>
+
+<section class="carte" aria-labelledby="e4">
+  <h3 id="e4">4. Tracer avec une règle ou une équerre (à partir de P3)</h3>
+  <ol>
+    <li>Dans la colonne de gauche, toucher <span class="bouton">Règle</span> ou <span class="bouton">Équerre</span>.</li>
+    <li>Glisser l'instrument pour le déplacer.</li>
+    <li>Glisser le rond avec la flèche circulaire pour le tourner. Avec deux doigts, tourner l'instrument directement.</li>
+    <li>Choisir <span class="bouton">Stylo</span>.</li>
+    <li>Commencer le trait tout près d'un bord de l'instrument.</li>
+    <li>Glisser le long du bord.</li>
+  </ol>
+  <p>Le trait reste droit, le long du bord. Sa longueur s'affiche en centimètres. Pour retirer l'instrument, toucher son bouton une seconde fois.</p>
+  <p>Même principe pour le <span class="bouton">Rapporteur</span> : le trait suit sa base. Les graduations vont de 0 à 180 dans les deux sens. L'élève lit l'angle lui-même.</p>
+  <h3>Le compas</h3>
+  <ol>
+    <li>Toucher <span class="bouton">Compas</span>.</li>
+    <li>Régler l'écartement avec les boutons de la fenêtre du bas.</li>
+    <li>Glisser la croix (la pointe) à l'endroit du centre.</li>
+    <li>Glisser le rond plein (la mine) autour de la pointe.</li>
+  </ol>
+  <p>Un arc est tracé. Un tour complet donne un cercle.</p>
+</section>
+
+<section class="carte" aria-labelledby="e5">
+  <h3 id="e5">5. Lire plus facilement (à partir de P3)</h3>
+  <ul>
+    <li><span class="bouton">Loupe</span> : un cercle agrandit ce qu'il recouvre. Le glisser pour le déplacer. Choisir ×2, ×3 ou ×4.</li>
+    <li><span class="bouton">Cache-ligne</span> : la page est cachée sauf 1 à 3 lignes. Glisser la partie sombre pour descendre d'une ligne à l'autre. Les boutons <span class="bouton">Monter</span> et <span class="bouton">Descendre</span> font la même chose.</li>
+  </ul>
+  <p>Pour écrire sur une page quadrillée ou à lignes : ouvrir <span class="bouton">Plus d'options</span>, puis choisir le fond de la page (quadrillé 5 mm, quadrillé 1 cm, Seyes ou pointé).</p>
+</section>
+
+<section class="carte" aria-labelledby="e6">
+  <h3 id="e6">6. Finir et rendre son travail</h3>
+  <ul>
+    <li>Le travail est enregistré tout seul sur l'appareil.</li>
+    <li>Toucher <span class="bouton">Exporter en PDF</span> pour rendre le travail ou l'imprimer. Les annotations ne se modifient plus ensuite.</li>
+    <li>Toucher <span class="bouton">Enregistrer un fichier .cahier</span> pour continuer plus tard ou sur un autre appareil. Seul CahierActif rouvre ce fichier.</li>
+    <li>Toucher <span class="bouton">Retour à mes documents</span> pour quitter le document.</li>
+  </ul>
+</section>
+
+<!-- ===================== ENSEIGNANT ===================== -->
+<h2 id="enseignant">Pour l'enseignant</h2>
+
+<section class="carte" aria-labelledby="p1">
+  <h3 id="p1">Préparer une fiche</h3>
+  <ul>
+    <li>Envoyer la fiche en PDF à l'élève (Teams, Smartschool, mail). L'élève l'ouvre avec <span class="bouton">Ouvrir un PDF</span>.</li>
+    <li>Un document de plus de 50 pages ne pose pas de problème de principe : les pages ne se chargent qu'à l'écran. Je ne l'ai pas mesuré sur tablette.</li>
+    <li>Un PDF protégé par mot de passe ou abîmé affiche un message clair au lieu de s'ouvrir.</li>
+    <li>Une feuille papier peut être photographiée : une photo devient une page.</li>
+  </ul>
+  <p>Pour récupérer le travail : l'élève exporte en PDF (envoi par Teams ou mail) ou en fichier <strong>.cahier</strong>.</p>
+</section>
+
+<section class="carte" aria-labelledby="p2">
+  <h3 id="p2">Les réglages, à faire une fois par élève</h3>
+  <p>Ouvrir <span class="bouton">Réglages</span> en haut de la première page.</p>
+  <div class="defilement">
+  <table>
+    <thead><tr><th scope="col">Réglage</th><th scope="col">Ce qu'il change</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Niveau</th><td>P1-P2 : grands boutons, cinq outils (Main, Stylo, Gomme, Texte, Opération). P3-P6 et Secondaire : colonne d'outils complète, instruments, loupe, cache-ligne, formes, surligneur.</td></tr>
+      <tr><th scope="row">Appareil utilisé</th><td>« Tablette avec stylet » : le doigt cesse de tracer quand le stylet a été vu. « Ordinateur ou tablette au doigt » : souris, pavé tactile et doigt tracent.</td></tr>
+      <tr><th scope="row">Côté de la colonne d'outils</th><td>À gauche pour écrire de la main droite, à droite pour écrire de la main gauche : la main qui écrit ne cache pas les outils.</td></tr>
+      <tr><th scope="row">Lissage du trait</th><td>Aucun, Léger ou Fort. Adoucit les tremblements du stylo et du surligneur libre. Un lissage fort arrondit les petits détails des lettres. Par défaut : aucun.</td></tr>
+      <tr><th scope="row">Aimantation à la grille</th><td>Sur un fond quadrillé, Seyes ou pointé, les droites, formes, textes et opérations s'accrochent à la ligne la plus proche. Le trait à main levée n'est pas concerné. Par défaut : désactivée.</td></tr>
+      <tr><th scope="row">Mode verrouillé</th><td>Voir ci-dessous.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="attention">Les réglages de lissage et d'aimantation sont proposés sans validation sur le terrain. Les essayer avec l'élève, puis garder ce qui l'aide.</div>
+</section>
+
+<section class="carte" aria-labelledby="p3">
+  <h3 id="p3">Installer l'application sur une tablette</h3>
+  <p>Ouvrir l'adresse de l'application dans le navigateur, puis l'installer.</p>
+  <ul>
+    <li><strong>iPad (Safari)</strong> : toucher Partager, puis « Sur l'écran d'accueil ». Sans cela, l'iPad peut effacer les documents après quelques jours sans utilisation (c'est le message affiché par l'application).</li>
+    <li><strong>Android (Chrome)</strong> : ouvrir le menu du navigateur, puis « Installer l'application » ou « Ajouter à l'écran d'accueil ». Le libellé exact dépend de la version.</li>
+  </ul>
+  <p>L'icône est une tablette avec une page de cahier et un crayon orange. L'application est prévue pour s'ouvrir hors ligne une fois installée (non vérifié sur une vraie tablette).</p>
+</section>
+
+<section class="carte" aria-labelledby="p4">
+  <h3 id="p4">Le mode verrouillé</h3>
+  <p>Dans <span class="bouton">Réglages</span>, choisir un code à 4 chiffres (le saisir deux fois), puis toucher <span class="bouton">Activer le mode verrouillé</span>.</p>
+  <ul>
+    <li>Le code est demandé pour ouvrir les Réglages.</li>
+    <li>Le code est demandé pour supprimer un document ou un dossier.</li>
+    <li>Une confirmation est demandée avant de quitter un document, et le navigateur avertit si l'onglet se ferme.</li>
+    <li>Pour désactiver : ouvrir les Réglages avec le code, puis toucher <span class="bouton">Désactiver le mode verrouillé</span>.</li>
+  </ul>
+  <div class="attention"><strong>Limite.</strong> Le code évite les erreurs et les jeux. Il ne protège pas contre quelqu'un qui efface les données du site : tout reste dans le navigateur de l'appareil. Une application web ne peut pas empêcher la fermeture du navigateur. Le travail est enregistré en continu, donc rien ne se perd.</div>
+</section>
+
+<section class="carte" aria-labelledby="p5">
+  <h3 id="p5">Données et vie privée</h3>
+  <ul>
+    <li>Les documents sont enregistrés dans le navigateur de l'appareil, pas sur un serveur.</li>
+    <li>Pas de compte, pas de nom d'élève demandé.</li>
+    <li>Les instruments (règle, équerre, rapporteur, compas), la loupe et le cache-ligne ne sont pas enregistrés dans le document et n'apparaissent pas dans l'export.</li>
+    <li>Pour libérer de la place : supprimer le document dans la liste (le code est demandé si le mode verrouillé est actif).</li>
+  </ul>
+</section>
+
+<!-- ===================== LIMITES ===================== -->
+<h2 id="limites">Ce que l'outil ne fait pas</h2>
+<ul>
+  <li>Il ne corrige pas et ne calcule pas : l'élève fait le raisonnement.</li>
+  <li>Il ne reconnaît pas l'écriture à la main.</li>
+  <li>Il ne lit pas le document à voix haute et ne permet pas la dictée vocale. Ce n'est pas encore prévu.</li>
+  <li>Il ne lit pas le texte d'une photo ou d'un PDF scanné (pas de reconnaissance de texte).</li>
+  <li>La barre P1-P2 n'a ni instruments, ni loupe, ni cache-ligne.</li>
+  <li>Le cache-ligne et la loupe recouvrent ce qu'on voudrait écrire dessous : les déplacer d'abord.</li>
+  <li>Le cache-ligne compte 10 mm par ligne : sur un texte à interligne très serré ou très large, la fenêtre ne tombera pas toujours juste.</li>
+</ul>
+
+<div class="attention">
+  <strong>État des essais (26/11/2026).</strong> L'application a été essayée à la souris dans un navigateur dont la fenêtre imite une tablette, par son auteur. Les instruments et la rotation à deux doigts ont aussi été essayés avec des gestes simulés. <strong>Elle n'a pas encore été essayée sur une vraie tablette avec un stylet, ni par un élève.</strong> Les retours de terrain sont bienvenus.
+</div>
+
+<p>Questions, problèmes, remarques : <a href="mailto:jeanfrancois.beguin@ens.ecl.be">jeanfrancois.beguin@ens.ecl.be</a></p>
+
+</main>
+
+<footer>CahierActif · PLAI · Pôle Territorial de la Ville de Liège</footer>
+</body>
+</html>
