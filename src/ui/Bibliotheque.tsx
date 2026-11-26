@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { depuisCahier } from '../fichier/cahier';
 import { amorcerDossiers, NOM_MAX, verifierNomDossier } from '../lib/dossiers';
+import { amorcerExemple } from '../lib/exemple';
 import type { Reglages } from '../lib/reglages';
 import { TITRE_MAX, titreParDefaut, verifierTitre } from '../lib/titres';
 import { PhotoIllisibleError, preparerPhotos } from '../lib/photo';
@@ -37,7 +38,7 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
     Promise.all([stockage.lister(), stockage.listerDossiers()])
       .then(([m, d]) => { setDocs(m); setDossiers(d); })
       .catch(() => setErreur('Lecture des documents impossible sur cet appareil.'));
-  useEffect(() => { void amorcerDossiers(stockage).catch(() => undefined).then(rafraichir); }, []);
+  useEffect(() => { void amorcerDossiers(stockage).catch(() => undefined).then(() => amorcerExemple(stockage)).catch(() => undefined).then(rafraichir); }, []);
 
   const dossierActif = filtre.type === 'dossier' ? dossiers.find(d => d.id === filtre.id) : undefined;
 
