@@ -1,13 +1,20 @@
 import type { Point } from './types';
 
 /** Instruments de géométrie simulés. Ils ne font pas partie du document : on les pose, on les déplace, on les retire. */
-export type IdInstrument = 'regle' | 'equerre';
-/** Position du pivot (mm de la page) et rotation (degrés, sens horaire à l'écran). */
-export type Instrument = { id: IdInstrument; page: number; x: number; y: number; angle: number };
+export type IdInstrument = 'regle' | 'equerre' | 'rapporteur' | 'compas';
+/**
+ * Position du pivot (mm de la page) et rotation (degrés, sens horaire à l'écran).
+ * Compas : (x, y) est la pointe, `angle` la direction de la mine vue de la pointe, `rayon` l'écartement en mm.
+ */
+export type Instrument = { id: IdInstrument; page: number; x: number; y: number; angle: number; rayon?: number };
 
 export const LONGUEUR_REGLE_MM = 200;
 export const LARGEUR_REGLE_MM = 34;
 export const COTE_EQUERRE_MM = 150;
+export const RAYON_RAPPORTEUR_MM = 75;
+export const RAYON_COMPAS_MIN_MM = 5;
+export const RAYON_COMPAS_MAX_MM = 140;
+export const RAYON_COMPAS_DEFAUT_MM = 40;
 
 type Def = {
   /** Contour dans le repère de l'instrument (mm), pivot en (0, 0). */
@@ -25,6 +32,10 @@ const C = COTE_EQUERRE_MM;
 const G = C / 3;
 const NORMALE = 14 / Math.SQRT2;
 
+// Rapporteur : demi-disque au-dessus de sa base, pivot au centre de la base. Contour = base (de gauche à droite) puis l'arc.
+const R = RAYON_RAPPORTEUR_MM;
+const ARC = Array.from({ length: 37 }, (_, k) => ({ x: -R * Math.cos((k * 5 * Math.PI) / 180), y: -R * Math.sin((k * 5 * Math.PI) / 180) }));
+
 export const DEFS: Record<IdInstrument, Def> = {
   regle: {
     sommets: [{ x: -L, y: -H }, { x: L, y: -H }, { x: L, y: H }, { x: -L, y: H }],
@@ -36,6 +47,13 @@ export const DEFS: Record<IdInstrument, Def> = {
     aretes: [[0, 1], [1, 2], [2, 0]], // deux côtés de l'angle droit, puis l'hypoténuse
     poignee: { x: (C - 2 * G) / 2 + NORMALE, y: (C - 2 * G) / 2 + NORMALE },
   },
+  rapporteur: {
+    sommets: ARC, // de (-R, 0) par le haut jusqu'à (R, 0) : le côté qui les relie est la base
+    aretes: [[0, 36]],
+    poignee: { x: 0, y: -R * 0.45 },
+  },
+  // Le compas n'a ni contour ni bord : la pointe et la mine sont deux poignées (voir InstrumentVue et PageVue).
+  compas: { sommets: [], aretes: [], poignee: { x: 0, y: 0 } },
 };
 
 const rad = (deg: number) => (deg * Math.PI) / 180;
@@ -94,7 +112,36 @@ export function angleVersPoignee(i: Instrument, q: Point): number {
 /** Longueur affichée d'un trait le long d'une arête : en cm, une décimale, virgule française. */
 export const longueurCm = (mm: number): string => `${(Math.round(mm) / 10).toFixed(1).replace('.', ',')} cm`;
 
-/** Instrument neuf, posé en haut de la page (le pivot de la règle à 100 mm, celui de l'équerre à 150 mm), au milieu en largeur. */
+/** Instrument neuf, au milieu de la page en largeur, à une hauteur différente pour chacun : posés ensemble, ils ne se cachent pas. */
 export function creerInstrument(id: IdInstrument, page: number, largeurPageMm: number): Instrument {
-  return { id, page, x: largeurPageMm / 2, y: id === 'regle' ? 100 : 170, angle: 0 };
+  const y = { regle: 35, equerre: 170, rapporteur: 125, compas: 200 }[id];
+  return { id, page, x: largeurPageMm / 2, y, angle: 0, ...(id === 'compas' ? { rayon: RAYON_COMPAS_DEFAUT_MM } : {}) };
+}
+
+export const RAYON_COMPAS_PAR_DEFAUT = RAYON_COMPAS_DEFAUT_MM;
+
+/** Écartement du compas, borné : une mine collée à la pointe ou hors de toute page n'a pas de sens. */
+export const rayonValide = (mm: number): number => Math.round(Math.max(RAYON_COMPAS_MIN_MM, Math.min(RAYON_COMPAS_MAX_MM, mm)) * 10) / 10;
+
+/** La mine du compas, en mm de page. */
+export function crayonPage(i: Instrument): Point {
+  const r = i.rayon ?? RAYON_COMPAS_DEFAUT_MM;
+  return { x: i.x + r * Math.cos(rad(i.angle)), y: i.y + r * Math.sin(rad(i.angle)) };
+}
+
+/** Écart d'angle de `precedent` à `suivant` (radians), ramené dans ]-π, π] : le compas suit le geste sans sauter d'un tour. */
+export function ecartAngle(precedent: number, suivant: number): number {
+  let d = suivant - precedent;
+  while (d > Math.PI) d -= 2 * Math.PI;
+  while (d <= -Math.PI) d += 2 * Math.PI;
+  return d;
+}
+
+/** Points d'un arc de centre `c`, de rayon `r`, partant de `depart` (rad) et balayant `balayage` (rad, signé), un point tous les ~2°. */
+export function arc(c: Point, r: number, depart: number, balayage: number): Point[] {
+  const n = Math.max(1, Math.ceil(Math.abs(balayage) / rad(2)));
+  return Array.from({ length: n + 1 }, (_, k) => {
+    const a = depart + (balayage * k) / n;
+    return { x: c.x + r * Math.cos(a), y: c.y + r * Math.sin(a) };
+  });
 }

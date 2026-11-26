@@ -6,6 +6,7 @@ import { TAILLES_TEXTE_PT } from '../model/texte';
 import { COULEURS, EPAISSEURS, type PropsOutils } from './BarreOutils';
 import { CONTENEUR_SEGMENTS, OPTION_CHOISIE, OUTIL_GRIS, SEGMENT, SEGMENT_ACTIF } from './ColonneOutils';
 import { IconeUi } from './iconesOutils';
+import { longueurCm } from '../model/instruments';
 import { PaletteCouleurs } from './PaletteCouleurs';
 
 const PUCE = '!w-auto';
@@ -53,7 +54,7 @@ function Coeur(p: PropsOutils) {
 
 /** Vrai quand l'outil a des options à montrer dans la fenêtre. */
 export function aOptions(p: PropsOutils): boolean {
-  return p.outil === 'formes' || p.outil === 'droite' || !!p.selection || !!p.surligneur || !!p.tailleTexte;
+  return p.outil === 'formes' || p.outil === 'droite' || !!p.selection || !!p.surligneur || !!p.tailleTexte || p.geometrie?.rayonCompas != null;
 }
 
 /**
@@ -161,6 +162,19 @@ function FenetreOptions(p: PropsOutils & { onReplier: () => void }) {
                 aria-pressed={p.tailleTexte?.valeur === t} title={`Taille ${t}`} onClick={() => p.tailleTexte?.onChoisir(t)}>
                 {t}
               </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {p.geometrie?.rayonCompas != null && (
+        <div role="group" aria-label="Écartement du compas" className="flex flex-col gap-1.5">
+          <div className="flex items-baseline gap-3">
+            <span className="text-base font-medium">Écartement du compas</span>
+            <span className="text-lg font-bold" aria-live="polite">{longueurCm(p.geometrie.rayonCompas)}</span>
+          </div>
+          <div className="flex gap-1.5">
+            {([['−1 cm', -10], ['−1 mm', -1], ['+1 mm', 1], ['+1 cm', 10]] as const).map(([libelle, delta]) => (
+              <button key={libelle} type="button" className={`${OUTIL_GRIS} ${PUCE} justify-center !min-w-[56px] !px-2`} onClick={() => p.geometrie!.ajusterRayon(delta)}>{libelle}</button>
             ))}
           </div>
         </div>

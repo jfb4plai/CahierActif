@@ -8,7 +8,7 @@ import { motifFond, type Motif } from '../model/fonds';
 import { creerDroite } from '../model/droites';
 import { formeContient, formeDepuisGlisse } from '../model/formes';
 import { aimanter, SEUIL_AIMANT_PX } from '../model/aimantation';
-import { angleVersPoignee, areteProche, longueurCm, projeter, type IdInstrument, type Instrument } from '../model/instruments';
+import { angleVersPoignee, arc, areteProche, ecartAngle, longueurCm, projeter, type IdInstrument, type Instrument } from '../model/instruments';
 import { lisserTrait } from '../model/lissage';
 import { effacerPartiel, objetTouche } from '../model/gomme';
 import { ajouterObjet, deplacerObjets, membresDuGroupe, modifierObjet, remplacerObjet, supprimerObjet } from '../model/ops';
@@ -166,9 +166,18 @@ export function PageVue(p: Props) {
   const mathsRef = useRef<EnEditionMaths | null>(null); // même rôle que editionRef
   const [dialogue, setDialogue] = useState<{ type: 'operation' | 'repere'; x: number; y: number } | null>(null);
   // Instruments : déplacement et rotation suivent le pointeur sans repasser par l'éditeur à chaque mouvement ; validés au relâchement.
-  type PriseInstrument = { mode: 'deplacer' | 'pivoter' | 'tracer'; id: IdInstrument; decalage: Point; arete?: { a: Point; b: Point } };
+  type PriseInstrument = {
+    mode: 'deplacer' | 'pivoter' | 'tracer' | 'arc';
+    id: IdInstrument;
+    decalage: Point;
+    arete?: { a: Point; b: Point };
+    /** Compas : angle de départ de la mine (rad), dernier angle vu et balayage cumulé (signé, plafonné à un tour). */
+    arcEnCours?: { centre: Point; rayon: number; depart: number; dernier: number; cumul: number };
+  };
   const priseRef = useRef<PriseInstrument | null>(null);
   const [instrumentEnCours, setInstrumentEnCours] = useState<Instrument | null>(null);
+  // Trait fait avec un instrument (bord, compas) : exact, jamais lissé (le lissage rétrécirait un arc).
+  const [traitExact, setTraitExact] = useState(false);
   const [longueur, setLongueur] = useState<{ x: number; y: number; texte: string } | null>(null);
   const instrumentsAffiches = p.instruments.filter(i => i.page === p.pageIndex).map(i => (instrumentEnCours && instrumentEnCours.id === i.id ? instrumentEnCours : i));
   const racine = useRef<HTMLDivElement>(null);
@@ -303,6 +312,19 @@ export function PageVue(p: Props) {
       p.onActive();
       return true;
     }
+    if (nom === 'instrument-crayon') {
+      const i = cible();
+      if (!i) return false;
+      const rayon = i.rayon ?? 40;
+      priseRef.current = {
+        mode: 'arc', id: i.id, decalage: { x: 0, y: 0 },
+        arcEnCours: { centre: { x: i.x, y: i.y }, rayon, depart: (i.angle * Math.PI) / 180, dernier: (i.angle * Math.PI) / 180, cumul: 0 },
+      };
+      pointeurActif.current = e.evt.pointerId;
+      p.onActive();
+      setTraitExact(true);
+      return true;
+    }
     if (tracer && (p.outil === 'stylo' || p.outil === 'surligneur')) {
       const arete = areteProche(instrumentsAffiches, q, bande);
       if (arete) {
@@ -311,6 +333,7 @@ export function PageVue(p: Props) {
         pointeurActif.current = e.evt.pointerId;
         p.onActive();
         traitRef.current = [origine];
+        setTraitExact(true);
         setEnCours(traitRef.current);
         return true;
       }
@@ -340,6 +363,19 @@ export function PageVue(p: Props) {
     }
     const base = instrumentsAffiches.find(i => i.id === prise.id);
     if (!base) return;
+    if (prise.mode === 'arc' && prise.arcEnCours) {
+      const a = prise.arcEnCours;
+      const ang = Math.atan2(q.y - a.centre.y, q.x - a.centre.x);
+      a.cumul = Math.max(-2 * Math.PI, Math.min(2 * Math.PI, a.cumul + ecartAngle(a.dernier, ang)));
+      a.dernier = ang;
+      // La mine reste sur le cercle, à l'angle du geste ; l'arc tracé part de l'angle de départ et suit le balayage.
+      setInstrumentEnCours({ ...base, angle: ((a.depart + a.cumul) * 180) / Math.PI });
+      if (Math.abs(a.cumul) > 0.02) {
+        traitRef.current = arc(a.centre, a.rayon, a.depart, a.cumul);
+        setEnCours(traitRef.current);
+      }
+      return;
+    }
     setInstrumentEnCours(prise.mode === 'deplacer'
       ? { ...base, x: q.x - prise.decalage.x, y: q.y - prise.decalage.y }
       : { ...base, angle: angleVersPoignee(base, q) });
@@ -475,12 +511,17 @@ export function PageVue(p: Props) {
     if (prise) {
       priseRef.current = null;
       setLongueur(null);
-      if (prise.mode !== 'tracer') {
+      if (prise.mode === 'arc') {
+        // Un geste de moins d'un degré ne trace rien ; sinon l'arc est validé comme un trait, et la mine reste où le geste s'est arrêté.
+        if (instrumentEnCours) p.onInstrument(prise.id, { angle: instrumentEnCours.angle });
+        setInstrumentEnCours(null);
+        if (!prise.arcEnCours || Math.abs(prise.arcEnCours.cumul) < 0.0175) { traitRef.current = null; setEnCours(null); setTraitExact(false); return; }
+      } else if (prise.mode !== 'tracer') {
         if (instrumentEnCours) p.onInstrument(prise.id, { x: instrumentEnCours.x, y: instrumentEnCours.y, angle: instrumentEnCours.angle });
         setInstrumentEnCours(null);
         return;
       }
-      // Trait le long d'un bord : suit le chemin habituel de validation d'un trait (juste dessous).
+      // Trait le long d'un bord, ou arc de compas : suit le chemin habituel de validation d'un trait (juste dessous).
     }
     const dr = droiteRef.current;
     if (dr) {
@@ -519,12 +560,13 @@ export function PageVue(p: Props) {
     const trait = traitRef.current;
     const gomme = brouillonRef.current;
     traitRef.current = null;
+    setTraitExact(false);
     brouillonRef.current = null;
     setEnCours(null);
     setBrouillon(null);
     if (trait && trait.length > 0) {
       p.onCommit(ajouterObjet(p.doc, p.pageIndex, {
-        id: nouvelId(), type: 'trait', points: lisserTrait(trait, p.lissage), couleur: p.couleur, epaisseur: p.epaisseur,
+        id: nouvelId(), type: 'trait', points: traitExact ? trait : lisserTrait(trait, p.lissage), couleur: p.couleur, epaisseur: p.epaisseur,
         ...(p.outil === 'surligneur' ? { surligneur: true } : {}),
       }));
     } else if (gomme && gomme !== p.doc) {
@@ -768,7 +810,7 @@ export function PageVue(p: Props) {
           <Layer listening={false}>
             {longueur && <Text x={longueur.x} y={longueur.y} text={longueur.texte} fontSize={5} fontStyle="bold" fill="#1e3a8a" />}
             {enCours && (
-              <Line points={lisserTrait(enCours, p.lissage).flatMap(q => [q.x, q.y])} stroke={p.couleur} strokeWidth={p.epaisseur}
+              <Line points={(traitExact ? enCours : lisserTrait(enCours, p.lissage)).flatMap(q => [q.x, q.y])} stroke={p.couleur} strokeWidth={p.epaisseur}
                 lineCap={p.outil === 'surligneur' ? 'butt' : 'round'} lineJoin="round" opacity={p.outil === 'surligneur' ? SURLIGNEUR_OPACITE : 1} />
             )}
             {apercuForme && <FormeVue o={apercuForme} draggable={false} listening={false} />}

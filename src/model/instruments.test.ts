@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { angleVersPoignee, areteProche, aretes, dansContour, longueurCm, poigneePage, projeter, sommets, versPage, type Instrument } from './instruments';
+import { angleVersPoignee, arc, areteProche, aretes, crayonPage, creerInstrument, dansContour, ecartAngle, longueurCm, poigneePage, projeter, rayonValide, sommets, versPage, type Instrument } from './instruments';
 
 const regle = (x = 100, y = 100, angle = 0): Instrument => ({ id: 'regle', page: 0, x, y, angle });
 const equerre = (x = 100, y = 100, angle = 0): Instrument => ({ id: 'equerre', page: 0, x, y, angle });
@@ -60,5 +60,48 @@ describe('instruments', () => {
   it('longueur en cm, virgule française', () => {
     expect(longueurCm(123)).toBe('12,3 cm');
     expect(longueurCm(0)).toBe('0,0 cm');
+  });
+
+  it('rapporteur : demi-disque de 75 mm, base le long de y = pivot', () => {
+    const r: Instrument = { id: 'rapporteur', page: 0, x: 100, y: 100, angle: 0 };
+    const v = sommets(r);
+    expect(v[0].x).toBeCloseTo(25, 9);
+    expect(v[0].y).toBeCloseTo(100, 9);
+    expect(v[36].x).toBeCloseTo(175, 9);
+    expect(v[18].x).toBeCloseTo(100, 9);
+    expect(v[18].y).toBeCloseTo(25, 9); // sommet de l'arc, au-dessus
+    expect(aretes(r)).toHaveLength(1);
+    expect(dansContour(r, { x: 100, y: 60 })).toBe(true);
+    expect(dansContour(r, { x: 100, y: 120 })).toBe(false); // sous la base
+    expect(areteProche([r], { x: 100, y: 102 }, 3)?.a.x).toBeCloseTo(25, 9);
+  });
+  it('compas : la mine est à l’écartement de la pointe, dans la direction de l’angle', () => {
+    const c = { ...creerInstrument('compas', 0, 210), x: 50, y: 60, rayon: 30, angle: 90 };
+    const m = crayonPage(c);
+    expect(m.x).toBeCloseTo(50, 9);
+    expect(m.y).toBeCloseTo(90, 9);
+    expect(aretes(c)).toHaveLength(0);
+    expect(creerInstrument('compas', 0, 210).rayon).toBe(40);
+  });
+  it('écartement borné et arrondi au dixième de mm', () => {
+    expect(rayonValide(2)).toBe(5);
+    expect(rayonValide(500)).toBe(140);
+    expect(rayonValide(47.26)).toBe(47.3);
+  });
+  it('ecartAngle ne saute pas quand on franchit ±π', () => {
+    expect(ecartAngle(3.1, -3.1)).toBeCloseTo(2 * Math.PI - 6.2, 9);
+    expect(ecartAngle(0, 0.5)).toBeCloseTo(0.5, 9);
+  });
+  it('arc : tous les points sont à la distance r du centre, bouts exacts', () => {
+    const pts = arc({ x: 10, y: 20 }, 15, 0, Math.PI);
+    for (const q of pts) expect(Math.hypot(q.x - 10, q.y - 20)).toBeCloseTo(15, 9);
+    expect(pts[0].x).toBeCloseTo(25, 9);
+    expect(pts.at(-1)!.x).toBeCloseTo(-5, 9);
+    expect(pts.length).toBeGreaterThanOrEqual(90);
+  });
+  it('un tour complet ferme le cercle', () => {
+    const pts = arc({ x: 0, y: 0 }, 10, 0, 2 * Math.PI);
+    expect(pts.at(-1)!.x).toBeCloseTo(pts[0].x, 9);
+    expect(pts.at(-1)!.y).toBeCloseTo(pts[0].y, 9);
   });
 });

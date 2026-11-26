@@ -17,7 +17,7 @@ import { ouvrirPdf, type PDFDocumentProxy } from '../pdf/pdfjs';
 import type { StorageAdapter } from '../storage/adapter';
 import { BarreOutils, COULEURS, EPAISSEURS, type PropsOutils } from './BarreOutils';
 import { creerMiniature } from '../lib/miniature';
-import { creerInstrument, type IdInstrument, type Instrument } from '../model/instruments';
+import { creerInstrument, rayonValide, type IdInstrument, type Instrument } from '../model/instruments';
 import { RAYON_LISSAGE } from '../model/lissage';
 import { BandeauReglages, BarreBas } from './BandeauReglages';
 import { LARGEUR_COLONNE_PX } from './ColonneOutils';
@@ -101,6 +101,9 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   const basculerInstrument = useCallback((id: IdInstrument) => {
     setInstruments(l => (l.some(i => i.id === id) ? l.filter(i => i.id !== id) : [...l, creerInstrument(id, pageActive, dernier.current.pages[pageActive]?.largeurMm ?? 210)]));
   }, [pageActive]);
+  const ajusterRayonCompas = useCallback((deltaMm: number) => {
+    setInstruments(l => l.map(i => (i.id === 'compas' ? { ...i, rayon: rayonValide((i.rayon ?? 40) + deltaMm) } : i)));
+  }, []);
   const majInstrument = useCallback((id: IdInstrument, patch: Partial<Instrument>) => {
     setInstruments(l => l.map(i => (i.id === id ? { ...i, ...patch } : i)));
   }, []);
@@ -334,7 +337,13 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
     peutAnnuler: peutAnnuler(h), peutRetablir: peutRetablir(h),
     onAnnuler: () => dispatch({ type: 'annuler' }), onRetablir: () => dispatch({ type: 'retablir' }),
     zoom, setZoom,
-    geometrie: avecColonne ? { regle: instruments.some(i => i.id === 'regle'), equerre: instruments.some(i => i.id === 'equerre'), basculer: basculerInstrument } : undefined,
+    geometrie: avecColonne ? {
+      regle: instruments.some(i => i.id === 'regle'), equerre: instruments.some(i => i.id === 'equerre'),
+      rapporteur: instruments.some(i => i.id === 'rapporteur'), compas: instruments.some(i => i.id === 'compas'),
+      basculer: basculerInstrument,
+      rayonCompas: instruments.find(i => i.id === 'compas')?.rayon ?? null,
+      ajusterRayon: ajusterRayonCompas,
+    } : undefined,
   };
   const pages = (
       <div className={`mx-3 mb-6 mt-3 overflow-auto rounded-2xl bg-[var(--surface2)] py-2 ${avecColonne ? 'min-w-0 flex-1' : ''}`}>

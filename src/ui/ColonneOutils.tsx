@@ -13,6 +13,13 @@ type Props = PropsOutils & {
 
 export const LARGEUR_COLONNE_PX = 212;
 
+const AIDE_GEOMETRIE = {
+  regle: 'Poser ou retirer la règle. Le stylo commencé près d’un bord trace une ligne droite.',
+  equerre: 'Poser ou retirer l’équerre. Le stylo commencé près d’un bord trace une ligne droite.',
+  rapporteur: 'Poser ou retirer le rapporteur. Le stylo commencé près de sa base trace une ligne droite.',
+  compas: 'Poser ou retirer le compas. Glisser la mine (le rond plein) autour de la pointe trace un arc.',
+} as const;
+
 // Outil actif : plein, bleu, texte blanc, ombre portée, gras. Tous les autres : gris doux. Le contraste ne repose pas
 // sur la seule couleur (gras, ombre, anneau).
 const BASE = 'inline-flex min-h-[52px] items-center rounded-2xl px-4 text-lg leading-tight transition-colors duration-150 disabled:opacity-40';
@@ -65,10 +72,10 @@ export function ColonneOutils(p: Props) {
         <section aria-labelledby="groupe-geometrie">
           <h2 id="groupe-geometrie" className="mb-1 text-base font-semibold text-[var(--text2)]">Géométrie</h2>
           <div className="flex flex-col gap-1.5">
-            {([['regle', 'Règle'], ['equerre', 'Équerre']] as const).map(([id, libelle]) => (
+            {([['regle', 'Règle'], ['equerre', 'Équerre'], ['rapporteur', 'Rapporteur'], ['compas', 'Compas']] as const).map(([id, libelle]) => (
               <button key={id} type="button" className={(p.geometrie![id] ? OUTIL_ACTIF : OUTIL_GRIS) + ' w-full justify-start gap-2.5 !px-3'}
                 aria-pressed={p.geometrie![id]} onClick={() => p.geometrie!.basculer(id)}
-                title={id === 'regle' ? 'Poser ou retirer la règle. Le stylo commencé près d’un bord trace une ligne droite.' : 'Poser ou retirer l’équerre. Le stylo commencé près d’un bord trace une ligne droite.'}>
+                title={AIDE_GEOMETRIE[id]}>
                 <IconeUi nom={id} taille={22} />
                 {libelle}
               </button>

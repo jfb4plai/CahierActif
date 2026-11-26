@@ -69,7 +69,13 @@ export type PropsOutils = {
   zoom: number;
   setZoom: (z: number) => void;
   /** Instruments de géométrie (règle, équerre), colonne d'outils seulement : posés ou retirés d'un bouton. */
-  geometrie?: { regle: boolean; equerre: boolean; basculer: (id: IdInstrument) => void };
+  geometrie?: {
+    regle: boolean; equerre: boolean; rapporteur: boolean; compas: boolean;
+    basculer: (id: IdInstrument) => void;
+    /** Écartement du compas en mm (null = compas non posé) et son réglage par pas signés en mm. */
+    rayonCompas: number | null;
+    ajusterRayon: (deltaMm: number) => void;
+  };
 };
 
 export function BarreOutils(p: PropsOutils) {
