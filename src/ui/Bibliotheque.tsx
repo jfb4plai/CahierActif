@@ -9,6 +9,8 @@ import { amorcerExemple } from '../lib/exemple';
 import type { Reglages } from '../lib/reglages';
 import { TITRE_MAX, titreParDefaut, verifierTitre } from '../lib/titres';
 import { PhotoIllisibleError, preparerPhotos } from '../lib/photo';
+import type { PhotoPrete } from '../lib/fileRecadrage';
+import { RecadrerPhotos } from './RecadrerPhotos';
 import { nouveauDocPdf, nouveauDocPhotos, nouveauDocVierge } from '../model/ops';
 import { nouvelId } from '../model/types';
 import type { CahierDoc, Dossier } from '../model/types';
@@ -38,6 +40,7 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
   const cahierInput = useRef<HTMLInputElement>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
+  const [aRecadrer, setARecadrer] = useState<PhotoPrete[] | null>(null);
   const photosInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
 
@@ -122,16 +125,25 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
     }
   };
 
-  // Une ou plusieurs photos de feuilles : une page par photo, annotables comme un PDF.
+  // Une ou plusieurs photos de feuilles : chaque photo passe par l'écran de recadrage (coins détectés), puis une page par photo.
   const importerPhotos = async (fichiers: File[]) => {
     setErreur(null);
     if (fichiers.length === 0) return;
     try {
       const { images, tailles } = await preparerPhotos(fichiers);
-      const titre = titreParDefaut(images.length === 1 ? 'Feuille photographiée' : `Feuilles photographiées (${images.length})`);
-      await creerEtOuvrir(nouveauDocPhotos(titre, reglages.niveau, images, tailles));
+      setARecadrer(images.map((image, i) => ({ image, taille: tailles[i] })));
     } catch (e) {
-      setErreur(e instanceof PhotoIllisibleError ? e.message : 'Les photos n’ont pas pu être enregistrées (stockage plein ?). Libérer de la place et réessayer.');
+      setErreur(e instanceof PhotoIllisibleError ? e.message : 'Les photos n’ont pas pu être lues. Réessayer.');
+    }
+  };
+
+  const creerDepuisPhotos = async (photos: PhotoPrete[]) => {
+    setARecadrer(null);
+    try {
+      const titre = titreParDefaut(photos.length === 1 ? 'Feuille photographiée' : `Feuilles photographiées (${photos.length})`);
+      await creerEtOuvrir(nouveauDocPhotos(titre, reglages.niveau, photos.map(p => p.image), photos.map(p => p.taille)));
+    } catch {
+      setErreur('Les photos n’ont pas pu être enregistrées (stockage plein ?). Libérer de la place et réessayer.');
     }
   };
 
@@ -273,6 +285,7 @@ export function Bibliotheque({ stockage, reglages, onOuvrir }: Props) {
               <span className="appel">Choisir un fichier →</span>
             </button>
           </div>
+          {aRecadrer && <RecadrerPhotos photos={aRecadrer} onTermine={p => void creerDepuisPhotos(p)} onAnnuler={() => setARecadrer(null)} />}
           <input ref={pdfInput} type="file" accept="application/pdf" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void ouvrirPdf(f); }} />
           <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void importerPhotos(f); }} />
           <input ref={photosInput} type="file" accept="image/*" multiple hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void importerPhotos(f); }} />

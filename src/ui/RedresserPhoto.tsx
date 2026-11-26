@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { estConvexe, quadComplet, redresserPhoto, tournerQuart, type Quad } from '../lib/redressement';
+import { libelleDetection, titreFile } from '../lib/fileRecadrage';
 import type { ImageSource, TaillePage } from '../model/types';
 
 type Props = {
@@ -7,13 +8,17 @@ type Props = {
   numeroPage: number;
   onAppliquer: (image: ImageSource, taille: TaillePage) => void;
   onAnnuler: () => void;
+  /** Coins de départ (détectés automatiquement) ; sans eux : les angles de la photo. */
+  quadInitial?: Quad | null;
+  /** Mode import : photo juste prise, avant la création de la page (aucune annotation à perdre). */
+  import?: { rang: number; total: number; detecte: boolean; onGarder: () => void };
 };
 
 const POIGNEE_PX = 44; // cible tactile
 const PAS_CLAVIER_PX = 4; // pixels de la photo par appui sur une flèche
 
 /** Recadrer et redresser une photo : placer les quatre coins sur les quatre coins de la feuille. */
-export function RedresserPhoto({ image, numeroPage, onAppliquer, onAnnuler }: Props) {
+export function RedresserPhoto({ image, numeroPage, onAppliquer, onAnnuler, quadInitial, import: imp }: Props) {
   const [url, setUrl] = useState<string | null>(null);
   const [dim, setDim] = useState<{ l: number; h: number } | null>(null);
   const [quad, setQuad] = useState<Quad | null>(null);
@@ -86,15 +91,17 @@ export function RedresserPhoto({ image, numeroPage, onAppliquer, onAnnuler }: Pr
   const points = quad ? quad.map(p => `${p.x * s},${p.y * s}`).join(' ') : '';
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="titre-redresser" className="fixed inset-0 z-[80] overflow-auto bg-[var(--bg)] p-4">
+    <div role="dialog" aria-modal="true" aria-labelledby="titre-redresser" className="fixed inset-0 z-[80] overflow-auto bg-[var(--bg)] p-4 pt-20">
       <div className="mx-auto max-w-4xl">
-        <h2 id="titre-redresser" className="mb-2 text-2xl font-extrabold">Recadrer ou redresser la page {numeroPage}</h2>
+        <h2 id="titre-redresser" className="mb-2 text-2xl font-extrabold">{imp ? titreFile(imp.rang, imp.total) : `Recadrer ou redresser la page ${numeroPage}`}</h2>
+        {imp && <p className="mb-2 text-base font-semibold" role="status">{libelleDetection(imp.detecte)}</p>}
         <p className="mb-3 text-base text-[var(--text2)]">
           Placer les 4 coins numérotés sur les 4 coins de la feuille : la feuille est recadrée et remise droite.
-          Le coin 1 devient le haut gauche de la page. Les annotations de cette page seront supprimées.
+          Le coin 1 devient le haut gauche de la page.{imp ? '' : ' Les annotations de cette page seront supprimées.'}
         </p>
         <div className="mb-3 flex flex-wrap gap-2">
           <button type="button" className="plai-btn min-h-[44px]" onClick={appliquer} disabled={!valide || travail}>{travail ? 'Traitement…' : 'Appliquer'}</button>
+          {imp && <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={imp.onGarder} disabled={travail}>Garder tel quel</button>}
           <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => setQuad(q => (q ? tournerQuart(q) : q))} disabled={travail}>Tourner d’un quart de tour</button>
           <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={() => dim && setQuad(quadComplet(dim.l, dim.h))} disabled={travail}>Remettre les coins aux angles</button>
           <button type="button" className="plai-btn-secondaire min-h-[44px]" onClick={onAnnuler} disabled={travail}>Annuler</button>
@@ -112,7 +119,7 @@ export function RedresserPhoto({ image, numeroPage, onAppliquer, onAnnuler }: Pr
                 const l = e.currentTarget.naturalWidth;
                 const h = e.currentTarget.naturalHeight;
                 setDim({ l, h });
-                setQuad(quadComplet(l, h));
+                setQuad(quadInitial ?? quadComplet(l, h));
               }}
             />
           )}

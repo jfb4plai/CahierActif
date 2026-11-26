@@ -8,6 +8,8 @@ import { annuler, creer, peutAnnuler, peutRetablir, pousser, retablir, type Hist
 import { COULEURS_SURLIGNEUR, SURLIGNEUR_EPAISSEUR_MM } from '../lib/couleurs';
 import { TAILLE_TEXTE_DEFAUT_PT } from '../model/texte';
 import { PhotoIllisibleError, preparerPhotos } from '../lib/photo';
+import type { PhotoPrete } from '../lib/fileRecadrage';
+import { RecadrerPhotos } from './RecadrerPhotos';
 import { ajouterPageVierge, ajouterPagesPhotos, changerFond, deplacerPage, remplacerPhoto, degrouperObjets, epaissirObjets, grouperObjets, recolorerObjets, redimensionnerTextes, supprimerObjets } from '../model/ops';
 import type { OutilId } from '../model/outils';
 import type { CahierDoc, Fond, TypeForme } from '../model/types';
@@ -46,6 +48,7 @@ export function Editeur({ initial, reglages, stockage, onFermer, onReglages }: P
   const [h, dispatch] = useReducer(reducteur, initial, creer);
   const doc = h.present;
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
+  const [aRecadrer, setARecadrer] = useState<PhotoPrete[] | null>(null);
   // Document de photos : une URL locale par photo pour l'afficher sous les annotations.
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const imagesPhotos = doc.source.type === 'photos' ? doc.source.images : null;
@@ -310,9 +313,18 @@ export function Editeur({ initial, reglages, stockage, onFermer, onReglages }: P
     validerSaisie();
     try {
       const { images, tailles } = await preparerPhotos(fichiers);
-      commit(ajouterPagesPhotos(dernier.current, images, tailles));
+      setARecadrer(images.map((image, i) => ({ image, taille: tailles[i] })));
     } catch (e) {
       setMessage({ type: 'erreur', texte: e instanceof PhotoIllisibleError ? e.message : 'Les photos n’ont pas pu être ajoutées. Réessayer.' });
+    }
+  };
+
+  const finirAjoutPhotos = (photos: PhotoPrete[]) => {
+    setARecadrer(null);
+    try {
+      commit(ajouterPagesPhotos(dernier.current, photos.map(p => p.image), photos.map(p => p.taille)));
+    } catch {
+      setMessage({ type: 'erreur', texte: 'Les photos n’ont pas pu être ajoutées. Réessayer.' });
     }
   };
 
@@ -478,6 +490,7 @@ export function Editeur({ initial, reglages, stockage, onFermer, onReglages }: P
         {/* Sélecteurs de fichiers hors du volet : un aperçu qui se ferme ne doit pas les démonter pendant le choix. */}
         {doc.source.type === 'photos' && (
           <>
+            {aRecadrer && <RecadrerPhotos photos={aRecadrer} onTermine={finirAjoutPhotos} onAnnuler={() => setARecadrer(null)} />}
             <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void ajouterPhotos(f); }} />
             <input ref={photosInput} type="file" accept="image/*" multiple hidden onChange={e => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void ajouterPhotos(f); }} />
           </>
