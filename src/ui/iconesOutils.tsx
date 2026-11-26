@@ -30,9 +30,10 @@ export function IconeOutil({ id, taille = 22 }: { id: OutilId; taille?: number }
   return <Svg taille={taille}>{CHEMINS[id]}</Svg>;
 }
 
-export type NomIconeUi = 'loupe' | 'rapporteur' | 'compas' | 'regle' | 'equerre' | 'annuler' | 'retablir' | 'retour' | 'telecharger' | 'fichier' | 'bas' | 'haut' | 'pages' | 'moins' | 'plus';
+export type NomIconeUi = 'cache' | 'loupe' | 'rapporteur' | 'compas' | 'regle' | 'equerre' | 'annuler' | 'retablir' | 'retour' | 'telecharger' | 'fichier' | 'bas' | 'haut' | 'pages' | 'moins' | 'plus';
 
 const CHEMINS_UI: Record<NomIconeUi, ReactNode> = {
+  cache: <><rect x="3" y="4" width="18" height="4" rx="1" /><rect x="3" y="16" width="18" height="4" rx="1" /><path d="M6 12h12" /></>,
   loupe: <><circle cx="10" cy="10" r="6" /><path d="M15 15l6 6" /><path d="M7.5 10h5M10 7.5v5" /></>,
   rapporteur: <><path d="M3 18a9 9 0 0 1 18 0z" /><path d="M12 18v-3M6.5 14.5l1.7 1.2M17.5 14.5l-1.7 1.2" /></>,
   compas: <><path d="M12 3v3" /><path d="M12 6L6 20M12 6l6 14" /><path d="M8.5 14h7" /></>,

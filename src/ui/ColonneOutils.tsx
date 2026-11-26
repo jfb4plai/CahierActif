@@ -89,6 +89,19 @@ export function ColonneOutils(p: Props) {
           </div>
         </section>
       )}
+      {p.geometrie && (
+        <section aria-labelledby="groupe-lecture">
+          <h2 id="groupe-lecture" className="mb-1 text-base font-semibold text-[var(--text2)]">Lecture</h2>
+          <div className="flex flex-col gap-1.5">
+            <button type="button" className={(p.geometrie.cacheLigne ? OUTIL_ACTIF : OUTIL_GRIS) + ' w-full justify-start gap-2.5 !px-3'}
+              aria-pressed={p.geometrie.cacheLigne} onClick={p.geometrie.basculerCache}
+              title="Poser ou retirer le cache-ligne : la page est cachée sauf 1 à 3 lignes. Glisser la partie sombre pour descendre d'une ligne à l'autre.">
+              <IconeUi nom="cache" taille={22} />
+              Cache-ligne
+            </button>
+          </div>
+        </section>
+      )}
     </aside>
   );
 }

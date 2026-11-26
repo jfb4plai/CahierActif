@@ -19,6 +19,7 @@ import { BarreOutils, COULEURS, EPAISSEURS, type PropsOutils } from './BarreOuti
 import { creerMiniature } from '../lib/miniature';
 import { creerInstrument, rayonValide, type IdInstrument, type Instrument } from '../model/instruments';
 import { RAYON_LISSAGE } from '../model/lissage';
+import { borneY, HAUTEUR_LIGNE_CACHE_MM, LIGNES_CACHE_DEFAUT, yInitial, type CacheLigne } from '../model/cacheligne';
 import { centrerLoupe, FACTEUR_LOUPE_DEFAUT, type Loupe } from '../model/loupe';
 import { BandeauReglages, BarreBas } from './BandeauReglages';
 import { LARGEUR_COLONNE_PX } from './ColonneOutils';
@@ -119,6 +120,28 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   }, [pageActive]);
   const changerFacteurLoupe = useCallback((facteur: number) => setLoupe(l => (l ? { ...l, facteur } : l)), []);
   const deplacerLoupe = useCallback((c: { x: number; y: number }) => setLoupe(l => (l ? { ...l, ...c } : l)), []);
+  // Cache-ligne : un seul, sur la page active, fenêtre posée au milieu de ce qu'on voit de la page.
+  const [cache, setCache] = useState<CacheLigne | null>(null);
+  const basculerCache = useCallback(() => {
+    setCache(c => {
+      if (c) return null;
+      const page = dernier.current.pages[pageActive];
+      const el = document.querySelector<HTMLElement>(`[data-page-index="${pageActive}"]`);
+      if (!page || !el) return null;
+      const r = el.getBoundingClientRect();
+      const haut = (document.querySelector('[aria-label="Réglages de l’outil"]')?.getBoundingClientRect().bottom ?? 64) + 8;
+      const y = yInitial({ left: r.left, top: r.top, width: r.width, height: r.height },
+        { gauche: 0, droite: window.innerWidth, haut, bas: window.innerHeight - 100 }, page.largeurMm, page.hauteurMm, LIGNES_CACHE_DEFAUT);
+      return { page: pageActive, y, lignes: LIGNES_CACHE_DEFAUT };
+    });
+  }, [pageActive]);
+  const changerLignesCache = useCallback((lignes: number) => {
+    setCache(c => (c ? { ...c, lignes, y: borneY(c.y, lignes, dernier.current.pages[c.page]?.hauteurMm ?? 297) } : c));
+  }, []);
+  const deplacerCache = useCallback((sens: 1 | -1) => {
+    setCache(c => (c ? { ...c, y: borneY(c.y + sens * HAUTEUR_LIGNE_CACHE_MM, c.lignes, dernier.current.pages[c.page]?.hauteurMm ?? 297) } : c));
+  }, []);
+  const positionCache = useCallback((y: number) => setCache(c => (c ? { ...c, y } : c)), []);
   const ajusterRayonCompas = useCallback((deltaMm: number) => {
     setInstruments(l => l.map(i => (i.id === 'compas' ? { ...i, rayon: rayonValide((i.rayon ?? 40) + deltaMm) } : i)));
   }, []);
@@ -362,6 +385,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
       rayonCompas: instruments.find(i => i.id === 'compas')?.rayon ?? null,
       ajusterRayon: ajusterRayonCompas,
       loupe: loupe !== null, facteurLoupe: loupe?.facteur ?? null, changerFacteurLoupe, basculerLoupe,
+      cacheLigne: cache !== null, lignesCache: cache?.lignes ?? null, changerLignesCache, deplacerCache, basculerCache,
     } : undefined,
   };
   const pages = (
@@ -388,6 +412,8 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             instruments={instruments}
             loupe={loupe && loupe.page === i ? loupe : undefined}
             onLoupe={deplacerLoupe}
+            cacheLigne={cache && cache.page === i ? { y: cache.y, lignes: cache.lignes } : undefined}
+            onCacheLigne={positionCache}
             onInstrument={majInstrument}
             aimantation={reglages.aimantation}
             taillePtTexte={taillePtTexte}

@@ -80,6 +80,12 @@ export type PropsOutils = {
     facteurLoupe: number | null;
     changerFacteurLoupe: (f: number) => void;
     basculerLoupe: () => void;
+    /** Cache-ligne : posé ou non, nombre de lignes de sa fenêtre (null = pas posé), changement et déplacement d'une ligne (+1 bas, -1 haut). */
+    cacheLigne: boolean;
+    lignesCache: number | null;
+    changerLignesCache: (n: number) => void;
+    deplacerCache: (sens: 1 | -1) => void;
+    basculerCache: () => void;
   };
 };
 

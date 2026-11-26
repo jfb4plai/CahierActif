@@ -7,6 +7,7 @@ import { COULEURS, EPAISSEURS, type PropsOutils } from './BarreOutils';
 import { CONTENEUR_SEGMENTS, OPTION_CHOISIE, OUTIL_GRIS, SEGMENT, SEGMENT_ACTIF } from './ColonneOutils';
 import { IconeUi } from './iconesOutils';
 import { longueurCm } from '../model/instruments';
+import { LIGNES_CACHE } from '../model/cacheligne';
 import { FACTEURS_LOUPE } from '../model/loupe';
 import { PaletteCouleurs } from './PaletteCouleurs';
 
@@ -55,7 +56,7 @@ function Coeur(p: PropsOutils) {
 
 /** Vrai quand l'outil a des options à montrer dans la fenêtre. */
 export function aOptions(p: PropsOutils): boolean {
-  return p.outil === 'formes' || p.outil === 'droite' || !!p.selection || !!p.surligneur || !!p.tailleTexte || p.geometrie?.rayonCompas != null || p.geometrie?.facteurLoupe != null;
+  return p.outil === 'formes' || p.outil === 'droite' || !!p.selection || !!p.surligneur || !!p.tailleTexte || p.geometrie?.rayonCompas != null || p.geometrie?.facteurLoupe != null || p.geometrie?.lignesCache != null;
 }
 
 /**
@@ -177,6 +178,23 @@ function FenetreOptions(p: PropsOutils & { onReplier: () => void }) {
             {([['−1 cm', -10], ['−1 mm', -1], ['+1 mm', 1], ['+1 cm', 10]] as const).map(([libelle, delta]) => (
               <button key={libelle} type="button" className={`${OUTIL_GRIS} ${PUCE} justify-center !min-w-[56px] !px-2`} onClick={() => p.geometrie!.ajusterRayon(delta)}>{libelle}</button>
             ))}
+          </div>
+        </div>
+      )}
+      {p.geometrie?.lignesCache != null && (
+        <div role="group" aria-label="Cache-ligne" className="flex flex-col gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-base font-medium">Lignes visibles</span>
+            <div className={CONTENEUR_SEGMENTS}>
+              {LIGNES_CACHE.map(n => (
+                <button key={n} type="button" className={(p.geometrie?.lignesCache === n ? SEGMENT_ACTIF : SEGMENT) + ' !min-w-[48px]'}
+                  aria-pressed={p.geometrie?.lignesCache === n} onClick={() => p.geometrie?.changerLignesCache(n)}>{n}</button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-1.5">
+            <button type="button" className={`${OUTIL_GRIS} ${PUCE} gap-2`} onClick={() => p.geometrie?.deplacerCache(-1)}><IconeUi nom="haut" />Monter</button>
+            <button type="button" className={`${OUTIL_GRIS} ${PUCE} gap-2`} onClick={() => p.geometrie?.deplacerCache(1)}><IconeUi nom="bas" />Descendre</button>
           </div>
         </div>
       )}
