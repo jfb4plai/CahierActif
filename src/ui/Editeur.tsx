@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { ETAT_INITIAL, type EtatStylet } from '../input/pointerPolicy';
 import { nomFichier, partagerOuTelecharger } from '../lib/partage';
-import { pxParMm, zoomAjuste } from '../lib/units';
+import { pxParMm, zoomAjuste, zoomPourOperation } from '../lib/units';
 import type { Reglages } from '../lib/reglages';
 import { versCahier } from '../fichier/cahier';
 import { annuler, creer, peutAnnuler, peutRetablir, pousser, retablir, type Historique } from '../model/history';
@@ -75,6 +75,24 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
   const peekEntete = usePeek();
   const avecColonne = reglages.niveau !== 'p1p2';
   const [zoom, setZoom] = useState(() => (avecColonne ? zoomAjuste(window.innerWidth - (ui.colonneRepliee ? LARGEUR_BANDE_PX : LARGEUR_COLONNE_PX) - 48, initial.pages[0]?.largeurMm ?? 210) : 1));
+  // Saisie d'une opération : on agrandit la page pour des cases confortables, puis on revient au zoom d'avant.
+  // Si l'élève a touché au zoom entre-temps, on respecte son choix et on ne revient pas en arrière.
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const zoomSaisie = useRef<{ avant: number; cible: number } | null>(null);
+  const operationOuverte = useCallback((largeurMm: number | null) => {
+    if (largeurMm !== null) {
+      if (zoomSaisie.current) return;
+      const dispo = window.innerWidth - (avecColonne ? LARGEUR_COLONNE_PX : 0) - 48;
+      const cible = zoomPourOperation(largeurMm, dispo, zoomRef.current);
+      zoomSaisie.current = { avant: zoomRef.current, cible };
+      setZoom(cible);
+    } else if (zoomSaisie.current) {
+      const { avant, cible } = zoomSaisie.current;
+      zoomSaisie.current = null;
+      if (zoomRef.current === cible) setZoom(avant);
+    }
+  }, [avecColonne]);
   const [pageActive, setPageActive] = useState(0);
   const [etatStylet, setEtatStylet] = useState<EtatStylet>(ETAT_INITIAL);
   const [message, setMessage] = useState<{ type: 'erreur' | 'info'; texte: string } | null>(null);
@@ -316,6 +334,7 @@ export function Editeur({ initial, reglages, stockage, onFermer }: Props) {
             photoUrl={photoUrls[doc.pages[i].origine ?? i]}
             modeSurligneur={modeSurligneur}
             lissage={RAYON_LISSAGE[reglages.lissage]}
+            onOperationOuverte={operationOuverte}
             taillePtTexte={taillePtTexte}
             selectionId={outilSelection && selection?.page === i && selection.ids.length === 1 ? selection.ids[0] : null}
             selectionIds={outilSelection && selection?.page === i ? selection.ids : []}

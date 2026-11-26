@@ -16,7 +16,7 @@ import { OUTIL_TYPE, type OutilId } from '../model/outils';
 import { nouvelId } from '../model/types';
 import type { CahierDoc, Droite, Forme, ModeEntree, Niveau, Objet, ObjetMaths, Point, Texte, TypeForme } from '../model/types';
 import { creerFraction } from '../maths/fraction';
-import { creerOperation, type ParamsOperation } from '../maths/operation';
+import { creerOperation, geometrieOperation, type ParamsOperation } from '../maths/operation';
 import { ajouterPoint, creerRepere, type ParamsRepere } from '../maths/repere';
 import { estVide } from '../maths/vide';
 import type { PDFDocumentProxy } from '../pdf/pdfjs';
@@ -46,6 +46,8 @@ type Props = {
   photoUrl?: string;
   /** Surligneur : « libre » suit le doigt, « lineaire » trace une droite du début à la fin du glissé. */
   modeSurligneur: 'libre' | 'lineaire';
+  /** Largeur (mm) de l'opération en cours de saisie, ou null à la fin : l'éditeur agrandit alors la page (voir Editeur). */
+  onOperationOuverte?: (largeurMm: number | null) => void;
   /** Rayon du lissage du trait à main levée (0 = aucun), voir model/lissage.ts. */
   lissage: number;
   /** Taille (points) des nouveaux textes. */
@@ -156,6 +158,40 @@ export function PageVue(p: Props) {
   const mathsRef = useRef<EnEditionMaths | null>(null); // même rôle que editionRef
   const [dialogue, setDialogue] = useState<{ type: 'operation' | 'repere'; x: number; y: number } | null>(null);
   const racine = useRef<HTMLDivElement>(null);
+  // Saisie d'une opération : l'éditeur agrandit la page, puis cet effet amène l'opération dans la zone libre de l'écran
+  // (sous le bandeau collant, au-dessus du pavé numérique) : une opération posée en bas de page serait sinon cachée par le pavé.
+  const operationEnSaisie = maths?.objet.type === 'operation' ? maths.objet.id : null;
+  useEffect(() => {
+    p.onOperationOuverte?.(operationEnSaisie && mathsRef.current?.objet.type === 'operation' ? geometrieOperation(mathsRef.current.objet).largeur : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operationEnSaisie]);
+  useEffect(() => {
+    if (!operationEnSaisie) return;
+    const t = window.setTimeout(() => {
+      const ed = mathsRef.current;
+      const cadre = scene.current?.container().getBoundingClientRect();
+      if (!ed || ed.objet.type !== 'operation' || !cadre) return;
+      const g = geometrieOperation(ed.objet);
+      const haut = cadre.top + ed.objet.y * p.pxMm, bas = haut + g.hauteur * p.pxMm;
+      const gauche = cadre.left + ed.objet.x * p.pxMm, droite = gauche + g.largeur * p.pxMm;
+      const libreHaut = (document.querySelector('[aria-label="Réglages de l’outil"]')?.getBoundingClientRect().bottom ?? 64) + 12;
+      const pave = document.querySelector('[aria-label="Pavé numérique"]')?.getBoundingClientRect().height ?? 320;
+      const libreBas = window.innerHeight - pave - 24;
+      if (haut < libreHaut || bas > libreBas) {
+        // Juste assez pour entrer dans la zone libre, sans cacher le haut de l'opération.
+        const dy = haut < libreHaut ? haut - libreHaut : Math.min(bas - libreBas, haut - libreHaut);
+        window.scrollBy({ top: dy, behavior: 'auto' });
+      }
+      const conteneur = racine.current?.closest<HTMLElement>('.overflow-auto');
+      if (conteneur) {
+        const c = conteneur.getBoundingClientRect();
+        if (droite > c.right - 8) conteneur.scrollLeft += droite - c.right + 16;
+        else if (gauche < c.left + 8) conteneur.scrollLeft -= c.left - gauche + 16;
+      }
+    }, 80); // après le rendu du nouveau zoom et l'apparition du pavé
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operationEnSaisie, p.pxMm]);
   const scene = useRef<Konva.Stage>(null);
   // Les deux premières pages sont montées d'emblée (pas de page blanche au premier affichage).
   const [visible, setVisible] = useState(typeof IntersectionObserver === 'undefined' || p.pageIndex < 2);

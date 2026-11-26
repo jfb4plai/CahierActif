@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { zoomAjuste, pxParMm, ptVersMm, mmVersPt, MM_PAR_PT, ratioPixelsMax, PIXELS_CANVAS_MAX } from './units';
+import { zoomPourOperation, ZOOM_SAISIE_OPERATION, zoomAjuste, pxParMm, ptVersMm, mmVersPt, MM_PAR_PT, ratioPixelsMax, PIXELS_CANVAS_MAX } from './units';
 
 describe('units', () => {
   it('à zoom 1, 25,4 mm = 96 px CSS', () => {
@@ -45,5 +45,20 @@ describe('zoomAjuste', () => {
   });
   it('jamais sous 50 %', () => {
     expect(zoomAjuste(200, 210)).toBe(0.5);
+  });
+});
+
+describe('zoomPourOperation', () => {
+  it('agrandit une petite opération jusqu’au zoom de saisie', () => {
+    expect(zoomPourOperation(40, 600, 0.6)).toBe(ZOOM_SAISIE_OPERATION);
+  });
+  it('ne dépasse pas 80 % de la largeur disponible', () => {
+    const z = zoomPourOperation(120, 600, 0.6);
+    expect(z).toBeLessThan(ZOOM_SAISIE_OPERATION);
+    expect(120 * pxParMm(z)).toBeLessThanOrEqual(600 * 0.8 + 1e-6);
+  });
+  it('ne réduit jamais le zoom actuel', () => {
+    expect(zoomPourOperation(400, 300, 1)).toBe(1);
+    expect(zoomPourOperation(40, 600, 2)).toBe(2);
   });
 });

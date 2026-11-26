@@ -29,3 +29,15 @@ export function zoomAjuste(largeurDispoPx: number, largeurPageMm: number): numbe
   const brut = largeurDispoPx / (largeurPageMm * PX_PAR_MM_ZOOM1);
   return Math.max(0.5, Math.min(1, Math.floor(brut * 20) / 20));
 }
+
+/** Zoom cible maximal pendant la saisie d'une opération : une case de 10 mm mesure alors environ 57 px, bien touchable. */
+export const ZOOM_SAISIE_OPERATION = 1.5;
+
+/**
+ * Zoom à prendre pendant la saisie d'une opération : plus grand que l'actuel (jamais plus petit), au plus ZOOM_SAISIE_OPERATION,
+ * et assez petit pour que l'opération tienne dans 80 % de la largeur disponible. Par pas de 5 %.
+ */
+export function zoomPourOperation(largeurOperationMm: number, largeurDispoPx: number, zoomActuel: number): number {
+  const tient = Math.floor((largeurDispoPx * 0.8) / (largeurOperationMm * PX_PAR_MM_ZOOM1) * 20) / 20;
+  return Math.max(zoomActuel, Math.min(ZOOM_SAISIE_OPERATION, tient));
+}
